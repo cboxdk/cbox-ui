@@ -1,0 +1,213 @@
+/*
+ * Cbox design tokens.
+ *
+ * Drop this file into a Cbox-family app's CSS via:
+ *
+ *   @import '@cboxdk/cbox-ui/tokens';
+ *
+ * Then reference the tokens via Tailwind utilities (text-foreground,
+ * bg-card, border-border, etc.) — the @theme block at the bottom
+ * registers them as Tailwind v4 utilities.
+ *
+ * Cool-neutral palette. Single deep-blue primary. Plus Jakarta Sans
+ * + JetBrains Mono. Designed for ops + identity surfaces — refined,
+ * legible, sans editorial drama.
+ */
+
+:root {
+    --background: oklch(0.992 0.003 247);
+    --canvas: oklch(0.975 0.008 250);
+    --foreground: oklch(0.18 0.012 250);
+
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.18 0.012 250);
+
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.18 0.012 250);
+
+    --primary: oklch(0.45 0.16 258);
+    --primary-foreground: oklch(0.99 0.003 247);
+
+    --secondary: oklch(0.96 0.006 250);
+    --secondary-foreground: oklch(0.22 0.012 250);
+
+    --muted: oklch(0.96 0.006 250);
+    --muted-foreground: oklch(0.5 0.012 250);
+
+    --accent: oklch(0.5 0.17 258);
+    --accent-foreground: oklch(0.99 0.003 247);
+    --accent-soft: oklch(0.5 0.17 258 / 0.08);
+    --accent-edge: oklch(0.5 0.17 258 / 0.32);
+
+    --success: oklch(0.62 0.16 145);
+    --success-foreground: oklch(0.99 0.003 247);
+    --success-soft: oklch(0.62 0.16 145 / 0.12);
+
+    --warning: oklch(0.72 0.16 70);
+    --warning-foreground: oklch(0.18 0.04 70);
+    --warning-soft: oklch(0.72 0.16 70 / 0.14);
+
+    --info: oklch(0.62 0.16 230);
+    --info-soft: oklch(0.62 0.16 230 / 0.12);
+
+    --destructive: oklch(0.58 0.21 25);
+    --destructive-foreground: oklch(0.99 0.003 247);
+    --destructive-soft: oklch(0.58 0.21 25 / 0.12);
+
+    --border: oklch(0.92 0.006 250);
+    --border-strong: oklch(0.86 0.008 250);
+    --input: oklch(0.94 0.005 250);
+    --ring: oklch(0.5 0.17 258);
+
+    --chart-1: oklch(0.5 0.17 258);
+    --chart-2: oklch(0.62 0.16 145);
+    --chart-3: oklch(0.72 0.16 70);
+    --chart-4: oklch(0.58 0.21 25);
+    --chart-5: oklch(0.6 0.16 295);
+
+    --sidebar: oklch(0.985 0.005 250);
+    --sidebar-foreground: oklch(0.22 0.012 250);
+    --sidebar-muted: oklch(0.55 0.012 250);
+    --sidebar-accent: oklch(0.94 0.008 250);
+    --sidebar-accent-foreground: oklch(0.18 0.012 250);
+    --sidebar-border: oklch(0.92 0.006 250);
+    --sidebar-ring: oklch(0.5 0.17 258);
+}
+
+.dark {
+    --background: oklch(0.155 0.01 250);
+    --canvas: oklch(0.18 0.01 250);
+    --foreground: oklch(0.97 0.005 247);
+
+    --card: oklch(0.2 0.01 250);
+    --card-foreground: oklch(0.97 0.005 247);
+
+    --popover: oklch(0.21 0.011 250);
+    --popover-foreground: oklch(0.97 0.005 247);
+
+    --primary: oklch(0.65 0.18 258);
+    --primary-foreground: oklch(0.16 0.01 250);
+
+    --secondary: oklch(0.25 0.012 250);
+    --secondary-foreground: oklch(0.96 0.005 247);
+
+    --muted: oklch(0.24 0.012 250);
+    --muted-foreground: oklch(0.7 0.012 250);
+
+    --accent: oklch(0.65 0.18 258);
+    --accent-foreground: oklch(0.16 0.01 250);
+    --accent-soft: oklch(0.65 0.18 258 / 0.18);
+    --accent-edge: oklch(0.65 0.18 258 / 0.42);
+
+    --success: oklch(0.74 0.16 145);
+    --success-foreground: oklch(0.16 0.04 145);
+    --success-soft: oklch(0.74 0.16 145 / 0.16);
+
+    --warning: oklch(0.78 0.16 70);
+    --warning-foreground: oklch(0.16 0.04 70);
+    --warning-soft: oklch(0.78 0.16 70 / 0.18);
+
+    --info: oklch(0.7 0.16 230);
+    --info-soft: oklch(0.7 0.16 230 / 0.16);
+
+    --destructive: oklch(0.68 0.21 25);
+    --destructive-foreground: oklch(0.16 0.01 250);
+    --destructive-soft: oklch(0.68 0.21 25 / 0.16);
+
+    --border: oklch(0.28 0.012 250);
+    --border-strong: oklch(0.36 0.014 250);
+    --input: oklch(0.26 0.012 250);
+    --ring: oklch(0.65 0.18 258);
+
+    --chart-1: oklch(0.65 0.18 258);
+    --chart-2: oklch(0.74 0.16 145);
+    --chart-3: oklch(0.78 0.16 70);
+    --chart-4: oklch(0.68 0.21 25);
+    --chart-5: oklch(0.72 0.16 295);
+
+    --sidebar: oklch(0.18 0.01 250);
+    --sidebar-foreground: oklch(0.96 0.005 247);
+    --sidebar-muted: oklch(0.65 0.012 250);
+    --sidebar-accent: oklch(0.24 0.012 250);
+    --sidebar-accent-foreground: oklch(0.97 0.005 247);
+    --sidebar-border: oklch(0.28 0.012 250);
+    --sidebar-ring: oklch(0.65 0.18 258);
+}
+
+/*
+ * Tailwind v4 token registration — exposes the CSS vars as utility
+ * classes (text-foreground, bg-card, border-border, …).
+ */
+@theme inline {
+    --font-sans:
+        'Plus Jakarta Sans', 'Instrument Sans', ui-sans-serif, system-ui,
+        sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
+    --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-mono:
+        'JetBrains Mono', ui-monospace, SFMono-Regular, 'Roboto Mono', Menlo,
+        Monaco, monospace;
+
+    --radius: 0.625rem;
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-canvas: var(--canvas);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent-soft: var(--accent-soft);
+    --color-accent-edge: var(--accent-edge);
+
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-success-soft: var(--success-soft);
+
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-warning-soft: var(--warning-soft);
+
+    --color-info: var(--info);
+    --color-info-soft: var(--info-soft);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive-soft: var(--destructive-soft);
+
+    --color-border: var(--border);
+    --color-border-strong: var(--border-strong);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-muted: var(--sidebar-muted);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+}
