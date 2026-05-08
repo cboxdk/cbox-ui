@@ -107,7 +107,13 @@ export type CboxIdContextValue = {
         /** POST endpoint that signs the user out. */
         signOutUrl: string;
     };
-    notifications?: CboxNotificationsState;
+    /**
+     * Notification feed state, or null/undefined when the user has no
+     * inbox configured. id's wire shape sets `null` explicitly; the
+     * type accepts both shapes so apps can pass the payload straight
+     * through without a null→undefined adapter.
+     */
+    notifications?: CboxNotificationsState | null;
     /**
      * Called when the user picks a different org from the switcher.
      * Default behaviour (when undefined): POST to `urls.switchOrgUrl`

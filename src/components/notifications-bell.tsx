@@ -11,7 +11,7 @@ import { cn } from '../utils/cn';
  */
 export function NotificationsBell({ className }: { className?: string }) {
     const ctx = useCboxIdOptional();
-    if (ctx === null || ctx.notifications === undefined) {
+    if (ctx === null || ctx.notifications === undefined || ctx.notifications === null) {
         return null;
     }
 
