@@ -12,6 +12,8 @@ export {
 } from './context/cbox-id';
 
 // Layout shell — chrome that sits at the top of every app.
+export { AppContent } from './layout/app-content';
+export { AppShell } from './layout/app-shell';
 export { TopBar } from './layout/top-bar';
 
 // Cross-app chrome controls.

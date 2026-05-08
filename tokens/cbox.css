@@ -211,3 +211,64 @@
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
 }
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+    .tabular {
+        font-variant-numeric: tabular-nums;
+    }
+}
+
+@layer utilities {
+    .text-eyebrow {
+        font-family: var(--font-sans);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        color: var(--sidebar-muted);
+    }
+
+    .text-mono {
+        font-family: var(--font-mono);
+    }
+
+    /* Subtle blue-tinted gradient washed across the content canvas.
+     * Every Cbox app uses this on its main scroll column so the
+     * surface feels consistent across id, webhooks, cortex, etc.
+     */
+    .canvas-gradient {
+        background:
+            radial-gradient(
+                ellipse 1200px 600px at 100% 0%,
+                oklch(0.5 0.17 258 / 0.04) 0%,
+                transparent 60%
+            ),
+            radial-gradient(
+                ellipse 800px 400px at 0% 100%,
+                oklch(0.6 0.16 295 / 0.04) 0%,
+                transparent 60%
+            ),
+            var(--canvas);
+    }
+
+    .dark .canvas-gradient {
+        background:
+            radial-gradient(
+                ellipse 1200px 600px at 100% 0%,
+                oklch(0.65 0.18 258 / 0.06) 0%,
+                transparent 60%
+            ),
+            radial-gradient(
+                ellipse 800px 400px at 0% 100%,
+                oklch(0.7 0.16 295 / 0.05) 0%,
+                transparent 60%
+            ),
+            var(--canvas);
+    }
+}
