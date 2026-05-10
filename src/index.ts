@@ -20,18 +20,33 @@ export { TopBar } from './layout/top-bar';
 export { AppLauncher } from './components/app-launcher';
 export { NotificationsBell } from './components/notifications-bell';
 export { OrgSwitcher } from './components/org-switcher';
+export { SearchTrigger } from './components/search-trigger';
 export { UserMenu } from './components/user-menu';
 
+// Form primitives.
+export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox';
+
 // Page primitives.
+export { ContextBar, type ContextItem } from './primitives/context-bar';
 export { DataPanel, PanelBody, SectionHeader } from './primitives/data-panel';
 export { EmptyState } from './primitives/empty-state';
 export { default as Heading } from './primitives/heading';
 export { KeyValue, KeyValueList } from './primitives/key-value';
 export { PageHeader } from './primitives/page-header';
-export { PageShell } from './primitives/page-shell';
+export { PageShell, type PageWidth } from './primitives/page-shell';
+export { RowLink } from './primitives/row-link';
 export { PageTabs, type PageTabSpec } from './primitives/page-tabs';
 export { StatTile } from './primitives/stat-tile';
 export { StatusPill } from './primitives/status-pill';
 
 // Utilities.
 export { cn } from './utils/cn';
+export {
+    buildUrlSearch,
+    defineUrlSchema,
+    parseUrlSearch,
+    urlEnum,
+    urlString,
+    type InferUrlState,
+    type UrlSchema,
+} from './utils/url-state';

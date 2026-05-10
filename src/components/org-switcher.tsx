@@ -34,6 +34,9 @@ export function OrgSwitcher({ Trigger = DefaultTrigger, className }: Props) {
         // Fallback: form-POST to id's switch endpoint and let the
         // server bounce us back. CSRF token comes from the meta tag
         // most Cbox apps already render in their layout head.
+        // If no switchOrgUrl is configured, do nothing — the host app
+        // must provide onSwitchOrganization in that case.
+        if (!urls.switchOrgUrl) return;
         const csrf = document
             .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
             ?.content;

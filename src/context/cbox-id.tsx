@@ -162,6 +162,12 @@ export type CboxIdContextValue = {
         orgSettingsUrl: string | null;
         /** POST endpoint that signs the user out. */
         signOutUrl: string;
+        /**
+         * POST endpoint in id that switches the user's active org.
+         * Used by OrgSwitcher as a fallback when `onSwitchOrganization`
+         * is not provided — covers apps that can't do a pure URL swap.
+         */
+        switchOrgUrl?: string;
     };
     /**
      * Notification feed state, or null/undefined when the user has no
