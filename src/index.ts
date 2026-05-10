@@ -31,7 +31,7 @@ export { EmptyState } from './primitives/empty-state';
 export { default as Heading } from './primitives/heading';
 export { KeyValue, KeyValueList } from './primitives/key-value';
 export { PageHeader } from './primitives/page-header';
-export { PageShell } from './primitives/page-shell';
+export { PageShell, type PageWidth } from './primitives/page-shell';
 export { PageTabs, type PageTabSpec } from './primitives/page-tabs';
 export { StatTile } from './primitives/stat-tile';
 export { StatusPill } from './primitives/status-pill';
