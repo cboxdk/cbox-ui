@@ -20,6 +20,7 @@ export { TopBar } from './layout/top-bar';
 export { AppLauncher } from './components/app-launcher';
 export { NotificationsBell } from './components/notifications-bell';
 export { OrgSwitcher } from './components/org-switcher';
+export { SearchTrigger } from './components/search-trigger';
 export { UserMenu } from './components/user-menu';
 
 // Form primitives.
