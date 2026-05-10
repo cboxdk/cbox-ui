@@ -38,6 +38,7 @@
         "typecheck": "tsc --noEmit"
     },
     "peerDependencies": {
+        "@headlessui/react": "^2.0.0",
         "lucide-react": ">=0.400.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
@@ -53,6 +54,7 @@
         "tailwind-merge": "^3.0.0"
     },
     "devDependencies": {
+        "@headlessui/react": "^2.2.10",
         "@types/node": "^22.0.0",
         "@types/react": "^19.0.0",
         "@types/react-dom": "^19.0.0",

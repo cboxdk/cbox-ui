@@ -22,6 +22,9 @@ export { NotificationsBell } from './components/notifications-bell';
 export { OrgSwitcher } from './components/org-switcher';
 export { UserMenu } from './components/user-menu';
 
+// Form primitives.
+export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox';
+
 // Page primitives.
 export { DataPanel, PanelBody, SectionHeader } from './primitives/data-panel';
 export { EmptyState } from './primitives/empty-state';
