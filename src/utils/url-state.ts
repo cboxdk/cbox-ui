@@ -11,8 +11,17 @@ export type InferUrlState<S extends UrlSchema> = {
 };
 
 /**
- * String field. Empty default behaves as "absent" — serialised
- * to nothing. Any non-empty string round-trips verbatim.
+ * String field for URL state.
+ *
+ * Parse contract:
+ *  - missing param (`null` from `URLSearchParams.get`) → default value
+ *  - explicit empty (`?q=`) → empty string
+ *
+ * When the default is `''`, both forms collapse to `''` — equivalent.
+ * When the default is non-empty (e.g. `urlString('all')`), `?q=` gives
+ * you `''` (not `'all'`), and a missing `q` gives you `'all'`. The
+ * serializer omits any value equal to the default, so non-default
+ * values round-trip stably regardless.
  */
 export function urlString(defaultValue = ''): UrlField<string> {
     return {
@@ -54,8 +63,7 @@ export function parseUrlSearch<S extends UrlSchema>(
     const out = {} as InferUrlState<S>;
     for (const key of Object.keys(schema)) {
         const field = schema[key]!;
-        // @ts-expect-error - dynamic write
-        out[key] = field.parse(params.get(key));
+        (out as Record<string, unknown>)[key] = field.parse(params.get(key));
     }
     return out;
 }

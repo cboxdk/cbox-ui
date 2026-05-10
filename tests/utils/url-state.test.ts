@@ -36,4 +36,13 @@ describe('url-state', () => {
         expect(buildUrlSearch({ q: '', tier: 'high' }, schema)).toBe('tier=high');
         expect(buildUrlSearch({ q: '', tier: 'all' }, schema)).toBe('');
     });
+
+    it('urlString with non-empty default distinguishes missing from explicit empty', () => {
+        const s = defineUrlSchema({ q: urlString('foo') });
+        expect(parseUrlSearch('', s)).toEqual({ q: 'foo' });           // missing → default
+        expect(parseUrlSearch('?q=', s)).toEqual({ q: '' });           // explicit empty → ''
+        expect(parseUrlSearch('?q=bar', s)).toEqual({ q: 'bar' });    // explicit non-default → verbatim
+        // Round-trip: explicit empty serialises back to `q=` (not omitted, since '' ≠ 'foo').
+        expect(buildUrlSearch({ q: '' }, s)).toBe('q=');
+    });
 });
