@@ -26,6 +26,7 @@ export { UserMenu } from './components/user-menu';
 export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox';
 
 // Page primitives.
+export { ContextBar, type ContextItem } from './primitives/context-bar';
 export { DataPanel, PanelBody, SectionHeader } from './primitives/data-panel';
 export { EmptyState } from './primitives/empty-state';
 export { default as Heading } from './primitives/heading';
