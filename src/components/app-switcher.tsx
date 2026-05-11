@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type KeyboardEvent as ReactKeyboardEvent,
+    type ReactNode,
+} from 'react';
 import { useCboxIdOptional, type CboxAppLink } from '../context/cbox-id';
 import { cn } from '../utils/cn';
 
@@ -25,13 +32,33 @@ type AppSwitcherProps = {
  * with per-app accent, name, description, and entitlement badges. Entitled
  * apps are grouped first; locked / coming-soon land in an "Available" section.
  *
+ * Includes typeahead — auto-focus on open, filters name/description/key as
+ * the user types, arrow-key navigation, Enter to activate, Escape to close.
+ *
  * Soft-reads via useCboxIdOptional — renders null when no provider is
  * mounted above (admin shells, pre-auth pages).
  */
 export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
     const cboxId = useCboxIdOptional();
     const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const [activeIndex, setActiveIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const searchRef = useRef<HTMLInputElement | null>(null);
+
+    // Reset transient state every time the dropdown opens so we don't
+    // leak the previous session's query/highlight into a fresh open.
+    useEffect(() => {
+        if (open) {
+            setQuery('');
+            setActiveIndex(0);
+            // Focus on next tick — the input isn't mounted on the same
+            // frame that flips `open=true`. requestAnimationFrame is the
+            // simplest cross-browser way to wait for that mount.
+            const id = requestAnimationFrame(() => searchRef.current?.focus());
+            return () => cancelAnimationFrame(id);
+        }
+    }, [open]);
 
     // Click-outside + Escape — mirrors every other Cbox top-bar control.
     useEffect(() => {
@@ -74,20 +101,105 @@ export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
     // The host/current app — used to build the trigger label.
     const currentApp = apps.find((a) => a.current === true) ?? null;
 
-    // Split entitled vs. locked so entitled apps appear first.
-    // Coming-soon apps travel with the locked set — same "not actionable
-    // right now" visual treatment.
-    const entitled: CboxAppLink[] = [];
-    const locked: CboxAppLink[] = [];
-    for (const app of apps) {
-        const isEntitled = app.entitled !== false && app.comingSoon !== true;
-        (isEntitled ? entitled : locked).push(app);
-    }
+    // Filter + partition together so the activeIndex below maps cleanly
+    // onto the rendered order: entitled rows first, then locked rows.
+    const { entitled, locked, navigableHrefs } = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        const matches = (app: CboxAppLink) => {
+            if (q === '') {
+                return true;
+            }
+            return (
+                app.name.toLowerCase().includes(q) ||
+                app.key.toLowerCase().includes(q) ||
+                (app.description?.toLowerCase().includes(q) ?? false)
+            );
+        };
+
+        const entitledList: CboxAppLink[] = [];
+        const lockedList: CboxAppLink[] = [];
+        for (const app of apps) {
+            if (!matches(app)) {
+                continue;
+            }
+            const isEntitled = app.entitled !== false && app.comingSoon !== true;
+            (isEntitled ? entitledList : lockedList).push(app);
+        }
+
+        // Flat list of navigable hrefs in render order — used by Enter on
+        // the search input to "activate" the highlighted row. Coming-soon
+        // rows are skipped (they're not actionable).
+        const navigable: Array<{ app: CboxAppLink; isLocked: boolean }> = [];
+        for (const app of entitledList) {
+            if (app.current !== true) {
+                navigable.push({ app, isLocked: false });
+            }
+        }
+        for (const app of lockedList) {
+            if (app.comingSoon !== true) {
+                navigable.push({ app, isLocked: true });
+            }
+        }
+
+        return {
+            entitled: entitledList,
+            locked: lockedList,
+            navigableHrefs: navigable,
+        };
+    }, [apps, query]);
+
+    const totalMatches = entitled.length + locked.length;
+
+    // Clamp activeIndex into the navigable range whenever the filter changes
+    // so a query that shrinks the list doesn't leave the highlight pointing
+    // past the end.
+    useEffect(() => {
+        if (activeIndex >= navigableHrefs.length) {
+            setActiveIndex(0);
+        }
+    }, [navigableHrefs.length, activeIndex]);
 
     const triggerMonogram =
         currentApp?.monogram ?? currentApp?.name.slice(0, 1).toUpperCase() ?? '⬛';
     const triggerName = currentApp?.name ?? 'Apps';
     const triggerAccent = currentApp?.accentColor;
+
+    function onSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>): void {
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            if (navigableHrefs.length === 0) {
+                return;
+            }
+            setActiveIndex((i) => (i + 1) % navigableHrefs.length);
+            return;
+        }
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (navigableHrefs.length === 0) {
+                return;
+            }
+            setActiveIndex((i) => (i - 1 + navigableHrefs.length) % navigableHrefs.length);
+            return;
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const target = navigableHrefs[activeIndex];
+            if (target === undefined) {
+                return;
+            }
+            if (target.isLocked) {
+                onLockedAppClick?.(target.app);
+                setOpen(false);
+                return;
+            }
+            const href =
+                orgSlug !== undefined && target.app.current !== true
+                    ? buildOrgUrl(target.app.url, orgSlug)
+                    : target.app.url;
+            window.location.href = href;
+            setOpen(false);
+        }
+    }
 
     return (
         <div ref={containerRef} className={cn('relative', className)}>
@@ -134,24 +246,60 @@ export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
                     // without wrapping. Clamps to viewport-minus-gutter on narrow screens.
                     className="absolute left-0 top-full z-50 mt-1 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-border bg-popover shadow-lg"
                 >
-                    <div className="border-b border-border/70 px-3 py-2.5">
+                    <div className="border-b border-border/70 px-3 pt-2.5 pb-1.5">
                         <p className="text-mono text-[10px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
                             Switch app
                         </p>
                     </div>
 
+                    <div className="border-b border-border/70 px-2 py-1.5">
+                        <div className="flex items-center gap-2 rounded-md px-2 py-1 focus-within:bg-secondary">
+                            <SearchIcon />
+                            <input
+                                ref={searchRef}
+                                type="text"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                onKeyDown={onSearchKeyDown}
+                                placeholder="Filter apps…"
+                                aria-label="Filter apps"
+                                autoComplete="off"
+                                spellCheck={false}
+                                className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                            />
+                        </div>
+                    </div>
+
                     <div className="max-h-[60vh] overflow-y-auto py-1">
+                        {totalMatches === 0 ? (
+                            <p className="px-3 py-6 text-center text-[12px] text-muted-foreground">
+                                No apps match{' '}
+                                <span className="text-mono text-foreground">
+                                    “{query}”
+                                </span>
+                            </p>
+                        ) : null}
+
                         {entitled.length > 0 ? (
                             <ul className="space-y-0.5 p-1">
-                                {entitled.map((app) => (
-                                    <AppRow
-                                        key={app.key}
-                                        app={app}
-                                        orgSlug={orgSlug}
-                                        onLockedAppClick={onLockedAppClick}
-                                        onNavigate={() => setOpen(false)}
-                                    />
-                                ))}
+                                {entitled.map((app) => {
+                                    const navIndex = findNavIndex(navigableHrefs, app);
+                                    return (
+                                        <AppRow
+                                            key={app.key}
+                                            app={app}
+                                            orgSlug={orgSlug}
+                                            highlighted={navIndex === activeIndex}
+                                            onMouseEnter={() => {
+                                                if (navIndex !== -1) {
+                                                    setActiveIndex(navIndex);
+                                                }
+                                            }}
+                                            onLockedAppClick={onLockedAppClick}
+                                            onNavigate={() => setOpen(false)}
+                                        />
+                                    );
+                                })}
                             </ul>
                         ) : null}
 
@@ -164,15 +312,24 @@ export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
                                     Available
                                 </p>
                                 <ul className="space-y-0.5 p-1 pt-0">
-                                    {locked.map((app) => (
-                                        <AppRow
-                                            key={app.key}
-                                            app={app}
-                                            orgSlug={orgSlug}
-                                            onLockedAppClick={onLockedAppClick}
-                                            onNavigate={() => setOpen(false)}
-                                        />
-                                    ))}
+                                    {locked.map((app) => {
+                                        const navIndex = findNavIndex(navigableHrefs, app);
+                                        return (
+                                            <AppRow
+                                                key={app.key}
+                                                app={app}
+                                                orgSlug={orgSlug}
+                                                highlighted={navIndex === activeIndex}
+                                                onMouseEnter={() => {
+                                                    if (navIndex !== -1) {
+                                                        setActiveIndex(navIndex);
+                                                    }
+                                                }}
+                                                onLockedAppClick={onLockedAppClick}
+                                                onNavigate={() => setOpen(false)}
+                                            />
+                                        );
+                                    })}
                                 </ul>
                             </>
                         ) : null}
@@ -183,14 +340,30 @@ export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
     );
 }
 
+function findNavIndex(
+    navigable: Array<{ app: CboxAppLink; isLocked: boolean }>,
+    app: CboxAppLink,
+): number {
+    return navigable.findIndex((n) => n.app.key === app.key);
+}
+
 type AppRowProps = {
     app: CboxAppLink;
     orgSlug: string | undefined;
+    highlighted: boolean;
+    onMouseEnter: () => void;
     onLockedAppClick: AppSwitcherProps['onLockedAppClick'];
     onNavigate: () => void;
 };
 
-function AppRow({ app, orgSlug, onLockedAppClick, onNavigate }: AppRowProps): ReactNode {
+function AppRow({
+    app,
+    orgSlug,
+    highlighted,
+    onMouseEnter,
+    onLockedAppClick,
+    onNavigate,
+}: AppRowProps): ReactNode {
     const isComingSoon = app.comingSoon === true;
     const isLocked = app.entitled === false || isComingSoon;
 
@@ -287,12 +460,14 @@ function AppRow({ app, orgSlug, onLockedAppClick, onNavigate }: AppRowProps): Re
             <li>
                 <button
                     type="button"
+                    onMouseEnter={onMouseEnter}
                     onClick={() => {
                         onLockedAppClick?.(app);
                         onNavigate();
                     }}
                     className={cn(
                         'group flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left transition-colors',
+                        highlighted && 'bg-secondary',
                         onLockedAppClick !== undefined
                             ? 'hover:bg-secondary'
                             : 'cursor-default',
@@ -311,7 +486,10 @@ function AppRow({ app, orgSlug, onLockedAppClick, onNavigate }: AppRowProps): Re
     if (app.current === true) {
         return (
             <li>
-                <div className="flex w-full items-center gap-3 rounded-md bg-accent-soft px-2.5 py-2">
+                <div
+                    onMouseEnter={onMouseEnter}
+                    className="flex w-full items-center gap-3 rounded-md bg-accent-soft px-2.5 py-2"
+                >
                     {tile}
                     {body}
                     {trailing}
@@ -324,8 +502,12 @@ function AppRow({ app, orgSlug, onLockedAppClick, onNavigate }: AppRowProps): Re
         <li>
             <a
                 href={href}
+                onMouseEnter={onMouseEnter}
                 onClick={onNavigate}
-                className="group flex w-full items-center gap-3 rounded-md px-2.5 py-2 transition-colors hover:bg-secondary"
+                className={cn(
+                    'group flex w-full items-center gap-3 rounded-md px-2.5 py-2 transition-colors hover:bg-secondary',
+                    highlighted && 'bg-secondary',
+                )}
             >
                 {tile}
                 {body}
@@ -365,6 +547,26 @@ function Chevron(): ReactNode {
                 strokeLinecap="round"
                 strokeLinejoin="round"
             />
+        </svg>
+    );
+}
+
+function SearchIcon(): ReactNode {
+    return (
+        <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+            className="shrink-0 text-muted-foreground"
+        >
+            <circle cx="5.25" cy="5.25" r="3.25" />
+            <path d="M8 8l2 2" />
         </svg>
     );
 }
