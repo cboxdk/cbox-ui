@@ -7,7 +7,7 @@ import {
     type CboxNavSection,
     type LinkComponent,
 } from './cbox-app-sidebar';
-import { AppLauncher } from '../components/app-launcher';
+import { AppSwitcher } from '../components/app-switcher';
 import { NotificationsBell } from '../components/notifications-bell';
 import { SearchTrigger } from '../components/search-trigger';
 import { UserMenu } from '../components/user-menu';
@@ -125,6 +125,7 @@ export function CboxAppShell({
                                 />
                             </button>
                         ) : null}
+                        <AppSwitcher />
                         {topbarCentre !== undefined ? topbarCentre : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -135,7 +136,6 @@ export function CboxAppShell({
                                 {onSearchOpen !== undefined ? (
                                     <SearchTrigger onOpen={onSearchOpen} />
                                 ) : null}
-                                <AppLauncher />
                                 <NotificationsBell />
                                 <UserMenu />
                             </>

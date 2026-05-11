@@ -1,4 +1,12 @@
-import { useState, type ComponentType, type ReactNode } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ComponentType,
+    type KeyboardEvent as ReactKeyboardEvent,
+    type ReactNode,
+} from 'react';
 import { useCboxId, type CboxOrganization } from '../context/cbox-id';
 import { cn } from '../utils/cn';
 
@@ -17,13 +25,81 @@ type Props = {
 
 /**
  * Dropdown that surfaces the user's orgs and dispatches the picked
- * one through `onSwitchOrganization` (or POSTs to switchOrgUrl as a
- * fallback). Reads everything else from CboxIdProvider so the same
- * component works in id, cortex, atlas — no per-app data wiring.
+ * one through `onSwitchOrganization`. Reads everything else from
+ * CboxIdProvider so the same component works in id, cortex, atlas —
+ * no per-app data wiring.
+ *
+ * Includes typeahead — auto-focus on open, filters by name as the
+ * user types, arrow-key navigation, Enter to switch, Escape to close.
  */
 export function OrgSwitcher({ Trigger = DefaultTrigger, className }: Props) {
     const { currentOrganization, organizations, onSwitchOrganization } = useCboxId();
     const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const [activeIndex, setActiveIndex] = useState(0);
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const searchRef = useRef<HTMLInputElement | null>(null);
+
+    // Reset transient state every open. requestAnimationFrame waits
+    // for the input to mount before focusing it.
+    useEffect(() => {
+        if (open) {
+            setQuery('');
+            setActiveIndex(0);
+            const id = requestAnimationFrame(() => searchRef.current?.focus());
+            return () => cancelAnimationFrame(id);
+        }
+    }, [open]);
+
+    // Click-outside + Escape. Matches AppSwitcher / every other Cbox
+    // top-bar control.
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        function onPointerDown(event: PointerEvent): void {
+            if (
+                containerRef.current !== null &&
+                !containerRef.current.contains(event.target as Node)
+            ) {
+                setOpen(false);
+            }
+        }
+
+        function onKey(event: KeyboardEvent): void {
+            if (event.key === 'Escape') {
+                setOpen(false);
+            }
+        }
+
+        window.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('keydown', onKey);
+
+        return () => {
+            window.removeEventListener('pointerdown', onPointerDown);
+            window.removeEventListener('keydown', onKey);
+        };
+    }, [open]);
+
+    const filtered = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (q === '') {
+            return organizations;
+        }
+        return organizations.filter(
+            (org) =>
+                org.name.toLowerCase().includes(q) ||
+                org.slug.toLowerCase().includes(q),
+        );
+    }, [organizations, query]);
+
+    // Clamp activeIndex when the filter shrinks the list.
+    useEffect(() => {
+        if (activeIndex >= filtered.length) {
+            setActiveIndex(0);
+        }
+    }, [filtered.length, activeIndex]);
 
     const onPick = (org: CboxOrganization) => {
         setOpen(false);
@@ -42,44 +118,110 @@ export function OrgSwitcher({ Trigger = DefaultTrigger, className }: Props) {
         }
     };
 
+    function onSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>): void {
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            if (filtered.length === 0) {
+                return;
+            }
+            setActiveIndex((i) => (i + 1) % filtered.length);
+            return;
+        }
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (filtered.length === 0) {
+                return;
+            }
+            setActiveIndex((i) => (i - 1 + filtered.length) % filtered.length);
+            return;
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const target = filtered[activeIndex];
+            if (target !== undefined) {
+                onPick(target);
+            }
+        }
+    }
+
     return (
-        <div className={cn('relative', className)}>
+        <div ref={containerRef} className={cn('relative', className)}>
             <Trigger
                 organization={currentOrganization}
                 onClick={() => setOpen((v) => !v)}
                 open={open}
             />
             {open ? (
-                <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-md border border-border bg-popover p-1 shadow-md">
-                    <p className="text-eyebrow px-2 py-1.5 text-muted-foreground">
-                        Switch organization
-                    </p>
-                    <ul className="space-y-0.5">
-                        {organizations.map((org) => {
-                            const active = currentOrganization?.id === org.id;
-                            return (
-                                <li key={org.id}>
-                                    <button
-                                        type="button"
-                                        onClick={() => onPick(org)}
-                                        className={cn(
-                                            'flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-sm',
-                                            active
-                                                ? 'bg-accent-soft text-foreground'
-                                                : 'hover:bg-secondary',
-                                        )}
-                                    >
-                                        <span className="truncate">{org.name}</span>
-                                        {active ? (
-                                            <span className="text-mono text-[10px] text-muted-foreground">
-                                                current
-                                            </span>
-                                        ) : null}
-                                    </button>
-                                </li>
-                            );
-                        })}
-                    </ul>
+                <div
+                    role="dialog"
+                    aria-label="Switch organization"
+                    className="absolute left-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-md border border-border bg-popover shadow-md"
+                >
+                    <div className="border-b border-border/70 px-3 pt-2 pb-1">
+                        <p className="text-mono text-[10px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                            Switch organization
+                        </p>
+                    </div>
+
+                    <div className="border-b border-border/70 px-2 py-1.5">
+                        <div className="flex items-center gap-2 rounded-md px-2 py-1 focus-within:bg-secondary">
+                            <SearchIcon />
+                            <input
+                                ref={searchRef}
+                                type="text"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                onKeyDown={onSearchKeyDown}
+                                placeholder="Filter…"
+                                aria-label="Filter organizations"
+                                autoComplete="off"
+                                spellCheck={false}
+                                className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="max-h-[50vh] overflow-y-auto p-1">
+                        {filtered.length === 0 ? (
+                            <p className="px-3 py-6 text-center text-[12px] text-muted-foreground">
+                                No organizations match{' '}
+                                <span className="text-mono text-foreground">
+                                    “{query}”
+                                </span>
+                            </p>
+                        ) : (
+                            <ul className="space-y-0.5">
+                                {filtered.map((org, index) => {
+                                    const active = currentOrganization?.id === org.id;
+                                    const highlighted = index === activeIndex;
+                                    return (
+                                        <li key={org.id}>
+                                            <button
+                                                type="button"
+                                                onMouseEnter={() => setActiveIndex(index)}
+                                                onClick={() => onPick(org)}
+                                                className={cn(
+                                                    'flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-sm transition-colors',
+                                                    active
+                                                        ? 'bg-accent-soft text-foreground'
+                                                        : highlighted
+                                                          ? 'bg-secondary'
+                                                          : 'hover:bg-secondary',
+                                                )}
+                                            >
+                                                <span className="truncate">{org.name}</span>
+                                                {active ? (
+                                                    <span className="text-mono text-[10px] text-muted-foreground">
+                                                        current
+                                                    </span>
+                                                ) : null}
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
+                    </div>
                 </div>
             ) : null}
         </div>
@@ -120,6 +262,26 @@ function Chevron(): ReactNode {
                 strokeLinecap="round"
                 strokeLinejoin="round"
             />
+        </svg>
+    );
+}
+
+function SearchIcon(): ReactNode {
+    return (
+        <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+            className="shrink-0 text-muted-foreground"
+        >
+            <circle cx="5.25" cy="5.25" r="3.25" />
+            <path d="M8 8l2 2" />
         </svg>
     );
 }
