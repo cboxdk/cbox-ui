@@ -3,17 +3,30 @@ import { cn } from '../utils/cn';
 
 type Props = {
     title: ReactNode;
+    /**
+     * Tiny uppercase lead-in above the title (sections, breadcrumb-light
+     * disambiguation). Shown in mono-tracking caps so it reads as
+     * meta, not as a competing heading.
+     */
+    eyebrow?: ReactNode;
     description?: ReactNode;
     actions?: ReactNode;
     className?: string;
 };
 
 /**
- * Title block at the top of every page. Big bold title, muted lead,
- * optional right-aligned actions slot. Cortex-style — no italics, no
- * brackets — so it carries across many sibling apps cleanly.
+ * Title block at the top of every page. Big bold title, optional mono
+ * eyebrow lead-in, muted lead, optional right-aligned actions slot.
+ * Cortex-style — no italics, no brackets — so it carries across many
+ * sibling apps cleanly.
  */
-export function PageHeader({ title, description, actions, className }: Props) {
+export function PageHeader({
+    title,
+    eyebrow,
+    description,
+    actions,
+    className,
+}: Props) {
     return (
         <header
             className={cn(
@@ -22,6 +35,11 @@ export function PageHeader({ title, description, actions, className }: Props) {
             )}
         >
             <div className="space-y-1.5">
+                {eyebrow !== undefined ? (
+                    <p className="text-mono text-[10px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                        {eyebrow}
+                    </p>
+                ) : null}
                 <h1 className="text-2xl leading-tight font-semibold tracking-tight text-foreground">
                     {title}
                 </h1>

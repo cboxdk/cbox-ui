@@ -16,8 +16,11 @@ export {
 //
 // Apps SHOULD use `<CboxAppShell>` — it composes the full chrome
 // from a single nav config + brand. The lower-level primitives
-// (AppShell / AppContent / TopBar) are exposed for unusual cases
-// but normal product apps shouldn't compose them by hand.
+// (AppShell / AppContent / TopBar / CboxAppSidebar / CboxBrand)
+// are exposed for unusual cases (eg the launcher app at
+// `app.cbox.systems` doesn't have a sidebar) but normal product
+// apps shouldn't compose them by hand — drift is the whole reason
+// the wrapper exists.
 export { AppContent } from './layout/app-content';
 export { AppShell } from './layout/app-shell';
 export {
@@ -45,10 +48,14 @@ export { OrgSwitcher } from './components/org-switcher';
 export { SearchTrigger } from './components/search-trigger';
 export { UserMenu } from './components/user-menu';
 
-// Form primitives.
-export { Combobox, type ComboboxOption, type ComboboxProps } from './components/combobox';
-
 // Page primitives.
+export {
+    Combobox,
+    type ComboboxAvatar,
+    type ComboboxGroup,
+    type ComboboxOption,
+    type ComboboxProps,
+} from './primitives/combobox';
 export {
     ContextBar,
     ContextAvatarChip,
@@ -62,14 +69,19 @@ export { default as Heading } from './primitives/heading';
 export { KeyValue, KeyValueList } from './primitives/key-value';
 export { PageHeader } from './primitives/page-header';
 export { PageShell, type PageWidth } from './primitives/page-shell';
-export { RowLink } from './primitives/row-link';
-export { PageTabs, type PageTabSpec } from './primitives/page-tabs';
+export {
+    PageTabs,
+    type PageTabSpec,
+    type PageTabsProps,
+} from './primitives/page-tabs';
+export { RowLink, type RowLinkProps } from './primitives/row-link';
 export { StatTile } from './primitives/stat-tile';
 export { StatusPill } from './primitives/status-pill';
 
 // Cross-app surface runtime — single overlay layer (modal/drawer) that
 // every Cbox app mounts so chrome controls (bell, search trigger) can
-// open inbox/search/etc without route navigation.
+// open inbox/search/etc without route navigation. Surfaces are a closed
+// set defined here; adding one is a cbox-ui PR.
 export {
     CboxSurfaces,
     useCboxSurfaces,
