@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { AppLauncher } from '../components/app-launcher';
+import { AppSwitcher } from '../components/app-switcher';
 import { NotificationsBell } from '../components/notifications-bell';
 import { OrgSwitcher } from '../components/org-switcher';
 import { UserMenu } from '../components/user-menu';
@@ -47,13 +47,13 @@ export function TopBar({
         >
             <div className="flex items-center gap-3">
                 {brand}
+                <AppSwitcher />
                 {showOrgSwitcher ? <OrgSwitcher /> : null}
             </div>
             <div className="min-w-0 flex-1">{centre}</div>
             <div className="flex shrink-0 items-center gap-1">
                 {rightCluster ?? (
                     <>
-                        <AppLauncher />
                         <NotificationsBell />
                         <UserMenu />
                     </>

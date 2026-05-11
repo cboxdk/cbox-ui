@@ -43,6 +43,7 @@ export { TopBar } from './layout/top-bar';
 
 // Cross-app chrome controls.
 export { AppLauncher } from './components/app-launcher';
+export { AppSwitcher } from './components/app-switcher';
 export { NotificationsBell } from './components/notifications-bell';
 export { OrgSwitcher } from './components/org-switcher';
 export { SearchTrigger } from './components/search-trigger';
