@@ -22,7 +22,7 @@ type Props = {
  * component works in id, cortex, atlas — no per-app data wiring.
  */
 export function OrgSwitcher({ Trigger = DefaultTrigger, className }: Props) {
-    const { currentOrganization, organizations, urls, onSwitchOrganization } = useCboxId();
+    const { currentOrganization, organizations, onSwitchOrganization } = useCboxId();
     const [open, setOpen] = useState(false);
 
     const onPick = (org: CboxOrganization) => {
@@ -31,31 +31,15 @@ export function OrgSwitcher({ Trigger = DefaultTrigger, className }: Props) {
             onSwitchOrganization(org);
             return;
         }
-        // Fallback: form-POST to id's switch endpoint and let the
-        // server bounce us back. CSRF token comes from the meta tag
-        // most Cbox apps already render in their layout head.
-        // If no switchOrgUrl is configured, do nothing — the host app
-        // must provide onSwitchOrganization in that case.
-        if (!urls.switchOrgUrl) return;
-        const csrf = document
-            .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
-            ?.content;
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = urls.switchOrgUrl;
-        form.style.display = 'none';
-        if (csrf) {
-            const input = document.createElement('input');
-            input.name = '_token';
-            input.value = csrf;
-            form.appendChild(input);
+        // No fallback. Org switching is a URL navigation — apps own
+        // the destination path because it's per-app (id has /dashboard,
+        // webhooks has /endpoints, etc.). Failing loud here is better
+        // than silently doing nothing.
+        if (typeof console !== 'undefined') {
+            console.warn(
+                '[cbox-ui] OrgSwitcher: no onSwitchOrganization handler provided. Apps must wire one (router.visit) — there is no server endpoint to fall back to.',
+            );
         }
-        const idInput = document.createElement('input');
-        idInput.name = 'organization_id';
-        idInput.value = String(org.id);
-        form.appendChild(idInput);
-        document.body.appendChild(form);
-        form.submit();
     };
 
     return (
