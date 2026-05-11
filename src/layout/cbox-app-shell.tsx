@@ -46,9 +46,9 @@ export type CboxAppShellProps = {
 
     /**
      * Handler to open the in-app command palette / search UI.
-     * When provided, renders a `<SearchTrigger>` in the topbar right
-     * cluster. When omitted, the search slot is hidden — so apps that
-     * haven't wired a palette yet don't show a dead button.
+     * Always rendered — when omitted the trigger is a no-op so the
+     * chrome stays visually identical across all apps regardless of
+     * whether a palette has been wired up yet.
      */
     onSearchOpen?: () => void;
 
@@ -133,9 +133,7 @@ export function CboxAppShell({
                             topbarRightCluster
                         ) : (
                             <>
-                                {onSearchOpen !== undefined ? (
-                                    <SearchTrigger onOpen={onSearchOpen} />
-                                ) : null}
+                                <SearchTrigger onOpen={onSearchOpen ?? (() => {})} />
                                 <NotificationsBell />
                                 <UserMenu />
                             </>

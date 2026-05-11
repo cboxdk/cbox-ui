@@ -48,16 +48,33 @@ export function NotificationsBell({ className }: { className?: string }) {
         };
     }, [open]);
 
-    if (
-        ctx === null ||
-        ctx.notifications === undefined ||
-        ctx.notifications === null
-    ) {
+    // Render the bell even when notifications aren't wired up (null/undefined)
+    // so the chrome is visually identical across all apps. The button is
+    // inert (no popover opens) when there's no data.
+    const notificationsData = ctx === null ? null : (ctx.notifications ?? null);
+
+    if (ctx === null) {
         return null;
     }
 
+    // Render a static bell icon when there's no notifications data yet.
+    if (notificationsData === null) {
+        return (
+            <div className={cn('relative', className)}>
+                <button
+                    type="button"
+                    aria-label="Notifications"
+                    disabled
+                    className="relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground opacity-60 cursor-default"
+                >
+                    <Bell />
+                </button>
+            </div>
+        );
+    }
+
     const { unreadCount, inboxUrl, previewItems, markReadUrl } =
-        ctx.notifications;
+        notificationsData;
     const display = unreadCount > 99 ? '99+' : unreadCount.toString();
 
     return (
