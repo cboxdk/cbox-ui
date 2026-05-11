@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useCboxIdOptional } from '../context/cbox-id';
 import type { CboxNotificationPreviewItem } from '../context/cbox-id';
+import { useCboxSurfacesOptional } from '../surfaces/surface-state';
 import { cn } from '../utils/cn';
 
 /**
@@ -20,6 +21,7 @@ import { cn } from '../utils/cn';
  */
 export function NotificationsBell({ className }: { className?: string }) {
     const ctx = useCboxIdOptional();
+    const surfaces = useCboxSurfacesOptional();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement | null>(null);
 
@@ -122,12 +124,25 @@ export function NotificationsBell({ className }: { className?: string }) {
                         )}
                     </div>
 
-                    <a
-                        href={inboxUrl}
-                        className="flex items-center justify-center border-t border-border/70 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                    >
-                        See all notifications →
-                    </a>
+                    {surfaces !== null ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setOpen(false);
+                                surfaces.open('inbox');
+                            }}
+                            className="flex w-full items-center justify-center border-t border-border/70 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                        >
+                            See all notifications →
+                        </button>
+                    ) : (
+                        <a
+                            href={inboxUrl}
+                            className="flex items-center justify-center border-t border-border/70 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                        >
+                            See all notifications →
+                        </a>
+                    )}
                 </div>
             ) : null}
         </div>

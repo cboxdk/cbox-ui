@@ -1,270 +1,531 @@
-import { type ComponentType, type ReactNode, useRef, useState } from 'react';
+import {
+    useEffect,
+    useId,
+    useRef,
+    useState,
+    type ComponentType,
+    type ReactNode,
+} from 'react';
 import { cn } from '../utils/cn';
 
+/**
+ * ContextBar — the topbar breadcrumb-style context selector. One
+ * crumb per level of context (org / project / environment / branch /
+ * deployment). Each crumb renders as a chip (avatar + label +
+ * chevron) and opens a dropdown with the items at that level plus
+ * an optional "+ New X" footer.
+ *
+ * The pattern is the cloud-platform default — Vercel, Render, Forge,
+ * GitHub, Stripe, Cortex all use it. Topbar carries identity and
+ * context; sidebar carries navigation. The two never overlap.
+ *
+ * URL-driven by default — clicking a dropdown item navigates via the
+ * supplied `LinkComponent`. Apps that need a non-navigational select
+ * (post a form, mutate session state) pass `onSelect` instead.
+ *
+ * Separator between crumbs is a muted slash — same as Forge / Cortex.
+ */
+
+export type ContextAvatar = {
+    /** 1–2 character monogram. Defaults to first letter of the label. */
+    initials?: string;
+    /**
+     * Hex / CSS colour applied as the avatar's bg. Falls back to the
+     * neutral chip when missing. Per-item override of the default.
+     */
+    accent?: string;
+    /** Optional avatar image URL — overrides initials when set. */
+    src?: string;
+};
+
 export type ContextItem = {
+    /** Stable identity for the item (slug, id). */
     id: string;
+    /** Primary display label. */
     label: string;
-    /** Avatar shown next to the label — currently supports initials only. */
-    avatar?: { initials: string };
-    /** Marks this item as the active selection. */
+    /** Optional secondary line — slug, role, env name. Mono-tracked. */
+    secondary?: string;
+    /** Avatar specification. Same shape as the crumb's own avatar. */
+    avatar?: ContextAvatar;
+    /** Navigation target — clicking the item navigates here. */
+    href?: string;
+    /** Mark the item as the active selection (gets a check on the right). */
     current?: boolean;
-    /** Optional gear-icon link to a settings page for this item. */
+    /**
+     * Optional href to a settings page for this item. When set, a
+     * cogwheel button appears on the right of the row on hover/focus
+     * — clicking it navigates straight to settings without going
+     * through the item's normal selection. Cortex-style shortcut.
+     */
     settingsHref?: string;
+    /**
+     * Aria-label for the optional settings cogwheel. Defaults to
+     * `Settings for <label>`. Override when the label alone isn't
+     * enough context (eg multiple items with the same name).
+     */
     settingsAriaLabel?: string;
 };
 
-type CrumbFooterLink = {
-    label: string;
-    href: string;
-};
-
-type Crumb = {
+export type ContextCrumb = {
+    /** Stable identity for the crumb (used as React key). */
     id: string;
+    /** The chip's visible label — typically the active item's name. */
     label: string;
-    avatar?: { initials: string };
-    /** Dropdown items. When absent, the crumb is non-interactive. */
-    items?: ContextItem[];
-    /** Called with the selected item's `id` when the user picks one. */
-    onSelect?: (id: string) => void;
-    /** Optional link at the bottom of the dropdown. */
-    footerLink?: CrumbFooterLink;
+    /** The chip's avatar — typically the active item's avatar. */
+    avatar?: ContextAvatar;
+    /** Items shown in the dropdown. Empty array = chip with no menu. */
+    items: ContextItem[];
+    /**
+     * Optional footer link below the items — typically "+ New X" or
+     * "Manage Y". Renders with a + icon and an accent text colour.
+     */
+    footerLink?: {
+        label: string;
+        href: string;
+    };
+    /**
+     * Override per-item navigation. When set, item clicks call this
+     * with the item's id instead of navigating to `item.href`. Useful
+     * for posting a form (eg an org switcher that POSTs to a server-side
+     * endpoint).
+     */
+    onSelect?: (itemId: string) => void;
+    /** Optional aria-label for the chip's button (defaults to "Switch <label>"). */
     ariaLabel?: string;
 };
 
+type LinkComp = ComponentType<{
+    href: string;
+    prefetch?: boolean;
+    className?: string;
+    children: ReactNode;
+}>;
+
 type Props = {
-    crumbs: Crumb[];
+    crumbs: ContextCrumb[];
     /**
-     * Link component provided by the host — e.g. Inertia's `Link` or
-     * React Router's `Link`. Must accept `href` and `className`.
+     * The framework's link component. Inertia consumers pass the
+     * Inertia Link; TanStack Router consumers pass their typed Link.
+     * Plain `<a>` is the fallback.
      */
-    LinkComponent?: ComponentType<{ href: string; className?: string; children: ReactNode }>;
+    LinkComponent?: LinkComp;
     className?: string;
 };
 
-/**
- * Horizontal breadcrumb row rendered in the topbar. Each crumb is a
- * labelled chip that opens a dropdown when it has `items`. Slash
- * separators appear between crumbs.
- *
- * Designed for cloud-platform chrome where context = org / project /
- * environment. Start with one crumb (org) and add more as the app grows.
- */
-export function ContextBar({ crumbs, LinkComponent, className }: Props) {
+const DefaultLink: LinkComp = ({ href, className, children }) => (
+    <a href={href} className={className}>
+        {children}
+    </a>
+);
+
+export function ContextBar({
+    crumbs,
+    LinkComponent = DefaultLink,
+    className,
+}: Props) {
+    if (crumbs.length === 0) {
+        return null;
+    }
+
     return (
         <nav
-            aria-label="Context breadcrumb"
-            className={cn('flex items-center gap-1', className)}
+            data-component="context-bar"
+            aria-label="Context"
+            // No `overflow-x-auto` on the nav — it would clip the
+            // dropdown panel that opens below each chip. If we need
+            // horizontal scroll for 5+ crumbs later (cortex with
+            // org/project/env/branch/region), the dropdown moves to a
+            // portal so the nav can clip without affecting popovers.
+            className={cn('flex min-w-0 items-center gap-1', className)}
         >
-            {crumbs.map((crumb, i) => (
-                <span key={crumb.id} className="flex items-center gap-1">
-                    {i > 0 ? (
-                        <span className="text-muted-foreground/50 select-none">/</span>
-                    ) : null}
-                    <CrumbChip
+            {crumbs.map((crumb, index) => (
+                <div
+                    key={crumb.id}
+                    className="flex min-w-0 items-center gap-1"
+                >
+                    {index > 0 ? <Separator /> : null}
+                    <ContextCrumbChip
                         crumb={crumb}
                         LinkComponent={LinkComponent}
                     />
-                </span>
+                </div>
             ))}
         </nav>
     );
 }
 
-function CrumbChip({
+function Separator() {
+    return (
+        <span
+            aria-hidden
+            className="text-mono shrink-0 text-[14px] font-light text-muted-foreground/50 select-none"
+        >
+            /
+        </span>
+    );
+}
+
+function ContextCrumbChip({
     crumb,
     LinkComponent,
 }: {
-    crumb: Crumb;
-    LinkComponent?: ComponentType<{ href: string; className?: string; children: ReactNode }>;
+    crumb: ContextCrumb;
+    LinkComponent: LinkComp;
 }) {
     const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
+    const ref = useRef<HTMLDivElement | null>(null);
+    const listId = useId();
 
-    const hasItems = crumb.items && crumb.items.length > 0;
+    // Click-outside + Escape close.
+    useEffect(() => {
+        if (! open) return;
+
+        function onPointerDown(event: PointerEvent): void {
+            if (
+                ref.current !== null &&
+                ! ref.current.contains(event.target as Node)
+            ) {
+                setOpen(false);
+            }
+        }
+
+        function onKey(event: KeyboardEvent): void {
+            if (event.key === 'Escape') setOpen(false);
+        }
+
+        window.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('keydown', onKey);
+
+        return () => {
+            window.removeEventListener('pointerdown', onPointerDown);
+            window.removeEventListener('keydown', onKey);
+        };
+    }, [open]);
+
+    const hasMenu = crumb.items.length > 0 || crumb.footerLink !== undefined;
 
     return (
         <div ref={ref} className="relative">
             <button
                 type="button"
-                onClick={() => setOpen((v) => !v)}
-                aria-label={crumb.ariaLabel ?? crumb.label}
-                aria-expanded={open}
-                aria-haspopup={hasItems ? 'listbox' : undefined}
+                onClick={() => setOpen((v) => ! v)}
+                aria-expanded={hasMenu ? open : undefined}
+                aria-haspopup={hasMenu ? 'listbox' : undefined}
+                aria-controls={hasMenu ? listId : undefined}
+                aria-label={crumb.ariaLabel ?? `Switch ${crumb.label}`}
+                disabled={! hasMenu}
                 className={cn(
-                    'flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium transition-colors',
-                    'text-foreground hover:bg-secondary',
-                    !hasItems && 'cursor-default hover:bg-transparent',
+                    'flex h-8 min-w-0 items-center gap-2 rounded-md border border-transparent px-2 text-[13px] text-foreground transition-colors',
+                    hasMenu &&
+                        'hover:border-border hover:bg-secondary/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                    open && 'border-border bg-secondary/60',
                 )}
             >
-                {crumb.avatar ? (
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-info text-[9px] font-bold uppercase text-background">
-                        {crumb.avatar.initials}
-                    </span>
+                {crumb.avatar !== undefined ? (
+                    <ContextAvatarChip
+                        avatar={crumb.avatar}
+                        fallbackLabel={crumb.label}
+                        size="sm"
+                    />
                 ) : null}
-                <span className="max-w-[160px] truncate">{crumb.label}</span>
-                {hasItems ? <Chevron /> : null}
+                <span className="truncate font-medium">{crumb.label}</span>
+                {hasMenu ? <Chevron open={open} /> : null}
             </button>
 
-            {open && hasItems ? (
-                <>
-                    {/* Backdrop to close on outside click */}
-                    <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setOpen(false)}
-                        aria-hidden
-                    />
-                    <div
-                        role="listbox"
-                        aria-label={crumb.ariaLabel ?? crumb.label}
-                        className="absolute left-0 top-full z-50 mt-1 w-64 rounded-md border border-border bg-popover p-1 shadow-md"
-                    >
-                        <ul className="space-y-0.5">
-                            {crumb.items!.map((item) => (
-                                <li key={item.id}>
-                                    <ItemRow
-                                        item={item}
-                                        LinkComponent={LinkComponent}
-                                        onSelect={() => {
-                                            setOpen(false);
-                                            crumb.onSelect?.(item.id);
-                                        }}
-                                    />
-                                </li>
+            {open && hasMenu ? (
+                <div
+                    id={listId}
+                    role="listbox"
+                    aria-label={crumb.ariaLabel ?? crumb.label}
+                    className="absolute left-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-md border border-border bg-popover shadow-lg"
+                >
+                    {crumb.items.length > 0 ? (
+                        <ul className="max-h-72 overflow-y-auto py-1">
+                            {crumb.items.map((item) => (
+                                <ContextItemRow
+                                    key={item.id}
+                                    item={item}
+                                    onSelect={crumb.onSelect}
+                                    LinkComponent={LinkComponent}
+                                    onAfterClick={() => setOpen(false)}
+                                />
                             ))}
                         </ul>
+                    ) : null}
 
-                        {crumb.footerLink ? (
-                            <div className="mt-1 border-t border-border pt-1">
-                                {LinkComponent ? (
-                                    <LinkComponent
-                                        href={crumb.footerLink.href}
-                                        className="block rounded-sm px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
-                                    >
-                                        {crumb.footerLink.label}
-                                    </LinkComponent>
-                                ) : (
-                                    <a
-                                        href={crumb.footerLink.href}
-                                        className="block rounded-sm px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
-                                    >
-                                        {crumb.footerLink.label}
-                                    </a>
-                                )}
+                    {crumb.footerLink !== undefined ? (
+                        <>
+                            {crumb.items.length > 0 ? (
+                                <div className="border-t border-border/60" />
+                            ) : null}
+                            <div
+                                // Close the dropdown when the footer
+                                // link is clicked. SPA navigations
+                                // don't unmount this menu (it's a
+                                // sibling subtree), so without this
+                                // the dropdown stays open on the next
+                                // page.
+                                onClickCapture={() => setOpen(false)}
+                            >
+                                <LinkComponent
+                                    href={crumb.footerLink.href}
+                                    prefetch
+                                    className="flex items-center gap-2 px-3 py-2.5 text-[13px] font-medium text-info transition-colors hover:bg-info-soft"
+                                >
+                                    <Plus />
+                                    <span>{crumb.footerLink.label}</span>
+                                </LinkComponent>
                             </div>
-                        ) : null}
-                    </div>
-                </>
+                        </>
+                    ) : null}
+                </div>
             ) : null}
         </div>
     );
 }
 
-function ItemRow({
+function ContextItemRow({
     item,
-    LinkComponent,
     onSelect,
+    LinkComponent,
+    onAfterClick,
 }: {
     item: ContextItem;
-    LinkComponent?: ComponentType<{ href: string; className?: string; children: ReactNode }>;
-    onSelect: () => void;
+    onSelect: ContextCrumb['onSelect'];
+    LinkComponent: LinkComp;
+    onAfterClick: () => void;
 }) {
-    return (
-        <div
-            className={cn(
-                'group flex items-center justify-between gap-2 rounded-sm px-2 py-1.5',
-                item.current ? 'bg-accent-soft' : 'hover:bg-secondary',
-            )}
-        >
-            <button
-                type="button"
-                role="option"
-                aria-selected={item.current}
-                onClick={onSelect}
-                className="flex min-w-0 flex-1 items-center gap-2 text-left"
-            >
-                {item.avatar ? (
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-info-soft text-[9px] font-bold uppercase text-info">
-                        {item.avatar.initials}
+    const body = (
+        <div className="flex w-full min-w-0 items-center gap-2.5 px-2.5 py-2">
+            {item.avatar !== undefined ? (
+                <ContextAvatarChip
+                    avatar={item.avatar}
+                    fallbackLabel={item.label}
+                    size="md"
+                />
+            ) : null}
+            <div className="flex min-w-0 flex-1 flex-col leading-tight">
+                <span className="truncate text-[13px] font-medium text-foreground">
+                    {item.label}
+                </span>
+                {item.secondary !== undefined ? (
+                    <span className="text-mono truncate text-[10px] text-muted-foreground">
+                        {item.secondary}
                     </span>
                 ) : null}
-                <span className="truncate text-sm text-foreground">{item.label}</span>
-                {item.current ? (
-                    <CheckIcon className="ml-auto h-3.5 w-3.5 shrink-0 text-info" />
-                ) : null}
-            </button>
-
-            {item.settingsHref ? (
-                <span className="opacity-0 transition-opacity group-hover:opacity-100">
-                    {LinkComponent ? (
-                        <LinkComponent
-                            href={item.settingsHref}
-                            className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-                            aria-label={item.settingsAriaLabel}
-                        >
-                            <GearIcon />
-                        </LinkComponent>
-                    ) : (
-                        <a
-                            href={item.settingsHref}
-                            className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-                            aria-label={item.settingsAriaLabel}
-                        >
-                            <GearIcon />
-                        </a>
-                    )}
-                </span>
+            </div>
+            {item.current === true && item.settingsHref === undefined ? (
+                <Check />
             ) : null}
         </div>
     );
-}
 
-function Chevron() {
+    const baseClassName = cn(
+        'group/item block w-full rounded-sm transition-colors',
+        item.current === true
+            ? 'bg-accent-soft hover:bg-accent-soft/80'
+            : 'hover:bg-secondary',
+    );
+
+    // The settings cogwheel sits at the right of the row. It's a
+    // separate Link / button — clicking it should NOT trigger the
+    // item's main selection. We render it as a sibling of the body
+    // and stop click propagation on the cogwheel itself.
+    const settingsCog =
+        item.settingsHref !== undefined ? (
+            <LinkComponent
+                href={item.settingsHref}
+                prefetch
+                className="invisible absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors group-hover/item:visible hover:bg-card hover:text-foreground focus-visible:visible focus-visible:bg-card focus-visible:text-foreground focus-visible:outline-none"
+            >
+                <span
+                    aria-label={
+                        item.settingsAriaLabel ?? `Settings for ${item.label}`
+                    }
+                    onClickCapture={(event) => {
+                        event.stopPropagation();
+                        onAfterClick();
+                    }}
+                    className="contents"
+                >
+                    <SettingsIcon />
+                </span>
+            </LinkComponent>
+        ) : null;
+
+    if (onSelect !== undefined) {
+        return (
+            <li className="relative">
+                <button
+                    type="button"
+                    onClick={() => {
+                        onSelect(item.id);
+                        onAfterClick();
+                    }}
+                    className={cn(baseClassName, 'text-left')}
+                >
+                    {body}
+                </button>
+                {settingsCog}
+            </li>
+        );
+    }
+
+    if (item.href !== undefined) {
+        return (
+            <li className="relative">
+                <LinkComponent
+                    href={item.href}
+                    prefetch
+                    className={baseClassName}
+                >
+                    {body}
+                </LinkComponent>
+                {settingsCog}
+            </li>
+        );
+    }
+
     return (
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
-            <path
-                d="M2 4l3 3 3-3"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            />
-        </svg>
+        <li className="relative">
+            <div className={baseClassName}>{body}</div>
+            {settingsCog}
+        </li>
     );
 }
 
-function CheckIcon({ className }: { className?: string }) {
+function SettingsIcon() {
     return (
         <svg
-            viewBox="0 0 12 12"
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
             fill="none"
-            className={className}
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             aria-hidden
         >
-            <path
-                d="M2 6l3 3 5-5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            />
+            <circle cx="7" cy="7" r="2" />
+            <path d="M11.66 8.42a.79.79 0 0 0 .16.86l.03.03a.96.96 0 1 1-1.36 1.36l-.03-.03a.79.79 0 0 0-.86-.16.79.79 0 0 0-.48.72v.08a.96.96 0 1 1-1.92 0v-.04a.79.79 0 0 0-.52-.72.79.79 0 0 0-.86.16l-.03.03a.96.96 0 1 1-1.36-1.36l.03-.03a.79.79 0 0 0 .16-.86.79.79 0 0 0-.72-.48h-.08a.96.96 0 1 1 0-1.92h.04a.79.79 0 0 0 .72-.52.79.79 0 0 0-.16-.86l-.03-.03a.96.96 0 1 1 1.36-1.36l.03.03a.79.79 0 0 0 .86.16h.04a.79.79 0 0 0 .48-.72v-.08a.96.96 0 1 1 1.92 0v.04a.79.79 0 0 0 .48.72.79.79 0 0 0 .86-.16l.03-.03a.96.96 0 1 1 1.36 1.36l-.03.03a.79.79 0 0 0-.16.86v.04a.79.79 0 0 0 .72.48h.08a.96.96 0 1 1 0 1.92h-.04a.79.79 0 0 0-.72.48Z" />
         </svg>
     );
 }
 
-function GearIcon() {
+export function ContextAvatarChip({
+    avatar,
+    fallbackLabel,
+    size = 'md',
+}: {
+    avatar: ContextAvatar;
+    fallbackLabel: string;
+    size?: 'sm' | 'md';
+}) {
+    const initials =
+        avatar.initials ?? deriveInitials(fallbackLabel);
+    const sizeClass =
+        size === 'sm' ? 'h-5 w-5 text-[9px]' : 'h-7 w-7 text-[11px]';
+    const style =
+        avatar.src === undefined && avatar.accent !== undefined
+            ? {
+                  backgroundColor: avatar.accent,
+                  color: '#fff',
+              }
+            : undefined;
+
+    if (avatar.src !== undefined) {
+        return (
+            <img
+                src={avatar.src}
+                alt=""
+                className={cn(
+                    'shrink-0 rounded-sm bg-secondary object-cover',
+                    sizeClass,
+                )}
+                loading="lazy"
+            />
+        );
+    }
+
     return (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-            <path
-                d="M6 7.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"
-                stroke="currentColor"
-                strokeWidth="1.2"
-            />
-            <path
-                d="M9.9 4.65a4.1 4.1 0 0 0-.4-.68l.55-.96-.94-.94-.96.55a4.1 4.1 0 0 0-.68-.4L7.25 1.5h-1.5l-.22 1.22a4.1 4.1 0 0 0-.68.4l-.96-.55-.94.94.55.96a4.1 4.1 0 0 0-.4.68L1.5 5.47v1.06l1.2.2c.1.25.23.49.4.7l-.55.96.94.94.96-.55c.2.17.44.3.68.4l.22 1.22h1.5l.22-1.22c.24-.1.48-.23.68-.4l.96.55.94-.94-.55-.96c.17-.2.3-.44.4-.68L10.5 6.53V5.47l-1.2-.2a4.1 4.1 0 0 0 .4-.68Z"
-                stroke="currentColor"
-                strokeWidth="1.1"
-                strokeLinejoin="round"
-            />
+        <span
+            style={style}
+            className={cn(
+                'flex shrink-0 items-center justify-center rounded-sm font-semibold tracking-tight',
+                avatar.accent === undefined && 'bg-info-soft text-info',
+                sizeClass,
+            )}
+        >
+            {initials}
+        </span>
+    );
+}
+
+function deriveInitials(label: string): string {
+    const parts = label.trim().split(/\s+/);
+    if (parts.length >= 2) {
+        return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
+    }
+    return (label.slice(0, 2) || '?').toUpperCase();
+}
+
+function Chevron({ open }: { open: boolean }) {
+    return (
+        <svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={cn(
+                'shrink-0 text-muted-foreground transition-transform duration-150',
+                open && 'rotate-180',
+            )}
+            aria-hidden
+        >
+            <path d="m2.5 4 2.5 2.5L7.5 4" />
+        </svg>
+    );
+}
+
+function Check() {
+    return (
+        <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0 text-accent"
+            aria-hidden
+        >
+            <path d="m3 7.5 2.5 2.5L11 4.5" />
+        </svg>
+    );
+}
+
+function Plus() {
+    return (
+        <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0"
+            aria-hidden
+        >
+            <path d="M6 2v8M2 6h8" />
         </svg>
     );
 }
