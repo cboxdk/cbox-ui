@@ -34,6 +34,10 @@ export {
     type CboxNavSection,
     type LinkComponent,
 } from './layout/cbox-app-sidebar';
+export {
+    CboxMobileNavDrawer,
+    type CboxMobileNavDrawerProps,
+} from './layout/cbox-mobile-nav-drawer';
 export { CboxBrand, type CboxBrandProps } from './layout/cbox-brand';
 export {
     CboxOrgContextBar,

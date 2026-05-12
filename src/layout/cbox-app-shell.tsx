@@ -1,5 +1,5 @@
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { AppContent } from './app-content';
 import { AppShell } from './app-shell';
 import {
@@ -7,6 +7,7 @@ import {
     type CboxNavSection,
     type LinkComponent,
 } from './cbox-app-sidebar';
+import { CboxMobileNavDrawer } from './cbox-mobile-nav-drawer';
 import { AppSwitcher } from '../components/app-switcher';
 import { NotificationsBell } from '../components/notifications-bell';
 import { SearchTrigger } from '../components/search-trigger';
@@ -87,6 +88,13 @@ export function CboxAppShell({
     children,
 }: CboxAppShellProps) {
     const ToggleIcon = sidebarCollapsed ? PanelLeftOpen : PanelLeftClose;
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+    // Auto-close the mobile drawer on route change so the in-app
+    // navigation feels native — apps don't need to wire this.
+    useEffect(() => {
+        setMobileNavOpen(false);
+    }, [currentPath]);
 
     return (
         <AppShell>
@@ -100,9 +108,29 @@ export function CboxAppShell({
                 LinkComponent={LinkComponent}
                 collapsed={sidebarCollapsed}
             />
+            <CboxMobileNavDrawer
+                open={mobileNavOpen}
+                onClose={() => setMobileNavOpen(false)}
+                appKey={appKey}
+                brandSubmark={brandSubmark}
+                assetBase={assetBase}
+                brandHref={brandHref}
+                sections={sections}
+                currentPath={currentPath}
+                LinkComponent={LinkComponent}
+            />
             <AppContent>
                 <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-background/80 px-4 backdrop-blur-md">
                     <div className="flex min-w-0 items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setMobileNavOpen(true)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground lg:hidden"
+                            aria-label="Open navigation"
+                            title="Open navigation"
+                        >
+                            <Menu className="h-4 w-4" strokeWidth={1.8} />
+                        </button>
                         {onToggleSidebar !== undefined ? (
                             <button
                                 type="button"
