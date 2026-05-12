@@ -1,6 +1,6 @@
 {
     "name": "@cboxdk/cbox-ui",
-    "version": "0.5.1",
+    "version": "0.5.2",
     "private": false,
     "description": "Cbox shared UI — layout primitives, design tokens, and brand assets used across every Cbox-family app (id, cortex, atlas, track, …).",
     "repository": {
