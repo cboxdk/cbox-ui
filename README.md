@@ -15,12 +15,7 @@ bun add @cboxdk/cbox-ui clsx tailwind-merge
 bun add react react-dom tailwindcss lucide-react
 ```
 
-The package is published to GitHub Packages under the `cboxdk` org. Configure auth once per machine:
-
-```sh
-echo "//npm.pkg.github.com/:_authToken=YOUR_PAT" >> ~/.npmrc
-echo "@cboxdk:registry=https://npm.pkg.github.com" >> ~/.npmrc
-```
+The package is published on npm as `@cboxdk/cbox-ui` under the MIT License. The Cbox name and logos in `assets/` are trademarks and are not covered by the licence (see `LICENSE`).
 
 ## Wire it up
 
