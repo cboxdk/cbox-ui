@@ -15,7 +15,7 @@ bun add @cboxdk/cbox-ui clsx tailwind-merge
 bun add react react-dom tailwindcss lucide-react
 ```
 
-The package is published on npm as `@cboxdk/cbox-ui` under the MIT License. The Cbox name and logos in `assets/` are trademarks and are not covered by the licence (see `LICENSE`).
+The package is published on npm as `@cboxdk/cbox-ui` under the MIT License. The Cbox name and logos in `assets/` are trademarks and are not covered by the licence (see `TRADEMARKS.md`).
 
 ## Wire it up
 
