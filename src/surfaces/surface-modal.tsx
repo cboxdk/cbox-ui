@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import { X } from 'lucide-react';
 import {
     useCallback,
@@ -52,6 +53,7 @@ export function SurfaceModal({
     size = 'wide',
     children,
 }: Props) {
+    const { t } = useCboxLocalization();
     const dialogRef = useRef<HTMLDivElement | null>(null);
     const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -171,7 +173,7 @@ export function SurfaceModal({
                         type="button"
                         onClick={onClose}
                         className="ml-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                        aria-label="Close"
+                        aria-label={t("Close")}
                     >
                         <X className="h-4 w-4" strokeWidth={1.8} />
                     </button>

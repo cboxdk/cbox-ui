@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import {
     useEffect,
     useMemo,
@@ -33,6 +34,7 @@ type Props = {
  * user types, arrow-key navigation, Enter to switch, Escape to close.
  */
 export function OrgSwitcher({ Trigger = DefaultTrigger, className }: Props) {
+    const { t } = useCboxLocalization();
     const { currentOrganization, organizations, onSwitchOrganization } = useCboxId();
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
@@ -154,13 +156,12 @@ export function OrgSwitcher({ Trigger = DefaultTrigger, className }: Props) {
             {open ? (
                 <div
                     role="dialog"
-                    aria-label="Switch organization"
+                    aria-label={t("Switch organization")}
                     className="absolute left-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-md border border-border bg-popover shadow-md"
                 >
                     <div className="border-b border-border/70 px-3 pt-2 pb-1">
                         <p className="text-mono text-[10px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                            Switch organization
-                        </p>
+                            {t("Switch organization")}</p>
                     </div>
 
                     <div className="border-b border-border/70 px-2 py-1.5">
@@ -172,8 +173,8 @@ export function OrgSwitcher({ Trigger = DefaultTrigger, className }: Props) {
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 onKeyDown={onSearchKeyDown}
-                                placeholder="Filter…"
-                                aria-label="Filter organizations"
+                                placeholder={t("Filter…")}
+                                aria-label={t("Filter organizations")}
                                 autoComplete="off"
                                 spellCheck={false}
                                 className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
@@ -184,10 +185,7 @@ export function OrgSwitcher({ Trigger = DefaultTrigger, className }: Props) {
                     <div className="max-h-[50vh] overflow-y-auto p-1">
                         {filtered.length === 0 ? (
                             <p className="px-3 py-6 text-center text-[12px] text-muted-foreground">
-                                No organizations match{' '}
-                                <span className="text-mono text-foreground">
-                                    “{query}”
-                                </span>
+                                {t('No organizations match “{query}”', {query})}
                             </p>
                         ) : (
                             <ul className="space-y-0.5">
@@ -212,8 +210,7 @@ export function OrgSwitcher({ Trigger = DefaultTrigger, className }: Props) {
                                                 <span className="truncate">{org.name}</span>
                                                 {active ? (
                                                     <span className="text-mono text-[10px] text-muted-foreground">
-                                                        current
-                                                    </span>
+                                                        {t("current")}</span>
                                                 ) : null}
                                             </button>
                                         </li>

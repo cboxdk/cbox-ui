@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import type { ComponentType, ReactNode } from 'react';
 import { CboxBrand } from './cbox-brand';
 import { cn } from '../utils/cn';
@@ -82,6 +83,7 @@ export function CboxAppSidebar({
     collapsed = false,
     className,
 }: CboxAppSidebarProps) {
+    const { t } = useCboxLocalization();
     return (
         <aside
             data-slot="cbox-app-sidebar"
@@ -94,7 +96,7 @@ export function CboxAppSidebar({
         >
             <LinkComponent
                 href={brandHref}
-                aria-label="Home"
+                aria-label={t("Home")}
                 className={cn(
                     'flex h-14 shrink-0 items-center border-b border-sidebar-border/70',
                     collapsed ? 'justify-center px-0' : 'px-4',

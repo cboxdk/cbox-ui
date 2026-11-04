@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import { useEffect, useState } from 'react';
 import { cn } from '../utils/cn';
 
@@ -22,7 +23,8 @@ type Props = {
  * The actual palette stays per-app (commands differ); this primitive
  * just renders the trigger and dispatches `onOpen`.
  */
-export function SearchTrigger({ onOpen, className, label = 'Search' }: Props) {
+export function SearchTrigger({ onOpen, className, label }: Props) {
+    const { t } = useCboxLocalization();
     const [shortcut, setShortcut] = useState('⌘K');
     useEffect(() => {
         if (typeof navigator === 'undefined') return;
@@ -37,10 +39,10 @@ export function SearchTrigger({ onOpen, className, label = 'Search' }: Props) {
                 'hidden h-8 w-[180px] items-center gap-2 rounded-md border border-border bg-card pr-1.5 pl-2.5 text-xs text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground sm:inline-flex',
                 className,
             )}
-            aria-label="Open command palette"
+            aria-label={t("Open command palette")}
         >
             <SearchIcon />
-            <span className="flex-1 text-left">{label}</span>
+            <span className="flex-1 text-left">{label ?? t('Search')}</span>
             <kbd className="text-mono ml-1 rounded-sm border border-border bg-secondary px-1 py-0.5 text-[10px] font-medium tracking-tight text-muted-foreground">
                 {shortcut}
             </kbd>

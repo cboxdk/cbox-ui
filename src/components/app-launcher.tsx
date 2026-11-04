@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useCboxIdOptional, type CboxAppLink } from '../context/cbox-id';
 import { cn } from '../utils/cn';
@@ -29,6 +30,7 @@ type AppLauncherProps = {
  * glance instead of needing a tooltip.
  */
 export function AppLauncher({ className, onLockedAppClick }: AppLauncherProps) {
+    const { t } = useCboxLocalization();
     // Soft-read: if a layout above us forgot to mount <CboxIdProvider>
     // (e.g. an admin shell that doesn't expose cross-app context yet),
     // render nothing instead of crashing the chrome. Throwing here used
@@ -99,7 +101,7 @@ export function AppLauncher({ className, onLockedAppClick }: AppLauncherProps) {
         <div ref={containerRef} className={cn('relative', className)}>
             <button
                 type="button"
-                aria-label="Open app launcher"
+                aria-label={t("Open app launcher")}
                 aria-expanded={open}
                 onClick={() => setOpen((v) => !v)}
                 className={cn(
@@ -112,7 +114,7 @@ export function AppLauncher({ className, onLockedAppClick }: AppLauncherProps) {
             {open ? (
                 <div
                     role="dialog"
-                    aria-label="Cbox app launcher"
+                    aria-label={t("Cbox app launcher")}
                     // Cap width at viewport-minus-gutter on narrow
                     // screens so the panel stays inside the visible
                     // area on mobile (390px viewport, 320px panel
@@ -122,8 +124,7 @@ export function AppLauncher({ className, onLockedAppClick }: AppLauncherProps) {
                 >
                     <div className="border-b border-border/70 px-3 py-2.5">
                         <p className="text-mono text-[10px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                            Cbox suite
-                        </p>
+                            {t("Cbox suite")}</p>
                     </div>
 
                     <div className="max-h-[60vh] overflow-y-auto py-1">
@@ -146,8 +147,7 @@ export function AppLauncher({ className, onLockedAppClick }: AppLauncherProps) {
                                     <div className="my-1 border-t border-border/50" />
                                 ) : null}
                                 <p className="text-mono px-3 py-1.5 text-[10px] font-semibold tracking-[0.18em] text-muted-foreground/70 uppercase">
-                                    Available
-                                </p>
+                                    {t("Available")}</p>
                                 <ul className="space-y-0.5 p-1 pt-0">
                                     {locked.map((app) => (
                                         <AppRow
@@ -174,6 +174,7 @@ type AppRowProps = {
 };
 
 function AppRow({ app, orgSlug, onLockedAppClick }: AppRowProps): ReactNode {
+    const { t } = useCboxLocalization();
     const isComingSoon = app.comingSoon === true;
     const isLocked = app.entitled === false || isComingSoon;
 
@@ -227,8 +228,7 @@ function AppRow({ app, orgSlug, onLockedAppClick }: AppRowProps): ReactNode {
                 </span>
                 {app.current ? (
                     <span className="text-mono shrink-0 rounded-sm border border-accent-edge/40 bg-accent-soft px-1 text-[9px] font-semibold tracking-[0.14em] text-accent uppercase">
-                        current
-                    </span>
+                        {t("current")}</span>
                 ) : null}
             </div>
             {app.description ? (
@@ -248,13 +248,11 @@ function AppRow({ app, orgSlug, onLockedAppClick }: AppRowProps): ReactNode {
 
     const trailing = isComingSoon ? (
         <span className="text-mono shrink-0 rounded-sm border border-border bg-secondary px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            soon
-        </span>
+            {t("soon")}</span>
     ) : isLocked ? (
         <span className="flex shrink-0 items-center gap-1 text-[10px] font-medium text-muted-foreground">
             <Lock />
-            Add
-        </span>
+            {t("Add")}</span>
     ) : null;
 
     if (isComingSoon) {
@@ -263,7 +261,7 @@ function AppRow({ app, orgSlug, onLockedAppClick }: AppRowProps): ReactNode {
                 <div
                     aria-disabled
                     className="flex w-full cursor-not-allowed items-center gap-3 rounded-md px-2.5 py-2"
-                    title={`${app.name} — coming soon`}
+                    title={t('{name} — coming soon', {name: app.name})}
                 >
                     {tile}
                     {body}
@@ -285,7 +283,7 @@ function AppRow({ app, orgSlug, onLockedAppClick }: AppRowProps): ReactNode {
                             ? 'hover:bg-secondary'
                             : 'cursor-default',
                     )}
-                    title={`Add ${app.name} to your plan`}
+                    title={t('Add {name} to your plan', {name: app.name})}
                 >
                     {tile}
                     {body}

@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useCboxIdOptional } from '../context/cbox-id';
 import type { CboxNotificationPreviewItem } from '../context/cbox-id';
@@ -20,6 +21,7 @@ import { cn } from '../utils/cn';
  * aren't configured (eg pre-auth pages).
  */
 export function NotificationsBell({ className }: { className?: string }) {
+    const { t, formatDate } = useCboxLocalization();
     const ctx = useCboxIdOptional();
     const surfaces = useCboxSurfacesOptional();
     const [open, setOpen] = useState(false);
@@ -63,7 +65,7 @@ export function NotificationsBell({ className }: { className?: string }) {
             <div className={cn('relative', className)}>
                 <button
                     type="button"
-                    aria-label="Notifications"
+                    aria-label={t("Notifications")}
                     disabled
                     className="relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground opacity-60 cursor-default"
                 >
@@ -84,8 +86,8 @@ export function NotificationsBell({ className }: { className?: string }) {
                 onClick={() => setOpen((v) => !v)}
                 aria-label={
                     unreadCount > 0
-                        ? `${unreadCount} unread notifications`
-                        : 'Notifications'
+                        ? t('{count} unread notifications', {count: unreadCount})
+                        : t('Notifications')
                 }
                 aria-expanded={open}
                 aria-haspopup="menu"
@@ -107,12 +109,10 @@ export function NotificationsBell({ className }: { className?: string }) {
                 >
                     <header className="flex items-center justify-between border-b border-border/70 px-3 py-2">
                         <span className="text-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
-                            Notifications
-                        </span>
+                            {t("Notifications")}</span>
                         {unreadCount > 0 ? (
                             <span className="text-mono text-[10px] tabular-nums text-muted-foreground">
-                                {unreadCount} unread
-                            </span>
+                                {t('{count} unread', {count: unreadCount})}</span>
                         ) : null}
                     </header>
 
@@ -121,11 +121,9 @@ export function NotificationsBell({ className }: { className?: string }) {
                         previewItems.length === 0 ? (
                             <div className="px-3 py-8 text-center">
                                 <p className="text-sm font-medium text-foreground">
-                                    All caught up
-                                </p>
+                                    {t("All caught up")}</p>
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    No recent notifications.
-                                </p>
+                                    {t("No recent notifications.")}</p>
                             </div>
                         ) : (
                             <ul className="divide-y divide-border/70">
@@ -150,15 +148,13 @@ export function NotificationsBell({ className }: { className?: string }) {
                             }}
                             className="flex w-full items-center justify-center border-t border-border/70 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
                         >
-                            See all notifications →
-                        </button>
+                            {t("See all notifications →")}</button>
                     ) : (
                         <a
                             href={inboxUrl}
                             className="flex items-center justify-center border-t border-border/70 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
                         >
-                            See all notifications →
-                        </a>
+                            {t("See all notifications →")}</a>
                     )}
                 </div>
             ) : null}
@@ -175,6 +171,7 @@ function PreviewRow({
     markReadUrl?: string;
     onMarkedRead: () => void;
 }) {
+    const { t, formatDate } = useCboxLocalization();
     const tone =
         item.severity === 'critical'
             ? 'bg-destructive'
@@ -184,7 +181,7 @@ function PreviewRow({
 
     const ts = (() => {
         try {
-            return new Date(item.createdAt).toLocaleString();
+            return formatDate(item.createdAt);
         } catch {
             return item.createdAt;
         }
@@ -255,8 +252,8 @@ function PreviewRow({
                             type="button"
                             onClick={markRead}
                             className="shrink-0 rounded-md px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                            aria-label="Mark as read"
-                            title="Mark as read"
+                            aria-label={t("Mark as read")}
+                            title={t("Mark as read")}
                         >
                             ✓
                         </button>

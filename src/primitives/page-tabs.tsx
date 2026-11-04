@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import {
     useEffect,
     useId,
@@ -161,6 +162,7 @@ type StripProps = {
 };
 
 function DesktopStrip({ items, activeHref, LinkComponent }: StripProps) {
+    const { t } = useCboxLocalization();
     return (
         <nav
             // Pill-style tabs inside the card chrome read clearly as
@@ -170,7 +172,7 @@ function DesktopStrip({ items, activeHref, LinkComponent }: StripProps) {
             // slot on the right shares the same baseline.
             className="flex min-h-12 flex-1 items-center gap-1 overflow-x-auto overflow-y-hidden py-1.5"
             role="tablist"
-            aria-label="Section navigation"
+            aria-label={t("Section navigation")}
         >
             {items.map((item) => {
                 const Icon = item.icon;
@@ -210,6 +212,7 @@ function DesktopStrip({ items, activeHref, LinkComponent }: StripProps) {
 }
 
 function MobileDropdown({ items, activeHref, LinkComponent }: StripProps) {
+    const { t } = useCboxLocalization();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement | null>(null);
     const listId = useId();
@@ -280,7 +283,7 @@ function MobileDropdown({ items, activeHref, LinkComponent }: StripProps) {
                 <ul
                     id={listId}
                     role="listbox"
-                    aria-label="Section navigation"
+                    aria-label={t("Section navigation")}
                     className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-md border border-border bg-popover shadow-lg"
                 >
                     {items.map((item) => {
