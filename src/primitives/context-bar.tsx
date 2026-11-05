@@ -429,7 +429,7 @@ export function ContextAvatarChip({
     const initials =
         avatar.initials ?? deriveInitials(fallbackLabel);
     const sizeClass =
-        size === 'sm' ? 'h-5 w-5 text-[9px]' : 'h-7 w-7 text-[11px]';
+        size === 'sm' ? 'h-[26px] w-[26px] text-[10px]' : 'h-7 w-7 text-[11px]';
     const style =
         avatar.src === undefined && avatar.accent !== undefined
             ? {
