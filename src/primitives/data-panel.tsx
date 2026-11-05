@@ -13,7 +13,7 @@ export function DataPanel({
     return (
         <section
             className={cn(
-                'rounded-lg border border-border bg-card text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.02)]',
+                'rounded-lg border border-border bg-card text-card-foreground shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_12px_rgb(0_0_0/0.03)]',
                 className,
             )}
             {...rest}

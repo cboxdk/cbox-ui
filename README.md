@@ -178,3 +178,24 @@ from Cbox ID's versioned `preferences` namespace.
 Pass an optional `formatDate(isoTimestamp)` callback when the host manages date
 format and timezone preferences separately. Notification timestamps use that
 callback; without it, existing browser formatting is preserved.
+
+### Workspace navigation (current design contract)
+
+`CboxWorkspaceShell` is the two-tier product shell. Pass `areas` (each has a
+label, href, icon and optional child `items`), the router's `currentPath` and
+`LinkComponent`, plus `context`, `tools` and `account` slots. Include the real
+organization context, search, notifications and Switch app in these slots;
+render `UserMenu placement="top-start"` in `account`. The account stays at the
+bottom of the main rail. Existing `CboxAppShell` consumers retain their API.
+
+The rail reserves 64px, expands on hover/focus without moving content, and
+reserves 222px when pinned. Context navigation only appears for multi-page
+areas; its panel button and Command/Control-period collapse it to a 26px strip.
+Mobile uses a modal navigation sheet and retains the header app switcher.
+Query strings do not change active navigation. Hosts own route construction,
+organization switching, search and preference persistence.
+
+Core tokens now match the warm cream/ink design-system colors. Body text uses
+the system stack; hosts self-host Plus Jakarta Sans for headings and JetBrains
+Mono for technical values. Card/control/badge radii are 12/8/6px. The main canvas
+uses the approved single radial wash at 30% 0 in both themes.
