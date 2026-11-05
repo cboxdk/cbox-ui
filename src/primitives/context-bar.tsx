@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import {
     useEffect,
     useId,
@@ -123,6 +124,7 @@ export function ContextBar({
     LinkComponent = DefaultLink,
     className,
 }: Props) {
+    const { t } = useCboxLocalization();
     if (crumbs.length === 0) {
         return null;
     }
@@ -130,7 +132,7 @@ export function ContextBar({
     return (
         <nav
             data-component="context-bar"
-            aria-label="Context"
+            aria-label={t("Context")}
             // No `overflow-x-auto` on the nav — it would clip the
             // dropdown panel that opens below each chip. If we need
             // horizontal scroll for 5+ crumbs later (cortex with
@@ -172,6 +174,7 @@ function ContextCrumbChip({
     crumb: ContextCrumb;
     LinkComponent: LinkComp;
 }) {
+    const { t } = useCboxLocalization();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement | null>(null);
     const listId = useId();
@@ -212,7 +215,7 @@ function ContextCrumbChip({
                 aria-expanded={hasMenu ? open : undefined}
                 aria-haspopup={hasMenu ? 'listbox' : undefined}
                 aria-controls={hasMenu ? listId : undefined}
-                aria-label={crumb.ariaLabel ?? `Switch ${crumb.label}`}
+                aria-label={crumb.ariaLabel ?? t('Switch {name}', {name: crumb.label})}
                 disabled={! hasMenu}
                 className={cn(
                     'flex h-8 min-w-0 items-center gap-2 rounded-md border border-transparent px-2 text-[13px] text-foreground transition-colors',
@@ -295,6 +298,7 @@ function ContextItemRow({
     LinkComponent: LinkComp;
     onAfterClick: () => void;
 }) {
+    const { t } = useCboxLocalization();
     const body = (
         <div className="flex w-full min-w-0 items-center gap-2.5 px-2.5 py-2">
             {item.avatar !== undefined ? (
@@ -340,7 +344,7 @@ function ContextItemRow({
             >
                 <span
                     aria-label={
-                        item.settingsAriaLabel ?? `Settings for ${item.label}`
+                        item.settingsAriaLabel ?? t('Settings for {name}', {name: item.label})
                     }
                     onClickCapture={(event) => {
                         event.stopPropagation();

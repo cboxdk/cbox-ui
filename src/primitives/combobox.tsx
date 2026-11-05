@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import {
     useCallback,
     useEffect,
@@ -146,11 +147,12 @@ type NavModeProps = CommonProps & {
 export type ComboboxProps = ValueModeProps | NavModeProps;
 
 export function Combobox(props: ComboboxProps) {
+    const { t } = useCboxLocalization();
     const {
         items,
-        placeholder = 'Select…',
-        searchPlaceholder = 'Search…',
-        emptyText = 'Nothing matches.',
+        placeholder = t('Select…'),
+        searchPlaceholder = t('Search…'),
+        emptyText = t('Nothing matches.'),
         footerLink,
         disabled = false,
         required = false,

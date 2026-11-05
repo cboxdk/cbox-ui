@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { AppContent } from './app-content';
@@ -87,6 +88,7 @@ export function CboxAppShell({
     topbarRightCluster,
     children,
 }: CboxAppShellProps) {
+    const { t } = useCboxLocalization();
     const ToggleIcon = sidebarCollapsed ? PanelLeftOpen : PanelLeftClose;
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -126,8 +128,8 @@ export function CboxAppShell({
                             type="button"
                             onClick={() => setMobileNavOpen(true)}
                             className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground lg:hidden"
-                            aria-label="Open navigation"
-                            title="Open navigation"
+                            aria-label={t("Open navigation")}
+                            title={t("Open navigation")}
                         >
                             <Menu className="h-4 w-4" strokeWidth={1.8} />
                         </button>
@@ -138,13 +140,13 @@ export function CboxAppShell({
                                 className="hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground lg:inline-flex"
                                 aria-label={
                                     sidebarCollapsed
-                                        ? 'Expand sidebar'
-                                        : 'Collapse sidebar'
+                                        ? t('Expand sidebar')
+                                        : t('Collapse sidebar')
                                 }
                                 title={
                                     sidebarCollapsed
-                                        ? 'Expand sidebar'
-                                        : 'Collapse sidebar'
+                                        ? t('Expand sidebar')
+                                        : t('Collapse sidebar')
                                 }
                             >
                                 <ToggleIcon

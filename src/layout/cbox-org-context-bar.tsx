@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import { useCboxIdOptional } from '../context/cbox-id';
 import { ContextBar, type ContextItem } from '../primitives/context-bar';
 import type { LinkComponent } from './cbox-app-sidebar';
@@ -42,6 +43,7 @@ export function CboxOrgContextBar({
     LinkComponent,
     onNavigate,
 }: CboxOrgContextBarProps) {
+    const { t } = useCboxLocalization();
     const cboxId = useCboxIdOptional();
 
     if (cboxId === null) {
@@ -65,7 +67,7 @@ export function CboxOrgContextBar({
         // Cogwheel shortcut → id's org-settings page. Cross-app
         // deep link; id handles the auth and rendering.
         settingsHref: `${idBase}/org/${org.slug}/settings`,
-        settingsAriaLabel: `Settings for ${org.name}`,
+        settingsAriaLabel: t('Settings for {name}', {name: org.name}),
     }));
 
     const onSelect = (slug: string) => {
@@ -93,10 +95,10 @@ export function CboxOrgContextBar({
                     items,
                     onSelect,
                     footerLink: {
-                        label: 'Manage organizations',
+                        label: t('Manage organizations'),
                         href: `${idBase}/settings/organizations`,
                     },
-                    ariaLabel: 'Switch organization',
+                    ariaLabel: t('Switch organization'),
                 },
             ]}
         />

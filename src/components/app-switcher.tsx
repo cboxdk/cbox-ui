@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import {
     useEffect,
     useMemo,
@@ -39,6 +40,7 @@ type AppSwitcherProps = {
  * mounted above (admin shells, pre-auth pages).
  */
 export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
+    const { t } = useCboxLocalization();
     const cboxId = useCboxIdOptional();
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
@@ -161,7 +163,7 @@ export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
 
     const triggerMonogram =
         currentApp?.monogram ?? currentApp?.name.slice(0, 1).toUpperCase() ?? '⬛';
-    const triggerName = currentApp?.name ?? 'Apps';
+    const triggerName = currentApp?.name ?? t('Apps');
     const triggerAccent = currentApp?.accentColor;
 
     function onSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>): void {
@@ -241,15 +243,14 @@ export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
             {open ? (
                 <div
                     role="dialog"
-                    aria-label="Switch app"
+                    aria-label={t("Switch app")}
                     // 22rem wide — enough for monogram + name + description in one line
                     // without wrapping. Clamps to viewport-minus-gutter on narrow screens.
                     className="absolute left-0 top-full z-50 mt-1 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-border bg-popover shadow-lg"
                 >
                     <div className="border-b border-border/70 px-3 pt-2.5 pb-1.5">
                         <p className="text-mono text-[10px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                            Switch app
-                        </p>
+                            {t("Switch app")}</p>
                     </div>
 
                     <div className="border-b border-border/70 px-2 py-1.5">
@@ -261,8 +262,8 @@ export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 onKeyDown={onSearchKeyDown}
-                                placeholder="Filter apps…"
-                                aria-label="Filter apps"
+                                placeholder={t("Filter apps…")}
+                                aria-label={t("Filter apps")}
                                 autoComplete="off"
                                 spellCheck={false}
                                 className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
@@ -273,10 +274,7 @@ export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
                     <div className="max-h-[60vh] overflow-y-auto py-1">
                         {totalMatches === 0 ? (
                             <p className="px-3 py-6 text-center text-[12px] text-muted-foreground">
-                                No apps match{' '}
-                                <span className="text-mono text-foreground">
-                                    “{query}”
-                                </span>
+                                {t('No apps match “{query}”', {query})}
                             </p>
                         ) : null}
 
@@ -309,8 +307,7 @@ export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
                                     <div className="my-1 border-t border-border/50" />
                                 ) : null}
                                 <p className="text-mono px-3 py-1.5 text-[10px] font-semibold tracking-[0.18em] text-muted-foreground/70 uppercase">
-                                    Available
-                                </p>
+                                    {t("Available")}</p>
                                 <ul className="space-y-0.5 p-1 pt-0">
                                     {locked.map((app) => {
                                         const navIndex = findNavIndex(navigableHrefs, app);
@@ -364,6 +361,7 @@ function AppRow({
     onLockedAppClick,
     onNavigate,
 }: AppRowProps): ReactNode {
+    const { t } = useCboxLocalization();
     const isComingSoon = app.comingSoon === true;
     const isLocked = app.entitled === false || isComingSoon;
 
@@ -411,8 +409,7 @@ function AppRow({
                 </span>
                 {app.current ? (
                     <span className="text-mono shrink-0 rounded-sm border border-accent-edge/40 bg-accent-soft px-1 text-[9px] font-semibold tracking-[0.14em] text-accent uppercase">
-                        current
-                    </span>
+                        {t("current")}</span>
                 ) : null}
             </div>
             {app.description ? (
@@ -430,13 +427,11 @@ function AppRow({
 
     const trailing = isComingSoon ? (
         <span className="text-mono shrink-0 rounded-sm border border-border bg-secondary px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-            soon
-        </span>
+            {t("soon")}</span>
     ) : isLocked ? (
         <span className="flex shrink-0 items-center gap-1 text-[10px] font-medium text-muted-foreground">
             <Lock />
-            Add
-        </span>
+            {t("Add")}</span>
     ) : null;
 
     if (isComingSoon) {
@@ -445,7 +440,7 @@ function AppRow({
                 <div
                     aria-disabled
                     className="flex w-full cursor-not-allowed items-center gap-3 rounded-md px-2.5 py-2"
-                    title={`${app.name} — coming soon`}
+                    title={t('{name} — coming soon', {name: app.name})}
                 >
                     {tile}
                     {body}
@@ -472,7 +467,7 @@ function AppRow({
                             ? 'hover:bg-secondary'
                             : 'cursor-default',
                     )}
-                    title={`Add ${app.name} to your plan`}
+                    title={t('Add {name} to your plan', {name: app.name})}
                 >
                     {tile}
                     {body}

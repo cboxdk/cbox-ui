@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import { useEffect, useState } from 'react';
 import { useCboxIdOptional } from '../context/cbox-id';
 import { EmptyState } from '../primitives/empty-state';
@@ -51,6 +52,7 @@ const TONES: Record<
  *     (notifications.user.{id}.created topic)
  */
 export function InboxSurface({ open, onClose }: Props) {
+    const { t, formatDate } = useCboxLocalization();
     const transport = useTransport();
     const cboxId = useCboxIdOptional();
     const [inbox, setInbox] = useState<Inbox | null>(null);
@@ -80,7 +82,7 @@ export function InboxSurface({ open, onClose }: Props) {
                 if (!cancelled) setInbox(body);
             } catch (e) {
                 if (!cancelled) {
-                    setError(e instanceof Error ? e.message : 'Load failed');
+                    setError(e instanceof Error ? e.message : t('Load failed'));
                 }
             } finally {
                 if (!cancelled) setLoading(false);
@@ -138,9 +140,9 @@ export function InboxSurface({ open, onClose }: Props) {
         <SurfaceModal
             open={open}
             onClose={onClose}
-            eyebrow="Notifications"
+            eyebrow={t("Notifications")}
             title={
-                unread > 0 ? `Inbox · ${unread} unread` : 'Inbox · all caught up'
+                unread > 0 ? t('Inbox · {count} unread', {count: unread}) : t('Inbox · all caught up')
             }
             headerActions={
                 <div className="flex items-center gap-2">
@@ -148,21 +150,19 @@ export function InboxSurface({ open, onClose }: Props) {
                         active={filter === 'all'}
                         onClick={() => setFilter('all')}
                     >
-                        All
-                    </FilterTab>
+                        {t("All")}</FilterTab>
                     <FilterTab
                         active={filter === 'unread'}
                         onClick={() => setFilter('unread')}
                     >
-                        Unread
-                    </FilterTab>
+                        {t("Unread")}</FilterTab>
                 </div>
             }
             footer={
                 inbox !== null && baseUrl !== null ? (
                     <>
                         <span>
-                            Showing {filtered.length} of {items.length}.
+                            {t('Showing {shown} of {total}.', {shown: filtered.length, total: items.length})}
                         </span>
                         <a
                             href={`${baseUrl}/inbox`}
@@ -170,8 +170,7 @@ export function InboxSurface({ open, onClose }: Props) {
                             rel="noreferrer"
                             className="font-medium text-foreground hover:underline"
                         >
-                            Open in new tab ↗
-                        </a>
+                            {t("Open in new tab ↗")}</a>
                     </>
                 ) : (
                     <span>—</span>
@@ -181,25 +180,23 @@ export function InboxSurface({ open, onClose }: Props) {
             {error !== null ? (
                 <div className="px-5 py-8 text-center">
                     <p className="text-sm font-medium text-destructive">
-                        Couldn't load inbox
-                    </p>
+                        {t("Couldn't load inbox")}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                         {error}
                     </p>
                 </div>
             ) : loading && inbox === null ? (
                 <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-                    Loading…
-                </div>
+                    {t("Loading…")}</div>
             ) : filtered.length === 0 ? (
                 <div className="px-5 py-12">
                     <EmptyState
                         title={
                             filter === 'unread'
-                                ? 'No unread notifications'
-                                : 'No notifications yet'
+                                ? t('No unread notifications')
+                                : t('No notifications yet')
                         }
-                        description="When a Cbox app sends you something — invitation accepted, billing event, security alert — it lands here."
+                        description={t("When a Cbox app sends you something — invitation accepted, billing event, security alert — it lands here.")}
                     />
                 </div>
             ) : (
@@ -256,9 +253,7 @@ export function InboxSurface({ open, onClose }: Props) {
                                             <p className="text-mono mt-1 text-[10px] text-muted-foreground">
                                                 {item.event_type}
                                                 {' · '}
-                                                {new Date(
-                                                    item.created_at,
-                                                ).toLocaleString()}
+                                                {formatDate(item.created_at)}
                                             </p>
                                         </div>
                                         {item.read_at === null ? (
@@ -270,10 +265,9 @@ export function InboxSurface({ open, onClose }: Props) {
                                                     void markRead(item.id);
                                                 }}
                                                 className="shrink-0 rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-foreground transition-colors hover:border-border-strong"
-                                                aria-label="Mark as read"
+                                                aria-label={t("Mark as read")}
                                             >
-                                                Mark read
-                                            </button>
+                                                {t("Mark read")}</button>
                                         ) : null}
                                     </div>
                                 </InnerWrapper>

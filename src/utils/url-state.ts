@@ -55,7 +55,7 @@ export type InferUrlState<S extends UrlSchema> = {
 export function urlString(defaultValue: string = ''): UrlField<string> {
     return {
         parse: (raw) => raw ?? defaultValue,
-        serialize: (value) => (value === '' ? null : value),
+        serialize: (value) => value,
         isDefault: (value) => value === defaultValue,
     };
 }

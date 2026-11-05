@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import { useState, type ReactNode } from 'react';
 import { useCboxId } from '../context/cbox-id';
 import { cn } from '../utils/cn';
@@ -21,6 +22,7 @@ type Props = {
  * The arrows signal cross-app navigation — id is canonical.
  */
 export function UserMenu({ extras, className }: Props) {
+    const { t } = useCboxLocalization();
     const { user, currentOrganization, urls } = useCboxId();
     const [open, setOpen] = useState(false);
 
@@ -37,7 +39,7 @@ export function UserMenu({ extras, className }: Props) {
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 className="flex h-9 items-center gap-2 rounded-md px-1.5 hover:bg-secondary"
-                aria-label="Open user menu"
+                aria-label={t("Open user menu")}
             >
                 {user.avatar_url ? (
                     <img
@@ -72,7 +74,7 @@ export function UserMenu({ extras, className }: Props) {
                         href={urls.accountUrl}
                         className="flex items-center justify-between rounded-sm px-2 py-1.5 text-sm hover:bg-secondary"
                     >
-                        <span>Manage account</span>
+                        <span>{t("Manage account")}</span>
                         <CrossAppArrow />
                     </a>
                     {urls.orgSettingsUrl && currentOrganization ? (
@@ -81,8 +83,7 @@ export function UserMenu({ extras, className }: Props) {
                             className="flex items-center justify-between rounded-sm px-2 py-1.5 text-sm hover:bg-secondary"
                         >
                             <span className="truncate">
-                                Team & billing
-                                <span className="text-muted-foreground"> · {currentOrganization.name}</span>
+                                {t("Team & billing")}<span className="text-muted-foreground"> · {currentOrganization.name}</span>
                             </span>
                             <CrossAppArrow />
                         </a>
@@ -94,8 +95,7 @@ export function UserMenu({ extras, className }: Props) {
                             type="submit"
                             className="flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-secondary"
                         >
-                            Sign out
-                        </button>
+                            {t("Sign out")}</button>
                     </form>
                 </div>
             ) : null}

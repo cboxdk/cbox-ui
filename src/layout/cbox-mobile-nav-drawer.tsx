@@ -1,3 +1,4 @@
+import { useCboxLocalization } from '../context/localization';
 import { X } from 'lucide-react';
 import { useEffect } from 'react';
 import { CboxBrand } from './cbox-brand';
@@ -44,6 +45,7 @@ export function CboxMobileNavDrawer({
     currentPath,
     LinkComponent,
 }: CboxMobileNavDrawerProps) {
+    const { t } = useCboxLocalization();
     useEffect(() => {
         if (!open) {
             return;
@@ -83,7 +85,7 @@ export function CboxMobileNavDrawer({
             <aside
                 role="dialog"
                 aria-modal="true"
-                aria-label="Navigation"
+                aria-label={t("Navigation")}
                 className={cn(
                     'absolute inset-y-0 left-0 flex w-[280px] max-w-[80vw] flex-col border-r border-sidebar-border bg-sidebar shadow-xl transition-transform duration-200 ease-out',
                     open ? 'translate-x-0' : '-translate-x-full',
@@ -92,7 +94,7 @@ export function CboxMobileNavDrawer({
                 <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-sidebar-border/70 px-4">
                     <LinkComponent
                         href={brandHref}
-                        aria-label="Home"
+                        aria-label={t("Home")}
                         className="flex items-center"
                     >
                         <CboxBrand
@@ -105,7 +107,7 @@ export function CboxMobileNavDrawer({
                     <button
                         type="button"
                         onClick={onClose}
-                        aria-label="Close navigation"
+                        aria-label={t("Close navigation")}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                     >
                         <X className="h-4 w-4" strokeWidth={1.8} />

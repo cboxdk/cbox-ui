@@ -154,3 +154,27 @@ Switch back to the published version with `bun unlink @cboxdk/cbox-ui && bun ins
 ## Brand
 
 Brand guidelines, logo files, and the canonical asset set live in [`BRAND.md`](./BRAND.md) and `assets/`.
+
+## Localization
+
+Wrap the app shell in `CboxLocalizationProvider` to translate shared navigation,
+menus, placeholders and accessible labels. Existing consumers keep English when
+no provider is present. The host owns the selected language and its catalogs:
+
+```tsx
+<CboxLocalizationProvider locale={language} translate={t}>
+    <CboxAppShell {...shellProps}>{children}</CboxAppShell>
+</CboxLocalizationProvider>
+```
+
+`translate(message, values?)` returns plain text. Messages use English source
+keys and named placeholders, such as `Settings for {name}`. Preserve placeholders
+when translating. React escapes the returned text; do not return HTML. Consumer
+labels, notification content, organization names and other user data remain the
+host's responsibility. The provider does not persist settings or infer regional
+number/date formats from interface language. Cbox apps read those preferences
+from Cbox ID's versioned `preferences` namespace.
+
+Pass an optional `formatDate(isoTimestamp)` callback when the host manages date
+format and timezone preferences separately. Notification timestamps use that
+callback; without it, existing browser formatting is preserved.
