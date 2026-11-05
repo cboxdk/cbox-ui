@@ -122,3 +122,4 @@ export {
 
 // Host-owned language and formatting, shared by all chrome and primitives.
 export { CboxLocalizationProvider, useCboxLocalization, type CboxTranslator, type CboxTranslationValues } from './context/localization';
+export { CboxWorkspaceShell, type CboxWorkspaceShellProps, type CboxNavArea } from './layout/cbox-workspace-shell';

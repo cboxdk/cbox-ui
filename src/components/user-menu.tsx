@@ -10,6 +10,7 @@ type Props = {
      * is consistency across apps.
      */
     extras?: ReactNode;
+    placement?: 'bottom-end' | 'top-start';
     className?: string;
 };
 
@@ -21,7 +22,7 @@ type Props = {
  *
  * The arrows signal cross-app navigation — id is canonical.
  */
-export function UserMenu({ extras, className }: Props) {
+export function UserMenu({ extras, className, placement = 'bottom-end' }: Props) {
     const { t } = useCboxLocalization();
     const { user, currentOrganization, urls } = useCboxId();
     const [open, setOpen] = useState(false);
@@ -34,12 +35,14 @@ export function UserMenu({ extras, className }: Props) {
         .join('');
 
     return (
-        <div className={cn('relative', className)}>
+        <div className={cn('relative', className)} onKeyDown={event => { if (event.key === "Escape") setOpen(false); }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 className="flex h-9 items-center gap-2 rounded-md px-1.5 hover:bg-secondary"
                 aria-label={t("Open user menu")}
+                aria-expanded={open}
+                onKeyDown={event => { if (event.key === "Escape") setOpen(false); }}
             >
                 {user.avatar_url ? (
                     <img
@@ -54,7 +57,7 @@ export function UserMenu({ extras, className }: Props) {
                 )}
             </button>
             {open ? (
-                <div className="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-border bg-popover p-1 shadow-md">
+                <div className={cn("absolute z-50 w-64 rounded-lg border border-border bg-popover p-1 shadow-md", placement === "top-start" ? "bottom-full left-0 mb-2" : "right-0 top-full mt-1")}>
                     <div className="px-2 py-2">
                         <p className="truncate text-sm font-medium text-foreground">
                             {user.name}

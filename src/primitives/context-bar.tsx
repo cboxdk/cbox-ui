@@ -208,7 +208,7 @@ function ContextCrumbChip({
     const hasMenu = crumb.items.length > 0 || crumb.footerLink !== undefined;
 
     return (
-        <div ref={ref} className="relative">
+        <div ref={ref} className="relative min-w-0">
             <button
                 type="button"
                 onClick={() => setOpen((v) => ! v)}
@@ -231,7 +231,7 @@ function ContextCrumbChip({
                         size="sm"
                     />
                 ) : null}
-                <span className="truncate font-medium">{crumb.label}</span>
+                <span className="truncate font-semibold">{crumb.label}</span>
                 {hasMenu ? <Chevron open={open} /> : null}
             </button>
 
@@ -429,7 +429,7 @@ export function ContextAvatarChip({
     const initials =
         avatar.initials ?? deriveInitials(fallbackLabel);
     const sizeClass =
-        size === 'sm' ? 'h-5 w-5 text-[9px]' : 'h-7 w-7 text-[11px]';
+        size === 'sm' ? 'h-[26px] w-[26px] text-[10px]' : 'h-7 w-7 text-[11px]';
     const style =
         avatar.src === undefined && avatar.accent !== undefined
             ? {
