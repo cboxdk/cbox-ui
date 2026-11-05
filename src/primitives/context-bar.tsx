@@ -208,7 +208,7 @@ function ContextCrumbChip({
     const hasMenu = crumb.items.length > 0 || crumb.footerLink !== undefined;
 
     return (
-        <div ref={ref} className="relative">
+        <div ref={ref} className="relative min-w-0">
             <button
                 type="button"
                 onClick={() => setOpen((v) => ! v)}
@@ -231,7 +231,7 @@ function ContextCrumbChip({
                         size="sm"
                     />
                 ) : null}
-                <span className="truncate font-medium">{crumb.label}</span>
+                <span className="truncate font-semibold">{crumb.label}</span>
                 {hasMenu ? <Chevron open={open} /> : null}
             </button>
 

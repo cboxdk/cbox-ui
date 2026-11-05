@@ -83,13 +83,13 @@ export function CboxBrand({
             {submarkText !== null && submarkText !== '' ? (
                 <span
                     className={cn(
-                        'text-mono text-[10px] font-semibold tracking-[0.22em] uppercase',
+                        'text-[13px] font-semibold whitespace-nowrap',
                         tone === 'light'
                             ? 'text-white/60'
                             : 'text-muted-foreground/80',
                     )}
                 >
-                    {submarkText}
+                    · {submarkText}
                 </span>
             ) : null}
         </div>
