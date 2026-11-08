@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { niceTicks, timeTicks } from '../../src/charts/scale';
+import { niceTicks, seriesData, timeTicks } from '../../src/charts/scale';
 
 describe('niceTicks', () => {
     it('starts at zero and uses round steps up to the maximum', () => {
@@ -22,5 +22,16 @@ describe('timeTicks', () => {
 
         expect(wide.every((tick) => tick % 300_000 === 0 && tick >= from && tick <= to)).toBe(true);
         expect(timeTicks(from, to, 240).length).toBeLessThan(wide.length);
+    });
+});
+
+describe('seriesData', () => {
+    it('breaks the line between runs and draws an isolated sample as a dot', () => {
+        expect(seriesData([[{ t: 0, value: 1 }, { t: 60_000, value: 2 }], [{ t: 300_000, value: 3 }]])).toEqual([
+            { value: [0, 1] },
+            { value: [60_000, 2] },
+            { value: [299_999, null] },
+            { value: [300_000, 3], symbolSize: 5 },
+        ]);
     });
 });

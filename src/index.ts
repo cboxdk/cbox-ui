@@ -123,5 +123,6 @@ export {
 // Host-owned language and formatting, shared by all chrome and primitives.
 export { CboxLocalizationProvider, useCboxLocalization, type CboxTranslator, type CboxTranslationValues } from './context/localization';
 export { CboxWorkspaceShell, type CboxWorkspaceShellProps, type CboxNavArea } from './layout/cbox-workspace-shell';
-export { CHART_PALETTE, Sparkline, TimeChart, type TimeChartProps, type TimePoint, type TimeSeries } from './charts/time-chart';
-export { niceTicks, timeTicks } from './charts/scale';
+export { CHART_PALETTE, Sparkline } from './charts/sparkline';
+export { niceTicks, timeTicks, type TimePoint } from './charts/scale';
+// TimeChart and Chart (ECharts) live in '@cboxdk/cbox-ui/charts' so apps without charts never need echarts.

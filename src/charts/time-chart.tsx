@@ -1,19 +1,27 @@
-import { type PointerEvent, type ReactNode, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { cn } from '../utils/cn';
-import { niceTicks, timeTicks } from './scale';
-
-/** A sample at `t` milliseconds since the epoch. */
-export type TimePoint = { t: number; value: number };
+import { useCallback } from 'react';
+import { Chart, type ChartColors } from './chart';
+import { niceTicks, seriesData, type TimePoint } from './scale';
 
 export type TimeSeries = {
     key: string;
     label: string;
-    /** A chart token such as `var(--chart-1)`; defaults to the palette in order. */
-    color?: string;
     /** Contiguous runs of samples; a new run starts after a gap, which is drawn as a gap. */
     segments: TimePoint[][];
-    /** A reference to read the others against (last week), drawn dashed and without area. */
+    /** The headline series: drawn with a faint area. Defaults to the first series. */
+    primary?: boolean;
+    /** A reference to read the others against (last week, a limit): dashed, no area. */
     dashed?: boolean;
+};
+
+/** A moment worth explaining (a deploy, a scale step): a labelled vertical line, never a cause claim. */
+export type ChartEvent = {
+    /** Milliseconds since the epoch. */
+    at: number;
+    label: string;
+    /** Index into the chart tokens; deploys use 1 and scaling 2 by convention. */
+    tone?: number;
+    /** Extra tooltip line, such as the end time and outcome. Plain text. */
+    detail?: string;
 };
 
 export type TimeChartProps = {
@@ -24,187 +32,158 @@ export type TimeChartProps = {
     /** Accessible name; keep a table of the same numbers next to the chart. */
     label: string;
     formatValue: (value: number) => string;
+    /** Axis and tooltip time. Say the zone once beside the chart. */
     formatTime?: (t: number) => string;
+    /** Appended to values in the tooltip. */
+    unit?: string;
     /** Lowest top of the y axis, so a flat near-zero line does not fill the plot. */
     minimumTop?: number;
-    /** A moment marked with a dashed line, such as a deploy or a selected request. */
+    events?: ChartEvent[];
+    /** A moment marked with a dashed line, such as a selected request. */
     marker?: number | null;
+    /** Zoom by slider, pinch or Ctrl/⌘ + scroll. On by default. */
+    zoom?: boolean;
     height?: number;
     className?: string;
 };
 
-export const CHART_PALETTE = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
-
-const PAD = { top: 8, right: 8, bottom: 22, left: 48 };
-
 const defaultTime = (t: number) => new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }).format(t);
 
-function useWidth<T extends HTMLElement>() {
-    const ref = useRef<T>(null);
-    const [width, setWidth] = useState(640);
-
-    useLayoutEffect(() => {
-        const element = ref.current;
-
-        if (!element) {
-            return;
-        }
-
-        const update = () => setWidth(Math.max(240, element.clientWidth));
-        update();
-        const observer = new ResizeObserver(update);
-        observer.observe(element);
-
-        return () => observer.disconnect();
-    }, []);
-
-    return [ref, width] as const;
-}
+const escape = (text: string) => text.replace(/[&<>"']/g, (character) => `&#${character.charCodeAt(0)};`);
 
 /**
- * THE CBOX TIME CHART: lines over one window with a faint area under each, hand-built in
- * SVG and drawn to scale (the y axis starts at zero). Round value ticks, time ticks on
- * whole minutes/hours/days, gaps where samples are missing, an optional marker, and a
- * crosshair with every series at the nearest sample on hover or tap. Colours are the
- * shared chart tokens, so light and dark follow on their own.
+ * THE CBOX TIME CHART (ECharts): drawn to scale from zero with round ticks, a line with a
+ * faint area for the headline series, thin lines for the rest, labelled vertical lines for
+ * events, gaps for missing samples, an axis tooltip with every series, and zoom.
  */
-export function TimeChart({ series, from, to, label, formatValue, formatTime = defaultTime, minimumTop = 0, marker = null, height = 200, className }: TimeChartProps) {
-    const [ref, width] = useWidth<HTMLDivElement>();
-    const [hover, setHover] = useState<number | null>(null);
-    const coloured = series.map((item, index) => ({ ...item, color: item.color ?? CHART_PALETTE[index % CHART_PALETTE.length] ?? 'var(--chart-1)' }));
-    const times = useMemo(() => [...new Set(series.flatMap((item) => item.segments.flat().map((point) => point.t)))].sort((a, b) => a - b), [series]);
-    const ticks = niceTicks(Math.max(minimumTop, ...series.flatMap((item) => item.segments.flat().map((point) => point.value))));
-    const top = ticks[ticks.length - 1] ?? 1;
-    const plotWidth = width - PAD.left - PAD.right;
-    const plotHeight = height - PAD.top - PAD.bottom;
-    const span = Math.max(1, to - from);
-    const x = (t: number) => PAD.left + ((t - from) / span) * plotWidth;
-    const y = (value: number) => PAD.top + plotHeight - (value / top) * plotHeight;
-    const baseline = y(0);
-    const line = (segment: TimePoint[]) => segment.map((point, index) => `${index === 0 ? 'M' : 'L'}${x(point.t).toFixed(1)} ${y(point.value).toFixed(1)}`).join('');
+export function TimeChart({ series, from, to, label, formatValue, formatTime = defaultTime, unit = '', minimumTop = 0, events = [], marker = null, zoom = true, height = 260, className }: TimeChartProps) {
+    const option = useCallback(
+        (colors: ChartColors) => {
+            const ticks = niceTicks(Math.max(minimumTop, ...series.flatMap((item) => item.segments.flat().map((point) => point.value))));
+            const top = ticks[ticks.length - 1] ?? 1;
+            const axisLabel = { color: colors.muted, fontFamily: colors.mono, fontSize: 11 };
+            const primary = Math.max(0, series.findIndex((item) => item.primary));
+            const tone = (index: number) => colors.series[index % colors.series.length] ?? colors.text;
+            const value = (number: number) => `${formatValue(number)}${unit ? ` ${unit}` : ''}`;
+            const lines = [
+                ...events
+                    .filter((event) => event.at >= from && event.at <= to)
+                    .map((event) => ({
+                        xAxis: event.at,
+                        name: event.label,
+                        event,
+                        lineStyle: { color: tone(event.tone ?? 1), type: 'solid', width: 1, opacity: 0.8 },
+                        label: { show: true, formatter: event.label, position: 'insideEndTop', color: tone(event.tone ?? 1), fontFamily: colors.mono, fontSize: 10 },
+                    })),
+                ...(marker !== null && marker >= from && marker <= to ? [{ xAxis: marker, name: '', lineStyle: { color: colors.text, type: 'dashed', width: 1 }, label: { show: false } }] : []),
+            ];
 
-    const pick = (event: PointerEvent<SVGSVGElement>) => {
-        const bounds = event.currentTarget.getBoundingClientRect();
-        const t = from + ((event.clientX - bounds.left - PAD.left) / plotWidth) * span;
-        let best: number | null = null;
+            return {
+                color: colors.series,
+                textStyle: { fontFamily: colors.font, color: colors.text },
+                grid: { top: 16, right: 16, bottom: zoom ? 56 : 24, left: 56 },
+                xAxis: {
+                    type: 'time',
+                    min: from,
+                    max: to,
+                    axisLine: { lineStyle: { color: colors.grid } },
+                    axisTick: { show: false },
+                    splitLine: { show: false },
+                    axisLabel: { ...axisLabel, hideOverlap: true, formatter: (t: number) => formatTime(t) },
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: top,
+                    interval: top / Math.max(1, ticks.length - 1),
+                    axisLabel: { ...axisLabel, formatter: (number: number) => formatValue(number) },
+                    splitLine: { lineStyle: { color: colors.grid, type: 'dashed' } },
+                },
+                dataZoom: zoom
+                    ? [
+                          { type: 'inside', xAxisIndex: 0, filterMode: 'none', zoomOnMouseWheel: 'ctrl', moveOnMouseWheel: false, moveOnMouseMove: true },
+                          {
+                              type: 'slider',
+                              xAxisIndex: 0,
+                              filterMode: 'none',
+                              height: 18,
+                              bottom: 8,
+                              borderColor: colors.grid,
+                              fillerColor: 'rgba(127,127,127,0.12)',
+                              handleStyle: { color: colors.surface, borderColor: colors.muted },
+                              moveHandleSize: 0,
+                              showDetail: false,
+                              dataBackground: { lineStyle: { color: colors.muted, opacity: 0.4 }, areaStyle: { opacity: 0 } },
+                              selectedDataBackground: { lineStyle: { color: tone(0) }, areaStyle: { opacity: 0 } },
+                              textStyle: axisLabel,
+                          },
+                      ]
+                    : [],
+                tooltip: {
+                    trigger: 'axis',
+                    confine: true,
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                    padding: [6, 10],
+                    textStyle: { color: colors.text, fontFamily: colors.mono, fontSize: 12 },
+                    axisPointer: { type: 'line', lineStyle: { color: colors.muted, opacity: 0.5 } },
+                    formatter: (items: { seriesName: string; color: string; value: [number, number | null] }[]) => {
+                        const present = items.filter((item) => item.value[1] !== null);
+                        const first = present[0];
 
-        for (const candidate of times) {
-            if (best === null || Math.abs(candidate - t) < Math.abs(best - t)) {
-                best = candidate;
-            }
-        }
-
-        setHover(best);
-    };
-
-    const rows: { key: string; label: string; color: string; value: number }[] = [];
-
-    if (hover !== null) {
-        for (const item of coloured) {
-            const point = item.segments.flat().find((candidate) => candidate.t === hover);
-
-            if (point) {
-                rows.push({ key: item.key, label: item.label, color: item.color, value: point.value });
-            }
-        }
-    }
-
-    const tooltip: ReactNode = hover !== null && (
-        <div
-            aria-hidden="true"
-            className="pointer-events-none absolute top-0 min-w-[140px] rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs shadow-sm"
-            style={{ left: Math.min(Math.max(x(hover) - 70, 0), Math.max(0, width - 160)) }}
-        >
-            <div className="font-mono tabular-nums text-muted-foreground">{formatTime(hover)}</div>
-            {rows.map((row) => (
-                <div key={row.key} className="flex items-center gap-2">
-                    {coloured.length > 1 && <span className="size-2 rounded-full" style={{ background: row.color }} />}
-                    {coloured.length > 1 && <span className="truncate text-muted-foreground">{row.label}</span>}
-                    <span className="ml-auto font-mono font-medium tabular-nums">{formatValue(row.value)}</span>
-                </div>
-            ))}
-        </div>
-    );
-
-    return (
-        <div ref={ref} className={cn('relative w-full', className)}>
-            <svg
-                width={width}
-                height={height}
-                viewBox={`0 0 ${width} ${height}`}
-                role="img"
-                aria-label={label}
-                className="block touch-pan-y select-none"
-                onPointerMove={pick}
-                onPointerDown={pick}
-                onPointerLeave={(event) => {
-                    if (event.pointerType === 'mouse') {
-                        setHover(null);
-                    }
-                }}
-            >
-                {ticks.map((tick) => (
-                    <g key={tick}>
-                        <line x1={PAD.left} x2={width - PAD.right} y1={y(tick)} y2={y(tick)} stroke="var(--border)" strokeDasharray={tick === 0 ? undefined : '2 4'} />
-                        <text x={PAD.left - 8} y={y(tick)} dy="0.32em" textAnchor="end" className="fill-muted-foreground font-mono text-[11px] tabular-nums">
-                            {formatValue(tick)}
-                        </text>
-                    </g>
-                ))}
-                {timeTicks(from, to, plotWidth).map((tick) => (
-                    <text key={tick} x={x(tick)} y={height - 6} textAnchor="middle" className="fill-muted-foreground font-mono text-[11px] tabular-nums">
-                        {formatTime(tick)}
-                    </text>
-                ))}
-                {coloured.map((item) =>
-                    item.segments.map((segment) => {
-                        const first = segment[0];
-                        const last = segment[segment.length - 1];
-
-                        if (!first || !last) {
-                            return null;
+                        if (!first) {
+                            return '';
                         }
 
-                        return segment.length > 1 ? (
-                            <g key={`${item.key}-${first.t}`}>
-                                {!item.dashed && <path d={`${line(segment)}L${x(last.t).toFixed(1)} ${baseline}L${x(first.t).toFixed(1)} ${baseline}Z`} fill={item.color} opacity={0.14} />}
-                                <path d={line(segment)} fill="none" stroke={item.color} strokeWidth={1.5} strokeDasharray={item.dashed ? '4 3' : undefined} strokeLinejoin="round" strokeLinecap="round" />
-                            </g>
-                        ) : (
-                            <circle key={`${item.key}-${first.t}`} cx={x(first.t)} cy={y(first.value)} r={2.5} fill={item.color} />
+                        const rows = present.map((item) =>
+                            series.length > 1 ? `<span style="color:${item.color}">●</span> ${escape(item.seriesName)} <b>${escape(value(item.value[1] ?? 0))}</b>` : `<b>${escape(value(item.value[1] ?? 0))}</b>`,
                         );
-                    }),
-                )}
-                {marker !== null && marker >= from && marker <= to && <line x1={x(marker)} x2={x(marker)} y1={PAD.top} y2={baseline} stroke="var(--foreground)" strokeDasharray="4 4" />}
-                {hover !== null && (
-                    <g aria-hidden="true">
-                        <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={baseline} stroke="var(--muted-foreground)" opacity={0.5} />
-                        {rows.map((row) => (
-                            <circle key={row.key} cx={x(hover)} cy={y(row.value)} r={3.5} fill="var(--background)" stroke={row.color} strokeWidth={2} />
-                        ))}
-                    </g>
-                )}
-            </svg>
-            {tooltip}
-        </div>
+
+                        return `${escape(formatTime(first.value[0]))}<br/>${rows.join('<br/>')}`;
+                    },
+                },
+                series: series.map((item, index) => {
+                    const color = tone(index);
+                    const isPrimary = index === primary;
+
+                    return {
+                        type: 'line',
+                        name: item.label,
+                        data: seriesData(item.segments),
+                        connectNulls: false,
+                        symbol: 'circle',
+                        symbolSize: 0,
+                        lineStyle: { width: isPrimary ? 1.5 : 1, color, type: item.dashed ? 'dashed' : 'solid' },
+                        itemStyle: { color },
+                        areaStyle: isPrimary && !item.dashed ? { opacity: 0.14, color } : undefined,
+                        emphasis: { disabled: true },
+                        z: isPrimary ? 3 : 2,
+                        markLine:
+                            isPrimary && lines.length > 0
+                                ? {
+                                      silent: false,
+                                      symbol: 'none',
+                                      data: lines,
+                                      tooltip: {
+                                          formatter: (entry: { data: { event?: ChartEvent; name: string } }) => {
+                                              const event = entry.data.event;
+
+                                              if (!event) {
+                                                  return escape(entry.data.name);
+                                              }
+
+                                              return `${escape(event.label)}<br/>${escape(formatTime(event.at))}${event.detail ? ` · ${escape(event.detail)}` : ''}`;
+                                          },
+                                      },
+                                  }
+                                : undefined,
+                    };
+                }),
+            };
+        },
+        [series, from, to, formatValue, formatTime, unit, minimumTop, events, marker, zoom],
     );
-}
 
-/** A row's shape over the window, small: a line with a faint area, zero at the bottom. Decorative. */
-export function Sparkline({ values, color = 'var(--chart-1)', width = 90, height = 20 }: { values: number[]; color?: string; width?: number; height?: number }) {
-    if (values.length === 0) {
-        return null;
-    }
-
-    const clean = values.map((value) => (Number.isFinite(value) ? value : 0));
-    const max = Math.max(1e-9, ...clean);
-    const points = clean.map((value, index) => [(index / Math.max(1, clean.length - 1)) * (width - 2) + 1, height - 1 - (value / max) * (height - 3)] as const);
-    const d = points.map(([px, py], index) => `${index === 0 ? 'M' : 'L'}${px.toFixed(1)} ${py.toFixed(1)}`).join('');
-
-    return (
-        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
-            <path d={`${d}L${width - 1} ${height}L1 ${height}Z`} fill={color} opacity={0.14} />
-            <path d={d} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
-        </svg>
-    );
+    return <Chart option={option} label={label} height={height} className={className} />;
 }

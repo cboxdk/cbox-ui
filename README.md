@@ -132,11 +132,14 @@ Match id's existing patterns — see id/resources/js/pages/* for examples.
 
 ### Charts
 
-| Component | What it does |
+Time series use ECharts, from the `@cboxdk/cbox-ui/charts` entry so apps without charts never load it. Install `echarts` (^6) next to cbox-ui to use it; ECharts itself is fetched on the first chart's mount.
+
+| Export | What it does |
 |---|---|
-| `TimeChart` | Lines over a time window, hand-built SVG drawn to scale: round value ticks from zero, whole-minute/hour/day time ticks, a faint area under each line, gaps for missing samples, an optional marker, and a hover/tap crosshair with every series at the nearest sample. Colours come from `--chart-1…5`. Times are milliseconds; pass `formatValue` and, for UTC or a locale, `formatTime`. Keep a table of the same numbers beside it for assistive technology. |
-| `Sparkline` | A small decorative line with a faint area for table rows. |
-| `niceTicks` / `timeTicks` | The axis arithmetic, for charts built by hand. |
+| `TimeChart` (`/charts`) | Lines over a time window drawn to scale from zero with round ticks, a faint area under the primary series, thin lines for the rest (one per pod, say), labelled vertical lines for `events` (deploys, scaling), gaps for missing samples, an axis tooltip, and zoom by slider, pinch or Ctrl/⌘ + scroll. Colours come from `--chart-1…5` and follow dark mode. Times are milliseconds. Keep a table of the same numbers beside it. |
+| `Chart` (`/charts`) | The ECharts wrapper under it: SVG renderer, token colours, theme and reduced-motion aware. Build other chart types on it. |
+| `Sparkline` | A small decorative SVG line for table rows. No ECharts. |
+| `niceTicks` / `timeTicks` / `seriesData` | The axis and gap arithmetic. |
 
 ## Versioning
 

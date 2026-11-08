@@ -31,6 +31,10 @@
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
         },
+        "./charts": {
+            "types": "./dist/charts.d.ts",
+            "import": "./dist/charts.js"
+        },
         "./tokens": "./tokens/cbox.css",
         "./tailwind": "./tailwind.preset.js",
         "./assets/*": "./assets/*"
@@ -43,6 +47,7 @@
         "typecheck": "tsc --noEmit"
     },
     "peerDependencies": {
+        "echarts": "^6.0.0",
         "lucide-react": ">=0.400.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
@@ -50,6 +55,9 @@
     },
     "peerDependenciesMeta": {
         "lucide-react": {
+            "optional": true
+        },
+        "echarts": {
             "optional": true
         }
     },
@@ -61,6 +69,7 @@
         "@types/node": "^22.0.0",
         "@types/react": "^19.0.0",
         "@types/react-dom": "^19.0.0",
+        "echarts": "6.1.0",
         "lucide-react": "^0.469.0",
         "tsup": "^8.3.0",
         "typescript": "^5.6.0",

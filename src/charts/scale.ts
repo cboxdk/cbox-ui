@@ -38,3 +38,34 @@ export function timeTicks(from: number, to: number, width: number): number[] {
 
     return ticks;
 }
+
+/** A sample at `t` milliseconds since the epoch. */
+export type TimePoint = { t: number; value: number };
+
+export type SeriesDatum = { value: [number, number | null]; symbolSize?: number };
+
+/**
+ * Runs of samples as ECharts line data: a null between runs keeps missing samples a gap
+ * (never interpolated or drawn as zero), and an isolated sample becomes a visible dot.
+ */
+export function seriesData(segments: TimePoint[][]): SeriesDatum[] {
+    const data: SeriesDatum[] = [];
+
+    segments.forEach((segment, index) => {
+        const first = segment[0];
+
+        if (!first) {
+            return;
+        }
+
+        if (index > 0) {
+            data.push({ value: [first.t - 1, null] });
+        }
+
+        for (const point of segment) {
+            data.push(segment.length === 1 ? { value: [point.t, point.value], symbolSize: 5 } : { value: [point.t, point.value] });
+        }
+    });
+
+    return data;
+}
