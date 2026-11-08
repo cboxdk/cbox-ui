@@ -130,6 +130,14 @@ Match id's existing patterns — see id/resources/js/pages/* for examples.
 | `KeyValue` / `KeyValueList` | Definition-list style "label → value" for detail panels. |
 | `Heading` | Section heading without the panel chrome. |
 
+### Charts
+
+| Component | What it does |
+|---|---|
+| `TimeChart` | Lines over a time window, hand-built SVG drawn to scale: round value ticks from zero, whole-minute/hour/day time ticks, a faint area under each line, gaps for missing samples, an optional marker, and a hover/tap crosshair with every series at the nearest sample. Colours come from `--chart-1…5`. Times are milliseconds; pass `formatValue` and, for UTC or a locale, `formatTime`. Keep a table of the same numbers beside it for assistive technology. |
+| `Sparkline` | A small decorative line with a faint area for table rows. |
+| `niceTicks` / `timeTicks` | The axis arithmetic, for charts built by hand. |
+
 ## Versioning
 
 This package follows semver. **Breaking changes get a major bump** — every Cbox app pinning a major version stays safe. New components, new optional props, new tokens → minor. Token tweaks that don't change the visual contract → patch.
