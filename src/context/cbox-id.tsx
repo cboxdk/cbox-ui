@@ -25,7 +25,8 @@ import {
 export type CboxAppKey = string;
 
 export type CboxUser = {
-    id: number;
+    /** Cbox ID's user id: numeric in id itself, a prefixed string (`usr_…`) in the apps that mirror it. */
+    id: number | string;
     name: string;
     email: string;
     avatar_url?: string | null;
@@ -36,7 +37,8 @@ export type CboxUser = {
 };
 
 export type CboxOrganization = {
-    id: number;
+    /** Cbox ID's organization id: numeric in id itself, a prefixed string (`org_…`) in the apps that mirror it. */
+    id: number | string;
     slug: string;
     name: string;
     /**

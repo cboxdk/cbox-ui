@@ -35,6 +35,8 @@ export type LinkComponent = ComponentType<{
     className?: string;
     title?: string;
     'aria-label'?: string;
+    /** Set on the link of the page the person is on. */
+    'aria-current'?: 'page';
 }>;
 
 export type CboxAppSidebarProps = {
