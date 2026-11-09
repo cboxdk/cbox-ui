@@ -105,7 +105,7 @@ export function NotificationsBell({ className }: { className?: string }) {
             {open ? (
                 <div
                     role="menu"
-                    className="absolute right-0 z-30 mt-2 w-[360px] origin-top-right rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
+                    className="absolute right-0 z-30 mt-2 w-[360px] origin-top-right overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
                 >
                     <header className="flex items-center justify-between border-b border-border/70 px-3 py-2">
                         <span className="text-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">

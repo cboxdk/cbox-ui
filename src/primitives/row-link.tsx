@@ -83,7 +83,7 @@ export function RowLink({
             // means every pixel inside is clickable — no fiddly
             // overlay positioning or stretched-link hacks.
             className={cn(
-                'group flex w-full items-center gap-4 px-5 py-3.5 transition-colors focus-visible:bg-secondary/60 focus-visible:outline-none',
+                'cbx-row group flex w-full items-center gap-4 px-5 py-3.5 transition-colors focus-visible:bg-secondary/60 focus-visible:outline-none',
                 active
                     ? 'bg-accent-soft hover:bg-accent-soft/80'
                     : 'hover:bg-secondary/60',
