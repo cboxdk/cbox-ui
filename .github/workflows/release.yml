@@ -1,9 +1,10 @@
 name: Release
 
-# Triggers on `v*.*.*` tag push. Builds + publishes to GitHub Packages
-# (npm.pkg.github.com) under the @cboxdk scope. Auth uses the
-# automatic GITHUB_TOKEN — no manual secret setup required, the token
-# inherits the repo's `packages: write` permission below.
+# Triggers on a `v*.*.*` tag push: typecheck, test, build, then publish to npmjs
+# (package.json publishConfig: registry.npmjs.org, public) with npm trusted publishing:
+# the job's OIDC token is the credential, so there is no npm token anywhere. The
+# package's npmjs settings must list this repository and this workflow file as its
+# trusted publisher (npmjs.com → @cboxdk/cbox-ui → Settings → Trusted publishing).
 
 on:
     push:
@@ -12,7 +13,7 @@ on:
 
 permissions:
     contents: read
-    packages: write
+    id-token: write
 
 jobs:
     publish:
@@ -24,19 +25,23 @@ jobs:
               with:
                   bun-version: latest
 
+            # npm 11.5+ for trusted publishing; Node 24 ships it.
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '24'
+                  registry-url: 'https://registry.npmjs.org'
+
             - name: Install
               run: bun install --frozen-lockfile
 
             - name: Typecheck
               run: bun run typecheck
 
+            - name: Test
+              run: bun run test
+
             - name: Build
               run: bun run build
-
-            - name: Configure npm auth for GitHub Packages
-              run: |
-                  echo "@cboxdk:registry=https://npm.pkg.github.com" >> ~/.npmrc
-                  echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> ~/.npmrc
 
             - name: Verify package.json version matches the tag
               run: |
@@ -48,7 +53,5 @@ jobs:
                     exit 1
                   fi
 
-            - name: Publish to GitHub Packages
-              run: npm publish
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            - name: Publish to npmjs (trusted publishing, with provenance)
+              run: npm publish --access public --provenance
