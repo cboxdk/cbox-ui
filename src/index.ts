@@ -47,6 +47,14 @@ export { TopBar } from './layout/top-bar';
 
 // Cross-app chrome controls.
 export { AppLauncher } from './components/app-launcher';
+export {
+    CboxAppCatalog,
+    authorizeHref,
+    parseAppCatalog,
+    type CboxAppCatalogProps,
+    type CboxAppCatalogState,
+    type CboxCatalogApp,
+} from './components/app-catalog';
 export { AppSwitcher } from './components/app-switcher';
 export { NotificationsBell } from './components/notifications-bell';
 export { OrgSwitcher } from './components/org-switcher';
@@ -121,8 +129,8 @@ export {
 } from './utils/url-state';
 
 // Host-owned language and formatting, shared by all chrome and primitives.
-export { CboxLocalizationProvider, useCboxLocalization, type CboxTranslator, type CboxTranslationValues } from './context/localization';
-export { CboxWorkspaceShell, type CboxWorkspaceShellProps, type CboxNavArea } from './layout/cbox-workspace-shell';
+export { CboxLocalizationProvider, interpolate, useCboxLocalization, type CboxTranslator, type CboxTranslationValues } from './context/localization';
+export { CboxWorkspaceShell, activeNavArea, activeNavItem, navMatchLength, type CboxWorkspaceShellProps, type CboxNavArea } from './layout/cbox-workspace-shell';
 export { CHART_PALETTE, Sparkline } from './charts/sparkline';
 export { niceTicks, timeTicks, type TimePoint } from './charts/scale';
 // TimeChart and Chart (ECharts) live in '@cboxdk/cbox-ui/charts' so apps without charts never need echarts.

@@ -27,7 +27,7 @@ The package is published on npm as `@cboxdk/cbox-ui` under the MIT License. The 
 @import '@cboxdk/cbox-ui/tokens';
 ```
 
-That's it — every `text-foreground`, `bg-card`, `border-border`, `text-mono`, etc. utility now resolves against the Cbox palette. Light + dark variants come bundled.
+That's it — every `text-foreground`, `bg-card`, `border-border`, `text-mono`, etc. utility now resolves against the Cbox palette. Light + dark variants come bundled: dark applies under `.dark` or `data-theme="dark"` on the root, whichever the host writes. Add `@source '../../node_modules/@cboxdk/cbox-ui/dist';` so Tailwind generates the utilities the components use, and when the host stores its theme choice as an attribute, point Tailwind's `dark:` variant at it (`@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));`).
 
 ### 2. Wrap the app root with `<CboxIdProvider>`
 
@@ -113,7 +113,8 @@ Match id's existing patterns — see id/resources/js/pages/* for examples.
 | `TopBar` | Standard 56px-tall app bar. Slot for brand + centre + right cluster. |
 | `OrgSwitcher` | Dropdown listing the user's orgs. Calls `onSwitchOrganization` (or POSTs to `urls.switchOrgUrl`) on pick. |
 | `AppLauncher` | 9-dot grid showing sister Cbox apps the user can jump into. |
-| `UserMenu` | Avatar dropdown with "Manage account ↗" + "Team & billing ↗" (deep-links into id) + Sign out. |
+| `UserMenu` | Avatar dropdown with "Manage account ↗" + "Team & billing ↗" (deep-links into id) + Sign out. Pass `LinkComponent` when those rows are pages of the host app, so the visit stays client-side. |
+| `CboxAppCatalog` | The Switch-app control fed live from the host's catalog endpoint (see "App catalog" below). |
 | `NotificationsBell` | Bell icon with unread badge, links to id's unified inbox. Renders nothing if context lacks `notifications`. |
 
 ### Page primitives
@@ -190,6 +191,31 @@ Pass an optional `formatDate(isoTimestamp)` callback when the host manages date
 format and timezone preferences separately. Notification timestamps use that
 callback; without it, existing browser formatting is preserved.
 
+### App catalog (Switch app)
+
+`AppSwitcher` and `AppLauncher` render the static `apps` list from `CboxIdProvider`. Apps
+that read the person's catalog live from Cbox ID use `CboxAppCatalog` instead: the host
+serves a same-origin endpoint (a proxy of Cbox ID's catalog under the signed-in person's
+grant) and the component renders its answer, refreshes it when `refresh_after` expires
+while the panel is open, and offers the way back to Cbox ID when the grant is missing.
+
+```tsx
+<CboxAppCatalog endpoint={appCatalogUrl} currentAppKey="infra" icons={serviceMarks} />
+```
+
+The endpoint contract (`parseAppCatalog` is exported, so a host can test its own answer):
+
+- `200 { apps: [{ key, name, launch_url, icon_url?, description? }], refresh_after?: seconds }`
+  — `refresh_after` is clamped to 1–60 s; apps without an `http(s)` launch URL are dropped.
+- `401`/`403` with `{ authorize_url }` or `{ state: 'authorization_required' }` — the panel
+  says the apps could not be loaded and links "Reconnect to Cbox ID" to `authorize_url` with
+  `return_to` set to the current path (same-origin URLs only).
+- Anything else — "Apps could not be loaded." with a retry.
+
+`endpoint={null}` renders the control disabled, so the chrome keeps its shape on pages
+without an organization. `icons` maps an app key to a mark the host bundles (the family's
+service marks); without one the catalog's `icon_url` is shown, then the name's initials.
+
 ### Workspace navigation (current design contract)
 
 `CboxWorkspaceShell` is the two-tier product shell. Pass `areas` (each has a
@@ -203,8 +229,17 @@ The rail reserves 64px, expands on hover/focus without moving content, and
 reserves 222px when pinned. Context navigation only appears for multi-page
 areas; its panel button and Command/Control-period collapse it to a 26px strip.
 Mobile uses a modal navigation sheet and retains the header app switcher.
-Query strings do not change active navigation. Hosts own route construction,
-organization switching, search and preference persistence.
+Query strings do not change active navigation, and the **most specific href wins**: an
+area at the organization root (`/acme`) does not claim `/acme/projects/...` when a
+Projects area exists, and inside a subnav only the deepest matching item is active. Active
+links carry `aria-current="page"`.
+
+Hosts own route construction, organization switching, search and preference persistence.
+For the two shell preferences the host persists, pass them in: `pinned` + `onPinnedChange`
+and `collapsed` + `onCollapsedChange` (controlled), or `defaultPinned` / `defaultCollapsed`
+to seed the shell's own state. `brandHref` points the brand row somewhere other than `/`
+(the current organization's overview), and `mainId` names the `<main>` landmark for the
+host's skip link (default `main-content`).
 
 Core tokens now match the warm cream/ink design-system colors. Body text uses
 the system stack; hosts self-host Plus Jakarta Sans for headings and JetBrains

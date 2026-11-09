@@ -1,6 +1,7 @@
 import { useCboxLocalization } from '../context/localization';
 import { useState, type ReactNode } from 'react';
 import { useCboxId } from '../context/cbox-id';
+import type { LinkComponent } from '../layout/cbox-app-sidebar';
 import { cn } from '../utils/cn';
 
 type Props = {
@@ -12,7 +13,15 @@ type Props = {
     extras?: ReactNode;
     placement?: 'bottom-end' | 'top-start';
     className?: string;
+    /**
+     * The router's link for the account and organization rows, when they are pages of this
+     * app (an Inertia `Link` keeps the visit client-side). Default: a plain anchor, which is
+     * right when the rows deep-link into Cbox ID on another origin.
+     */
+    LinkComponent?: LinkComponent;
 };
+
+const Anchor: LinkComponent = ({ href, className, children }) => <a href={href} className={className}>{children}</a>;
 
 /**
  * User-menu dropdown. Always exposes:
@@ -22,7 +31,7 @@ type Props = {
  *
  * The arrows signal cross-app navigation — id is canonical.
  */
-export function UserMenu({ extras, className, placement = 'bottom-end' }: Props) {
+export function UserMenu({ extras, className, placement = 'bottom-end', LinkComponent: Link = Anchor }: Props) {
     const { t } = useCboxLocalization();
     const { user, currentOrganization, urls } = useCboxId();
     const [open, setOpen] = useState(false);
@@ -73,15 +82,15 @@ export function UserMenu({ extras, className, placement = 'bottom-end' }: Props)
                         </>
                     ) : null}
                     <div className="my-1 border-t border-border" />
-                    <a
+                    <Link
                         href={urls.accountUrl}
                         className="flex items-center justify-between rounded-sm px-2 py-1.5 text-sm hover:bg-secondary"
                     >
                         <span>{t("Manage account")}</span>
                         <CrossAppArrow />
-                    </a>
+                    </Link>
                     {urls.orgSettingsUrl && currentOrganization ? (
-                        <a
+                        <Link
                             href={urls.orgSettingsUrl}
                             className="flex items-center justify-between rounded-sm px-2 py-1.5 text-sm hover:bg-secondary"
                         >
@@ -89,7 +98,7 @@ export function UserMenu({ extras, className, placement = 'bottom-end' }: Props)
                                 {t("Team & billing")}<span className="text-muted-foreground"> · {currentOrganization.name}</span>
                             </span>
                             <CrossAppArrow />
-                        </a>
+                        </Link>
                     ) : null}
                     <div className="my-1 border-t border-border" />
                     <form action={urls.signOutUrl} method="POST">
