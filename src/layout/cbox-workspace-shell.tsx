@@ -64,8 +64,8 @@ export function activeNavItem<T extends CboxNavItem>(path: string, items: readon
  * items' hrefs. A first-match would put every page beneath an area at `/` (an overview, a
  * dashboard) under that area and never show another area's subnav.
  */
-export function activeNavArea(path: string, areas: readonly CboxNavArea[]): CboxNavArea | undefined {
-    let best: CboxNavArea | undefined;
+export function activeNavArea<T extends CboxNavArea>(path: string, areas: readonly T[]): T | undefined {
+    let best: T | undefined;
     let length = -1;
     for (const area of areas) {
         const candidates = [area.href, ...(area.items ?? []).map(item => item.href)];
