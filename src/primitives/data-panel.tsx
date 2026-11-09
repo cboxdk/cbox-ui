@@ -4,6 +4,11 @@ import { cn } from '../utils/cn';
 /**
  * Generic panel container — soft border, card surface, subtle shadow.
  * The default building block for every section on a page.
+ *
+ * `cbx-panel` makes a clickable row (`RowLink`) that touches the panel's
+ * top or bottom edge follow the 12px corner on hover, instead of painting
+ * a square over it. The panel does not clip, so menus opened from inside
+ * it stay visible.
  */
 export function DataPanel({
     className,
@@ -13,7 +18,7 @@ export function DataPanel({
     return (
         <section
             className={cn(
-                'rounded-lg border border-border bg-card text-card-foreground shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_12px_rgb(0_0_0/0.03)]',
+                'cbx-panel rounded-lg border border-border bg-card text-card-foreground shadow-[0_1px_2px_rgb(0_0_0/0.04),0_4px_12px_rgb(0_0_0/0.03)]',
                 className,
             )}
             {...rest}

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Rows in a rounded panel no longer paint a square hover/active fill over the panel's corners. `DataPanel` carries `cbx-panel` and `RowLink` carries `cbx-row`; the tokens round an edge row to the panel's inner radius without clipping the panel (menus opened from a row stay visible). Blade views use the same classes; set `--cbx-panel-radius` on a container with another radius. The notifications dropdown clips its rows like the other menus.
+
 ## Unreleased (`sd/infra-shell-gaps`, found while moving Cbox Infra onto the shell)
 
 - `CboxWorkspaceShell`: the most specific href decides the active area and item (an area at the organization root no longer claims every page beneath it); active links carry `aria-current="page"`; the rail's pinned state and the subnav's collapsed state can be controlled by the host (`pinned`/`onPinnedChange`, `collapsed`/`onCollapsedChange`, or `defaultPinned`/`defaultCollapsed`); `brandHref` and `mainId` (default `main-content`, for a skip link). `activeNavArea`, `activeNavItem` and `navMatchLength` are exported for hosts that draw the same navigation elsewhere (a command palette, an eyebrow).

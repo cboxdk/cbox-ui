@@ -276,3 +276,30 @@
 
 .cbx-workspace-context [data-component=context-bar] button{max-width:100%}
 @media(max-width:639px){.cbx-workspace-header{flex-wrap:wrap;height:auto;min-height:56px;padding-block:8px}.cbx-workspace-context{order:3;flex-basis:100%;width:100%}.cbx-workspace-tools{margin-left:auto}.cbx-workspace-context [data-component=context-bar]>div{flex:1}}
+
+/* Rounded containers: a hover/active fill on a row that touches the container's edge follows the
+ * container's corner instead of painting a square over it. The container does not clip (overflow
+ * would cut off menus and comboboxes opened from inside it, and outset focus rings), so the edge
+ * rows round themselves. Inner radius = container radius minus its 1px border.
+ * Container: .cbx-panel (DataPanel). Row: .cbx-row (RowLink). Set --cbx-panel-radius on a
+ * container with a different radius. Rows may sit up to three wrappers deep (ul > li > a). */
+@layer components {
+    .cbx-panel {
+        --cbx-panel-radius: var(--radius);
+        --cbx-row-radius: calc(var(--cbx-panel-radius) - 1px);
+    }
+    :where(.cbx-panel) > .cbx-row:first-child,
+    :where(.cbx-panel > :first-child) > .cbx-row:first-child,
+    :where(.cbx-panel > :first-child > :first-child) > .cbx-row:first-child,
+    :where(.cbx-panel > :first-child > :first-child > :first-child) > .cbx-row:first-child {
+        border-top-left-radius: var(--cbx-row-radius);
+        border-top-right-radius: var(--cbx-row-radius);
+    }
+    :where(.cbx-panel) > .cbx-row:last-child,
+    :where(.cbx-panel > :last-child) > .cbx-row:last-child,
+    :where(.cbx-panel > :last-child > :last-child) > .cbx-row:last-child,
+    :where(.cbx-panel > :last-child > :last-child > :last-child) > .cbx-row:last-child {
+        border-bottom-left-radius: var(--cbx-row-radius);
+        border-bottom-right-radius: var(--cbx-row-radius);
+    }
+}

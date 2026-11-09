@@ -293,6 +293,25 @@ match so they don't fire the row navigation.
 </RowLink>
 ```
 
+### Hover and active fills follow the container's radius
+
+Hover/active fills inside a rounded container must follow the
+container's radius. A row that touches the top or bottom edge of a
+12px card must not paint a square over the corner.
+
+`<DataPanel>` carries `cbx-panel` and `<RowLink>` carries `cbx-row`;
+`tokens/cbox.css` rounds a row that sits at the panel's top or bottom
+edge (up to three wrappers deep, e.g. `ul > li > a`) to the panel's
+inner radius, `calc(var(--radius) - 1px)`. Blade/Livewire views use
+the same two classes. A container with another radius sets
+`--cbx-panel-radius`.
+
+The panel does not clip. `overflow: hidden` (or `clip`) on a card
+would cut off comboboxes, kebab menus and other popovers opened from
+a row, and outset focus rings on the edge rows. Clipping is right only
+on a self-contained popover whose rows open nothing (menus, the
+notifications dropdown), which is why those use `overflow-hidden`.
+
 ### Why no Manage buttons
 
 Cbox is a 2026 product. Click-the-row is the table-stakes affordance.
