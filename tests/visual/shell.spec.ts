@@ -1,0 +1,141 @@
+import { expect, test, type Page } from '@playwright/test';
+
+/**
+ * Every open state of the shell (spec §12.3), in light and dark. Desktop opens menus from their
+ * triggers; the phone opens the same content from its sheets.
+ */
+
+type Theme = 'light' | 'dark';
+
+async function open(page: Page, theme: Theme, query = ''): Promise<void> {
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+    await page.goto(`/?theme=${theme}${query}`);
+    await page.locator('.cbx-shell').waitFor();
+    await page.evaluate(() => document.fonts.ready);
+}
+
+async function settle(page: Page): Promise<void> {
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+}
+
+for (const theme of ['light', 'dark'] as const) {
+    test.describe(`${theme}`, () => {
+        test('closed', async ({ page }) => {
+            await open(page, theme);
+            await settle(page);
+            await expect(page).toHaveScreenshot(`${theme}-closed.png`);
+        });
+
+        test('sandbox strip', async ({ page }) => {
+            await open(page, theme, '&sandbox=1');
+            await expect(page.getByRole('status').filter({ hasText: 'Sandbox: test data only' })).toBeVisible();
+            await settle(page);
+            await expect(page).toHaveScreenshot(`${theme}-sandbox-strip.png`);
+        });
+
+        test('palette', async ({ page }, info) => {
+            await open(page, theme);
+            await page.getByRole('button', { name: 'Search or ask…' }).click();
+            await page.getByRole('combobox', { name: 'Search or ask…' }).fill('deploy');
+            await expect(page.getByRole('option', { name: /Deploy a project/ })).toBeVisible();
+            await expect(page.getByRole('option', { name: /Deployment 3f9c21a/ })).toBeVisible();
+            if (info.project.name === 'mobile') await page.getByRole('combobox', { name: 'Search or ask…' }).blur();
+            await settle(page);
+            await expect(page).toHaveScreenshot(`${theme}-palette.png`);
+        });
+
+        test('help with updates', async ({ page }) => {
+            await open(page, theme);
+            await page.getByRole('button', { name: /^Help/ }).click();
+            await expect(page.getByRole('button', { name: /Deploy stuck/ })).toBeVisible();
+            await expect(page.getByRole('button', { name: /Roll back a deployment/ })).toBeVisible();
+            await page.locator('#cbx-help input[type=search]').blur();
+            await settle(page);
+            await expect(page).toHaveScreenshot(`${theme}-help.png`);
+        });
+
+        test.describe('desktop menus', () => {
+            test.skip(({ isMobile }) => isMobile, 'The phone opens these as sheets.');
+
+            test('organization menu', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: 'Organization: Cbox' }).click();
+                await expect(page.getByRole('option', { name: /Acme ApS/ })).toBeVisible();
+                await page.getByRole('option', { name: /Acme ApS/ }).hover();
+                await settle(page);
+                await expect(page).toHaveScreenshot(`${theme}-org-menu.png`);
+            });
+
+            test('cascade', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: /Project: Webshop/ }).click();
+                await page.getByRole('option', { name: /Status page/ }).hover();
+                await expect(page.getByText('Environments in Status page')).toBeVisible();
+                await expect(page.getByRole('option', { name: /Staging/ })).toBeVisible();
+                await settle(page);
+                await expect(page).toHaveScreenshot(`${theme}-cascade.png`);
+            });
+
+            test('app switcher', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: 'Switch app' }).click();
+                await expect(page.getByRole('region', { name: 'More from Cbox' })).toBeVisible();
+                await settle(page);
+                await expect(page).toHaveScreenshot(`${theme}-app-switcher.png`);
+            });
+
+            test('account menu', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: 'Account and preferences' }).click();
+                await expect(page.getByRole('menu', { name: 'Account' })).toBeVisible();
+                await page.mouse.move(700, 450);
+                await settle(page);
+                await expect(page).toHaveScreenshot(`${theme}-account-menu.png`);
+            });
+
+            test('help left open on load', async ({ page }) => {
+                await open(page, theme, '&help=1');
+                await page.getByRole('button', { name: 'Organization: Cbox' }).hover();
+                await expect(page.getByRole('complementary', { name: 'Help' })).toBeVisible();
+                await page.mouse.move(700, 450);
+                await settle(page);
+                await expect(page).toHaveScreenshot(`${theme}-help-open-on-load.png`);
+            });
+        });
+
+        test.describe('phone sheets', () => {
+            test.skip(({ isMobile }) => !isMobile, 'Desktop opens these as menus.');
+
+            test('context sheet (organization and cascade)', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: /Where you are/ }).click();
+                const sheet = page.getByRole('dialog', { name: 'Where you are' });
+                await expect(sheet.getByRole('option', { name: /Acme ApS/ })).toBeVisible();
+                await expect(sheet.getByRole('option', { name: /Sandbox/ })).toBeVisible();
+                await settle(page);
+                await expect(page).toHaveScreenshot(`${theme}-context-sheet.png`);
+            });
+
+            test('navigation sheet with the account', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: 'Open navigation' }).click();
+                await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeAttached();
+                await settle(page);
+                await expect(page).toHaveScreenshot(`${theme}-nav-sheet.png`);
+                await page.getByRole('menuitem', { name: 'Sign out' }).scrollIntoViewIfNeeded();
+                await settle(page);
+                await expect(page).toHaveScreenshot(`${theme}-account-menu.png`);
+            });
+
+            test('app switcher', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: 'Open navigation' }).click();
+                await page.getByRole('button', { name: 'Switch app' }).click();
+                await expect(page.getByRole('region', { name: 'More from Cbox' })).toBeVisible();
+                await settle(page);
+                await expect(page).toHaveScreenshot(`${theme}-app-switcher.png`);
+            });
+        });
+    });
+}
