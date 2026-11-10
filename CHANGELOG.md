@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.10.0 — unreleased
+## 0.10.0 — 2026-11-10
 
 One shell for every Cbox app (spec `docs/specs/2026-11-10-shell-v1.md`). It replaces the two shell models, the five organization switchers and the hand-placed support of 0.9.
 
