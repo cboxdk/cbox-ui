@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0 — 2026-11-10
+
+App icons come from Cbox ID's catalog, one light and one dark upload per app. No app keeps a local copy of the marks.
+
+- `CboxAppCatalog` reads `icon_dark_url` next to `icon_url` and shows the icon for the current theme. **Breaking:** the `icons` prop (host-supplied marks) is gone; drop it and delete the app's local marks.
+- `CboxAppIcon` renders one app's catalog icon: both uploads, swapped by the token stylesheet under `.dark` or `[data-theme="dark"]`, the initials when there is no icon or it fails to load. Only `https:` icon URLs are rendered.
+- `CboxServiceMark` renders an app's own mark from the catalog this browser last kept. `CboxAppCatalog` keeps each answer (`localStorage`, key `cbox-app-catalog`) and tells the page, so the marks paint at once on the next page and repaint when the live answer arrives. `rememberAppCatalog` and `useKnownAppCatalog` are exported for hosts that load the catalog themselves.
+- `CboxBrand` in collapsed mode (the rail) shows the app's catalog icon once it is known, and the Cbox icon until then.
+- `AppSwitcher` and `AppLauncher`: `CboxAppLink.iconDarkUrl` joins `iconUrl`; both render through `CboxAppIcon`.
+- Tokens: `.cbx-app-icon`, `.cbx-app-icon-light`, `.cbx-app-icon-dark` and `.cbx-app-icon-single`.
+
 ## 0.7.0 — 2026-11-09
 
 Found while moving Cbox Infra onto the shell:

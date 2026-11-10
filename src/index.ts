@@ -55,6 +55,16 @@ export {
     type CboxAppCatalogState,
     type CboxCatalogApp,
 } from './components/app-catalog';
+export {
+    CboxAppIcon,
+    CboxServiceMark,
+    rememberAppCatalog,
+    secureIconUrl,
+    useKnownAppCatalog,
+    type CboxAppIconProps,
+    type CboxKnownApp,
+    type CboxServiceMarkProps,
+} from './components/app-icon';
 export { AppSwitcher } from './components/app-switcher';
 export { NotificationsBell } from './components/notifications-bell';
 export { OrgSwitcher } from './components/org-switcher';
