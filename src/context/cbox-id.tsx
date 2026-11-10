@@ -66,8 +66,10 @@ export type CboxAppLink = {
      * Defaults to the first letter of `name`.
      */
     monogram?: string;
-    /** Optional inline SVG path or URL for the launcher tile icon. */
-    iconUrl?: string;
+    /** Cbox ID's catalog `icon_url`: the app's icon for light surfaces (`https:` only). */
+    iconUrl?: string | null;
+    /** Cbox ID's catalog `icon_dark_url`: the app's icon for dark surfaces. */
+    iconDarkUrl?: string | null;
     /**
      * Accent colour for the monogram tile (and current-app highlight).
      * Hex string or any CSS colour the browser accepts. Falls back to

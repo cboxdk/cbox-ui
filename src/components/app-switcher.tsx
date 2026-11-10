@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { useCboxIdOptional, type CboxAppLink } from '../context/cbox-id';
 import { cn } from '../utils/cn';
+import { CboxAppIcon, secureIconUrl } from './app-icon';
 
 type AppSwitcherProps = {
     className?: string;
@@ -215,7 +216,7 @@ export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
                 {/* Monogram chip matching the AppLauncher tile style */}
                 <span
                     style={
-                        triggerAccent !== undefined
+                        triggerAccent !== undefined && secureIconUrl(currentApp?.iconUrl) === null
                             ? {
                                   backgroundColor: triggerAccent,
                                   color: '#fff',
@@ -225,13 +226,8 @@ export function AppSwitcher({ className, onLockedAppClick }: AppSwitcherProps) {
                     }
                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-border bg-secondary text-[10px] font-bold"
                 >
-                    {currentApp?.iconUrl ? (
-                        <img
-                            src={currentApp.iconUrl}
-                            alt=""
-                            className="h-3.5 w-3.5"
-                            loading="eager"
-                        />
+                    {currentApp ? (
+                        <CboxAppIcon name={currentApp.name} iconUrl={currentApp.iconUrl} iconDarkUrl={currentApp.iconDarkUrl} className="h-3.5 w-3.5" fallback={<>{triggerMonogram}</>} />
                     ) : (
                         triggerMonogram
                     )}
@@ -368,7 +364,7 @@ function AppRow({
     const monogram = app.monogram ?? app.name.slice(0, 1).toUpperCase();
     const accent = app.accentColor;
     const tileStyle =
-        accent !== undefined && app.iconUrl === undefined
+        accent !== undefined && secureIconUrl(app.iconUrl) === null
             ? { backgroundColor: accent, color: '#fff', borderColor: accent }
             : undefined;
 
@@ -388,11 +384,7 @@ function AppRow({
                 isLocked && 'opacity-60 grayscale',
             )}
         >
-            {app.iconUrl ? (
-                <img src={app.iconUrl} alt="" className="h-5 w-5" loading="lazy" />
-            ) : (
-                <span>{monogram}</span>
-            )}
+            <CboxAppIcon name={app.name} iconUrl={app.iconUrl} iconDarkUrl={app.iconDarkUrl} className="h-5 w-5" fallback={<span>{monogram}</span>} />
         </div>
     );
 

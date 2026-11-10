@@ -2,6 +2,7 @@ import { useCboxLocalization } from '../context/localization';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useCboxIdOptional, type CboxAppLink } from '../context/cbox-id';
 import { cn } from '../utils/cn';
+import { CboxAppIcon, secureIconUrl } from './app-icon';
 
 type AppLauncherProps = {
     className?: string;
@@ -184,7 +185,7 @@ function AppRow({ app, orgSlug, onLockedAppClick }: AppRowProps): ReactNode {
     // app keeps its visual identity. Skip when an iconUrl is set —
     // the icon supplies its own colour.
     const tileStyle =
-        accent !== undefined && app.iconUrl === undefined
+        accent !== undefined && secureIconUrl(app.iconUrl) === null
             ? { backgroundColor: accent, color: '#fff', borderColor: accent }
             : undefined;
 
@@ -207,11 +208,7 @@ function AppRow({ app, orgSlug, onLockedAppClick }: AppRowProps): ReactNode {
                 isLocked && 'opacity-60 grayscale',
             )}
         >
-            {app.iconUrl ? (
-                <img src={app.iconUrl} alt="" className="h-5 w-5" loading="lazy" />
-            ) : (
-                <span>{monogram}</span>
-            )}
+            <CboxAppIcon name={app.name} iconUrl={app.iconUrl} iconDarkUrl={app.iconDarkUrl} className="h-5 w-5" fallback={<span>{monogram}</span>} />
         </div>
     );
 

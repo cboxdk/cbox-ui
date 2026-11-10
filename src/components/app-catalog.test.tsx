@@ -12,7 +12,11 @@ describe('app catalog contract', () => {
             ],
             refresh_after: 600,
         });
-        expect(state).toEqual({ status: 'ready', refreshAfter: 60, apps: [{ key: 'id', name: 'Cbox · ID', launch_url: 'https://id.cbox.dk/', icon_url: null, description: null }] });
+        expect(state).toEqual({ status: 'ready', refreshAfter: 60, apps: [{ key: 'id', name: 'Cbox · ID', launch_url: 'https://id.cbox.dk/', icon_url: null, icon_dark_url: null, description: null }] });
+    });
+    it('passes both catalog icons through', () => {
+        const state = parseAppCatalog(true, { apps: [{ key: 'signals', name: 'Cbox · Signals', launch_url: 'https://app.cboxsignals.com', icon_url: 'https://cbox.cboxid.com/app-icons/signals.png', icon_dark_url: 'https://cbox.cboxid.com/app-icons/signals-dark.png' }] });
+        expect(state.status === 'ready' && state.apps[0]).toMatchObject({ icon_url: 'https://cbox.cboxid.com/app-icons/signals.png', icon_dark_url: 'https://cbox.cboxid.com/app-icons/signals-dark.png' });
     });
     it('defaults the refresh interval and tolerates an empty list', () => {
         expect(parseAppCatalog(true, { apps: [] })).toEqual({ status: 'ready', apps: [], refreshAfter: 60 });

@@ -276,3 +276,10 @@
 
 .cbx-workspace-context [data-component=context-bar] button{max-width:100%}
 @media(max-width:639px){.cbx-workspace-header{flex-wrap:wrap;height:auto;min-height:56px;padding-block:8px}.cbx-workspace-context{order:3;flex-basis:100%;width:100%}.cbx-workspace-tools{margin-left:auto}.cbx-workspace-context [data-component=context-bar]>div{flex:1}}
+
+/* App icons come from Cbox ID's catalog: one light and one dark upload per app. The dark one
+   shows under the same switch as the dark tokens. */
+.cbx-app-icon{display:block;object-fit:contain}
+.cbx-app-icon-dark{display:none}
+:is(.dark,[data-theme='dark']) .cbx-app-icon-light{display:none}
+:is(.dark,[data-theme='dark']) .cbx-app-icon-dark{display:block}

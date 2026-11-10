@@ -200,12 +200,12 @@ grant) and the component renders its answer, refreshes it when `refresh_after` e
 while the panel is open, and offers the way back to Cbox ID when the grant is missing.
 
 ```tsx
-<CboxAppCatalog endpoint={appCatalogUrl} currentAppKey="infra" icons={serviceMarks} />
+<CboxAppCatalog endpoint={appCatalogUrl} currentAppKey="infra" />
 ```
 
 The endpoint contract (`parseAppCatalog` is exported, so a host can test its own answer):
 
-- `200 { apps: [{ key, name, launch_url, icon_url?, description? }], refresh_after?: seconds }`
+- `200 { apps: [{ key, name, launch_url, icon_url?, icon_dark_url?, description? }], refresh_after?: seconds }`
   — `refresh_after` is clamped to 1–60 s; apps without an `http(s)` launch URL are dropped.
 - `401`/`403` with `{ authorize_url }` or `{ state: 'authorization_required' }` — the panel
   says the apps could not be loaded and links "Reconnect to Cbox ID" to `authorize_url` with
@@ -213,8 +213,15 @@ The endpoint contract (`parseAppCatalog` is exported, so a host can test its own
 - Anything else — "Apps could not be loaded." with a retry.
 
 `endpoint={null}` renders the control disabled, so the chrome keeps its shape on pages
-without an organization. `icons` maps an app key to a mark the host bundles (the family's
-service marks); without one the catalog's `icon_url` is shown, then the name's initials.
+without an organization.
+
+App icons come from Cbox ID's catalog: `icon_url` for light surfaces and `icon_dark_url` for
+dark ones. The tiles render both and the token stylesheet shows the one for the current theme
+(`.dark` or `[data-theme="dark"]` on the root); an app without an icon shows its initials. Apps
+keep no local copy of the marks. Each answer is kept in this browser (`cbox-app-catalog`), so
+`<CboxServiceMark appKey="infra" />` and the collapsed `CboxBrand` in the rail paint the app's
+own icon at once on the next page. A host that loads the catalog itself calls
+`rememberAppCatalog(apps)`; `CboxAppIcon` renders any single app's icon.
 
 ### Workspace navigation (current design contract)
 

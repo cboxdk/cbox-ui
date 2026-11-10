@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react';
 import { cn } from '../utils/cn';
+import { CboxServiceMark } from '../components/app-icon';
 
 export type CboxBrandProps = {
     /**
@@ -21,7 +22,9 @@ export type CboxBrandProps = {
      *  `light` on dark / coloured surfaces. */
     tone?: 'dark' | 'light';
     /** Collapsed mode renders only the square icon — used in the
-     *  collapsed-sidebar state. */
+     *  collapsed-sidebar state. The icon is the app's own icon from
+     *  Cbox ID's catalog (light and dark) once this browser has seen
+     *  the catalog, and the Cbox icon until then. */
     collapsed?: boolean;
     className?: string;
 };
@@ -44,7 +47,7 @@ export function CboxBrand({
     className,
 }: CboxBrandProps) {
     if (collapsed) {
-        return (
+        const cboxIcon = (
             <img
                 src={`${assetBase}/cbox-icon.png`}
                 srcSet={`${assetBase}/cbox-icon.png 1x, ${assetBase}/cbox-icon@2x.png 2x`}
@@ -54,6 +57,8 @@ export function CboxBrand({
                 className={cn('h-9 w-9 rounded-md', className)}
             />
         );
+
+        return <CboxServiceMark appKey={appKey} className={cn('h-9 w-9', className)} fallback={cboxIcon} />;
     }
 
     const wordmark =
