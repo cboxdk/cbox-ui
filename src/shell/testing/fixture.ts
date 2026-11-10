@@ -163,6 +163,15 @@ export function fixtureAnswer(method: string, href: string, body?: unknown): { s
     if (path === '/orgs/cbox/shell/search') {
         return { status: 200, body: { data: [{ id: 'dep_1', title: 'Deployment 3f9c21a', subtitle: 'Webshop · Production', url: '/orgs/cbox/deployments/dep_1' }].filter(row => row.title.toLowerCase().includes(q) || q === 'deploy') } };
     }
+    // console-kit's search endpoint: one answer, grouped; `?group=` asks for one group.
+    if (path === '/shell/search') {
+        const group = url.searchParams.get('group');
+        const groups = [
+            { key: 'records', label: 'Records', items: [{ id: 'cus_1', title: 'Fjord Studio', subtitle: 'Customer', url: '/orgs/cbox/customers/cus_1' }].filter(row => row.title.toLowerCase().includes(q)) },
+            { key: 'goto', label: 'Go to', items: [{ id: 'goto_1', title: 'Fjord · Production', subtitle: 'Project · Cbox', url: '/shell/switch?select%5Bproject%5D=prj_fjord' }].filter(row => row.title.toLowerCase().includes(q)) },
+        ];
+        return { status: 200, body: { groups: groups.filter(g => group === null || g.key === group) } };
+    }
     if (path === '/shell/goto') {
         return { status: 200, body: { data: [{ title: 'Webshop · Sandbox', subtitle: 'Cbox', levels: { organization: 'org_cbox', project: 'prj_webshop', environment: 'env_web_sandbox' } }].filter(row => row.title.toLowerCase().includes(q)) } };
     }
