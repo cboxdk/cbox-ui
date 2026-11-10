@@ -5,6 +5,8 @@
  * survives as long as the shell sits in the host's persistent layout.
  */
 
+import { safeUrl } from './data';
+
 export type HelpArticle = { id: string; title: string; excerpt?: string; body?: string; url?: string; source?: string };
 
 export type SupportUpdate = { id: string; kind: 'ticket' | 'chat'; title: string; excerpt?: string; at?: string; unread: boolean; url?: string };
@@ -23,6 +25,14 @@ export type HelpState = {
     pendingQuestion: string | null;
     /** Whether `open` was taken from the person's saved preference yet. */
     seeded: boolean;
+    /**
+     * `open` came from the saved preference, not from the person on this page. Help left open
+     * shows docked from 1280px; below that it waits until the person opens it, so a phone or a
+     * narrow window never lands under the full-screen overlay.
+     */
+    restored: boolean;
+    /** Which list the support updates came from (URL and organization), so a switch reloads them. */
+    updatesKey: string | null;
 };
 
 export type HelpStore = {
@@ -40,7 +50,14 @@ export const INITIAL_HELP_STATE: HelpState = {
     updatesStatus: 'idle',
     pendingQuestion: null,
     seeded: false,
+    restored: false,
+    updatesKey: null,
 };
+
+/** Whether Help is on screen: open, and either docked or opened by the person on this page. */
+export function helpVisible(state: Pick<HelpState, 'open' | 'restored'>, docked: boolean): boolean {
+    return state.open && (docked || !state.restored);
+}
 
 export function createHelpStore(initial: Partial<HelpState> = {}): HelpStore {
     let state: HelpState = { ...INITIAL_HELP_STATE, ...initial };
@@ -86,7 +103,8 @@ export function parseUpdates(body: unknown): SupportUpdate[] {
         if (typeof row.excerpt === 'string') update.excerpt = row.excerpt;
         const at = row.at ?? row.updated_at ?? row.created_at;
         if (typeof at === 'string') update.at = at;
-        if (typeof row.url === 'string') update.url = row.url;
+        const url = safeUrl(row.url);
+        if (url !== undefined) update.url = url;
         return [update];
     });
 }
@@ -100,7 +118,8 @@ export function parseArticles(body: unknown): HelpArticle[] {
         const article: HelpArticle = { id: String(row.id), title: row.title };
         if (typeof row.excerpt === 'string') article.excerpt = row.excerpt;
         if (typeof row.body === 'string') article.body = row.body;
-        if (typeof row.url === 'string' && /^(https?:\/\/|\/)/i.test(row.url)) article.url = row.url;
+        const url = safeUrl(row.url);
+        if (url !== undefined) article.url = url;
         if (typeof row.source === 'string') article.source = row.source;
         return [article];
     });

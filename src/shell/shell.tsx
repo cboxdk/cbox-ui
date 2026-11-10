@@ -3,18 +3,19 @@ import { useCallback, useEffect, useMemo, useRef, useState, type AnchorHTMLAttri
 import { useCboxLocalization } from '../context/localization';
 import { useKnownAppCatalog } from '../components/app-icon';
 import { AccountMenu, Avatar } from './account-menu';
-import { AppGrid, hueFor } from './app-grid';
+import { AppGrid, forgetShellCatalog, hueFor } from './app-grid';
 import { CascadeLabel, Chip, CascadeMenu, OrganizationMenu } from './context-menus';
 import { ShellContext, useShell, type ShellApi, type ShellLinkComponent, type ShellOverlay } from './context';
 import { initials } from '../app-switcher/catalog';
 import { currentLocation, defaultNavigate, switchPayload } from './data';
 import { HelpColumn, useHelpState } from './help';
-import { sharedHelpStore, type HelpStore } from './help-store';
+import { helpVisible, sharedHelpStore, type HelpStore } from './help-store';
 import { resolveIcon, type ShellIcon } from './icons';
-import { HELP_DOCKED, MOBILE, useMedia } from './media';
+import { HELP_DOCKED, MOBILE, matches, useMedia } from './media';
 import { ContextSheet, NavSheet } from './mobile';
 import { CommandPalette } from './palette';
 import { Popover } from './popover';
+import { scopeLists } from './use-list';
 import type { Shell, ShellNavigate, ShellPreferenceChange, ShellPreferences, ShellTheme } from './types';
 
 export type CboxShellProps = {
@@ -96,8 +97,9 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
     const [preferences, setPreferences] = useState<ShellPreferences>(shell.preferences);
     const [overlay, setOverlay] = useState<ShellOverlay>(null);
 
-    // Help starts as the person left it, once per page; later visits keep the live state.
-    if (!store.get().seeded) store.set({ open: shell.preferences.helpOpen, seeded: true });
+    // Help starts as the person left it, once per page; later visits keep the live state. Left
+    // open, it shows docked from 1280px; below that it waits for the person (see `restored`).
+    if (!store.get().seeded) store.set({ open: shell.preferences.helpOpen, restored: shell.preferences.helpOpen, seeded: true });
 
     // A new `shell` prop from the server wins for the preferences it carries.
     const serverPreferences = JSON.stringify(shell.preferences);
@@ -117,8 +119,8 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
 
     const toggleHelp = useCallback(
         (open?: boolean) => {
-            const next = open ?? !store.get().open;
-            store.set({ open: next });
+            const next = open ?? !helpVisible(store.get(), matches(HELP_DOCKED));
+            store.set({ open: next, restored: false });
             setPreference('helpOpen', next);
         },
         [store, setPreference],
@@ -126,6 +128,10 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
 
     const levels = shell.context.levels;
     const switchUrl = shell.context.switchUrl;
+
+    // Lists and the app catalog kept from another context are never shown in this one.
+    const scope = levels.map(level => `${level.key}:${level.current.id}`).join('|');
+    if (scopeLists(scope)) forgetShellCatalog();
     const api = useMemo<ShellApi>(
         () => ({
             shell,
@@ -140,11 +146,11 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
             help: store,
             toggleHelp,
             openArticle: article => {
-                store.set({ article, open: true });
+                store.set({ article, open: true, restored: false });
                 setPreference('helpOpen', true);
             },
             ask: question => {
-                store.set({ open: true, article: null, pendingQuestion: question });
+                store.set({ open: true, restored: false, article: null, pendingQuestion: question });
                 setPreference('helpOpen', true);
             },
             switchTo: chosen => {
@@ -183,7 +189,7 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
     const docked = useMedia(HELP_DOCKED, true);
     const mobile = useMedia(MOBILE, false);
     const testData = levels.some(level => level.current.testData === true);
-    const helpOpen = useHelpState(store, state => state.open);
+    const helpOpen = useHelpState(store, state => helpVisible(state, docked));
     const banner = shell.banner !== undefined && (shell.banner.kind !== 'sandbox' || testData) ? shell.banner : undefined;
 
     return (
@@ -342,7 +348,8 @@ function Header({ mobile }: { mobile: boolean }) {
     const org = useRef<HTMLButtonElement>(null);
     const second = useRef<HTMLButtonElement>(null);
     const apps = useRef<HTMLButtonElement>(null);
-    const helpOpen = useHelpState(help, state => state.open);
+    const docked = useMedia(HELP_DOCKED, true);
+    const helpOpen = useHelpState(help, state => helpVisible(state, docked));
     const unread = useHelpState(help, state => state.updates.filter(update => update.unread).length);
     const [organization, ...rest] = shell.context.levels;
     const trail = shell.context.levels.map(level => level.current.name).join(' / ');
@@ -374,7 +381,7 @@ function Header({ mobile }: { mobile: boolean }) {
                             </button>
                             {!mobile && (
                                 <Popover open={overlay === 'context'} anchor={second} label={rest.map(level => level.label).join(' / ')} onClose={close}>
-                                    <CascadeMenu levels={rest} />
+                                    <CascadeMenu levels={rest} parent={organization.current.id} />
                                 </Popover>
                             )}
                         </>

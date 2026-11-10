@@ -22,9 +22,26 @@ function pageSize(url: string): string | undefined {
 /** Answers kept for this page, so hovering back to a project shows its environments at once. */
 const kept = new Map<string, { items: ContextItem[]; hasMore: boolean; nextCursor: string | null }>();
 
-/** Forget kept answers (after a create, and between tests). */
+/** Forget kept answers (after a create, on a context switch, and between tests). */
 export function forgetLists(): void {
     kept.clear();
+    keptScope = null;
+}
+
+/** The context the kept answers belong to: every level's current id. */
+let keptScope: string | null = null;
+
+/**
+ * Tie the kept answers to a context. When the person has switched (an Inertia visit keeps this
+ * module alive), answers from the previous context are dropped, even when an app's list URL is
+ * not scoped by organization in its path. Returns true when something was dropped.
+ */
+export function scopeLists(scope: string): boolean {
+    if (keptScope === scope) return false;
+    const changed = keptScope !== null;
+    kept.clear();
+    keptScope = scope;
+    return changed;
 }
 
 /**

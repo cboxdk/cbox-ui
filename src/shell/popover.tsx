@@ -137,7 +137,10 @@ export function revealInList(id: string): void {
     if (typeof document === 'undefined') return;
     const option = document.getElementById(id);
     if (option === null) return;
-    const list = option.closest<HTMLElement>('[role="listbox"]');
+    // The scroller is the listbox itself, or the `.cbx-list` around it (a pane keeps its status
+    // notes outside the listbox, inside the same scroller).
+    let list = option.closest<HTMLElement>('[role="listbox"]');
+    if (list !== null && list.scrollHeight <= list.clientHeight && list.parentElement?.classList.contains('cbx-list')) list = list.parentElement;
     if (list === null || list.scrollHeight <= list.clientHeight) return;
     const box = list.getBoundingClientRect();
     const item = option.getBoundingClientRect();

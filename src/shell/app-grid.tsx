@@ -151,20 +151,33 @@ export function AppTile({ app, current }: { app: ShellApp; current: boolean }) {
     );
 }
 
-/** Arrow keys across the 3-column grid; Home and End jump. */
+/**
+ * Arrow keys across the 3-column grid; Home and End jump. "All products" is the last stop: ↓
+ * from the bottom row and End reach it, ↑ from it goes back to the last tile.
+ */
 function gridKeys(event: KeyboardEvent<HTMLElement>, container: HTMLElement | null): void {
     if (container === null) return;
     const tiles = Array.from(container.querySelectorAll<HTMLElement>('.cbx-app'));
-    const index = tiles.indexOf(document.activeElement as HTMLElement);
-    if (index < 0) return;
+    const all = container.querySelector<HTMLElement>('.cbx-apps-all');
+    const stops = all === null ? tiles : [...tiles, all];
+    const index = stops.indexOf(document.activeElement as HTMLElement);
+    if (index < 0 || stops.length === 0) return;
+    const onAll = all !== null && index === tiles.length;
     const moves: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 3, ArrowUp: -3 };
     let next = index;
-    if (event.key in moves) next = index + moves[event.key]!;
+    if (onAll) {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') next = tiles.length - 1;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End' || event.key === 'ArrowDown' || event.key === 'ArrowRight') next = index;
+        else return;
+    } else if (event.key === 'ArrowDown' && index + 3 > tiles.length - 1 && all !== null) next = tiles.length;
+    else if (event.key === 'ArrowRight' && index === tiles.length - 1 && all !== null) next = tiles.length;
+    else if (event.key in moves) next = Math.max(0, Math.min(tiles.length - 1, index + moves[event.key]!));
     else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = tiles.length - 1;
+    else if (event.key === 'End') next = stops.length - 1;
     else return;
     event.preventDefault();
-    tiles[Math.max(0, Math.min(tiles.length - 1, next))]!.focus();
+    stops[Math.max(0, next)]?.focus();
 }
 
 /**
@@ -220,7 +233,7 @@ export function AppGrid({ autoFocus = true }: { autoFocus?: boolean }) {
                 </>
             )}
             <div className="cbx-pane-foot">
-                <a className="cbx-row cbx-row-action" href={shell.apps.productsUrl ?? 'https://cbox.dk'} target="_blank" rel="noopener">
+                <a className="cbx-row cbx-row-action cbx-apps-all" href={shell.apps.productsUrl ?? 'https://cbox.dk'} target="_blank" rel="noopener">
                     <span className="cbx-row-name">{t('All products')}</span>
                     <ArrowUpRight className="cbx-row-trail" size={14} strokeWidth={1.8} aria-hidden />
                 </a>

@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowUpRight, BookOpen, CircleAlert, LifeBuoy, MessageSquare, Search, Sparkles, Ticket, UserRound, X } from 'lucide-react';
 import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { requestJson, withQuery } from './data';
-import { parseArticles, parseUpdates, type HelpArticle, type HelpState, type HelpStore, type SupportUpdate } from './help-store';
+import { helpVisible, parseArticles, parseUpdates, type HelpArticle, type HelpState, type HelpStore, type SupportUpdate } from './help-store';
 import { useShell } from './context';
 import { canAutofocus } from './media';
 import { trapTab } from './popover';
@@ -75,7 +75,8 @@ function whenSupportReady(host: HTMLElement | null, timeoutMs = 6000): Promise<S
 export function HelpColumn({ docked }: { docked: boolean }) {
     const { shell, t, help: store, toggleHelp, navigate, preferences } = useShell();
     const formatDate = useShortDate(preferences.regionalFormat ?? preferences.locale, preferences.timeZone);
-    const open = useHelpState(store, state => state.open);
+    const open = useHelpState(store, state => helpVisible(state, docked));
+    const restored = useHelpState(store, state => state.open && state.restored);
     const article = useHelpState(store, state => state.article);
     const query = useHelpState(store, state => state.query);
     const updates = useHelpState(store, state => state.updates);
@@ -85,24 +86,37 @@ export function HelpColumn({ docked }: { docked: boolean }) {
     const [results, setResults] = useState<{ q: string; items: HelpArticle[]; status: 'loading' | 'ready' | 'unavailable' } | null>(null);
     const [question, setQuestion] = useState('');
     const [chatProblem, setChatProblem] = useState(false);
-    const column = useRef<HTMLElement>(null);
+    const column = useRef<HTMLDivElement>(null);
     const body = useRef<HTMLDivElement>(null);
     const chatHost = useRef<HTMLDivElement>(null);
     const searchField = useRef<HTMLInputElement>(null);
+    const opener = useRef<HTMLElement | null>(null);
     const { help } = shell;
     const portal = help.portalUrl;
 
-    // Support updates feed the button's count, so they load after the first paint, open or not.
+    // Support updates are per person per organization (§7.3). They feed the button's count, so
+    // they load after the first paint, open or not, and again when the URL or organization
+    // changes: the store outlives Inertia visits, so an org switch must not keep the old count.
+    const updatesKey = help.enabled && help.updatesUrl !== undefined ? `${help.updatesUrl}|${shell.context.levels[0]?.current.id ?? ''}` : null;
     const loadUpdates = useCallback(() => {
-        if (!help.enabled || help.updatesUrl === undefined) return;
-        store.set({ updatesStatus: 'loading' });
+        if (updatesKey === null || help.updatesUrl === undefined) return;
+        const current = () => store.get().updatesKey === updatesKey;
+        store.set({ updatesStatus: 'loading', updatesKey });
         requestJson(help.updatesUrl)
-            .then(answer => store.set({ updates: parseUpdates(answer), updatesStatus: 'ready' }))
-            .catch(() => store.set({ updatesStatus: 'unavailable' }));
-    }, [help.enabled, help.updatesUrl, store]);
+            .then(answer => {
+                if (current()) store.set({ updates: parseUpdates(answer), updatesStatus: 'ready' });
+            })
+            .catch(() => {
+                if (current()) store.set({ updatesStatus: 'unavailable' });
+            });
+    }, [updatesKey, help.updatesUrl, store]);
     useEffect(() => {
-        if (store.get().updatesStatus === 'idle') loadUpdates();
-    }, [loadUpdates, store]);
+        const state = store.get();
+        if (state.updatesKey !== updatesKey) {
+            store.set({ updates: [], updatesStatus: 'idle', updatesKey });
+            loadUpdates();
+        } else if (state.updatesStatus === 'idle') loadUpdates();
+    }, [updatesKey, loadUpdates, store]);
     useEffect(() => {
         if (open && store.get().updatesStatus !== 'loading') loadUpdates();
     }, [open]);
@@ -191,11 +205,26 @@ export function HelpColumn({ docked }: { docked: boolean }) {
 
     // When the person opens Help, its search takes focus on a desktop. Help that was simply left
     // open never takes focus on a page load, unless it is the modal overlay, which must hold it.
+    // When it closes, focus goes back to what opened it (the Help button or a page's `?`).
     const wasOpen = useRef(open);
     useEffect(() => {
         const opened = open && !wasOpen.current;
+        const closed = !open && wasOpen.current;
         wasOpen.current = open;
+        if (closed) {
+            const active = document.activeElement;
+            if (active === null || active === document.body || column.current?.contains(active)) {
+                const back = opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>('.cbx-tools [aria-controls="cbx-help"]');
+                back?.focus();
+            }
+            opener.current = null;
+            return;
+        }
         if (!open) return;
+        if (opened) {
+            const active = document.activeElement;
+            opener.current = active instanceof HTMLElement && active !== document.body && !column.current?.contains(active) ? active : null;
+        }
         if (opened && canAutofocus() && store.get().article === null) searchField.current?.focus();
         else if (!docked && !column.current?.contains(document.activeElement)) column.current?.focus();
     }, [open, docked, store]);
@@ -222,11 +251,12 @@ export function HelpColumn({ docked }: { docked: boolean }) {
     };
 
     return (
-        <aside
+        <div
             ref={column}
             id="cbx-help"
             className={`cbx-help ${docked ? 'is-docked' : 'is-overlay'}`}
             hidden={!open}
+            data-restored={restored ? 'true' : undefined}
             aria-label={t('Help')}
             role={docked ? 'complementary' : 'dialog'}
             aria-modal={docked ? undefined : true}
@@ -239,7 +269,7 @@ export function HelpColumn({ docked }: { docked: boolean }) {
                 if (!docked) trapTab(event, column.current);
             }}
         >
-            <header className="cbx-help-head">
+            <div className="cbx-help-head">
                 {article !== null ? (
                     <button type="button" className="cbx-icon-button" onClick={() => store.set({ article: null })} aria-label={t('Back to Help')}>
                         <ArrowLeft size={18} strokeWidth={1.8} aria-hidden />
@@ -256,7 +286,7 @@ export function HelpColumn({ docked }: { docked: boolean }) {
                 <button type="button" className="cbx-icon-button" onClick={() => toggleHelp(false)} aria-label={t('Close Help')}>
                     <X size={18} strokeWidth={1.8} aria-hidden />
                 </button>
-            </header>
+            </div>
             <p className="cbx-help-page">
                 <span className="cbx-help-page-label">{t('On this page')}</span>
                 <span className="cbx-truncate" title={[shell.page?.title, trail].filter(Boolean).join(' · ')}>
@@ -361,16 +391,19 @@ export function HelpColumn({ docked }: { docked: boolean }) {
                                 </button>
                             </form>
                             {chatProblem && <p className="cbx-create-error" role="alert">{t('The chat could not be opened. Try again, or use the support portal.')}</p>}
-                            {help.enabled && help.sessionUrl !== undefined && (
-                                <div ref={chatHost} className="cbx-chat-host">
-                                    {createElement(SUPPORT_TAG, { 'session-url': help.sessionUrl, intent: intentJson })}
-                                </div>
-                            )}
                         </section>
                     </>
                 )}
+                {/* The chat element sits outside the home/article switch, so opening an article
+                    (from the palette, "For this page" or a search) never unmounts it and the
+                    conversation survives (§7.1). */}
+                {help.enabled && help.sessionUrl !== undefined && (
+                    <div ref={chatHost} className="cbx-chat-host" data-view={article !== null ? 'article' : 'home'}>
+                        {createElement(SUPPORT_TAG, { 'session-url': help.sessionUrl, intent: intentJson })}
+                    </div>
+                )}
             </div>
-            <footer className="cbx-help-foot">
+            <div className="cbx-help-foot">
                 <button type="button" className="cbx-row cbx-row-action" onClick={() => void openChat(t('I would like to talk to a person.'), true)} disabled={!help.enabled || help.sessionUrl === undefined}>
                     <UserRound size={16} strokeWidth={1.8} aria-hidden />
                     <span className="cbx-row-name">{t('Talk to a person')}</span>
@@ -382,8 +415,8 @@ export function HelpColumn({ docked }: { docked: boolean }) {
                         <ArrowUpRight className="cbx-row-trail" size={14} strokeWidth={1.8} aria-hidden />
                     </a>
                 )}
-            </footer>
-        </aside>
+            </div>
+        </div>
     );
 }
 

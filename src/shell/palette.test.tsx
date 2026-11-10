@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // @vitest-environment-options {"url":"https://app.test/orgs/cbox/projects/webshop/environments/production/deployments"}
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderShell, reset } from './testing/harness';
 import { makeShell } from './testing/fixture';
 import { matchScore } from './palette';
@@ -113,5 +113,33 @@ describe('command palette (§6)', () => {
     it('matches every word and ranks a prefix first', () => {
         expect(matchScore('Invite members', 'inv mem')).toBeGreaterThan(matchScore('Reinvite old members', 'inv mem'));
         expect(matchScore('Servers', 'deploy')).toBe(0);
+    });
+});
+
+describe('palette keeps its place (§12.1)', () => {
+    it('keeps the highlighted result when a slow group arrives above it', async () => {
+        const { user, navigate } = renderShell({ fetch: { delays: { '/orgs/cbox/shell/search': 400 } } });
+        await user.click(screen.getByRole('button', { name: 'Search or ask…' }));
+        await user.type(screen.getByRole('combobox'), 'deploy');
+        const target = await screen.findByRole('option', { name: /New deployment/ });
+        for (let i = 0; i < 12 && target.getAttribute('aria-selected') !== 'true'; i++) await user.keyboard('{ArrowDown}');
+        expect(target.getAttribute('aria-selected')).toBe('true');
+        expect(screen.queryByRole('option', { name: /Deployment 3f9c21a/ })).toBeNull();
+        expect(await screen.findByRole('option', { name: /Deployment 3f9c21a/ }, { timeout: 2000 })).toBeTruthy();
+        expect(screen.getByRole('option', { name: /New deployment/ }).getAttribute('aria-selected')).toBe('true');
+        await user.keyboard('{Enter}');
+        expect(navigate).toHaveBeenCalledWith('/orgs/cbox/deployments/create', { method: 'get', newTab: false });
+    });
+
+    it('drops a server link that is not http(s) or a path', async () => {
+        const { user } = renderShell();
+        vi.stubGlobal('fetch', async (input: string) => {
+            if (input.includes('/shell/search')) return new Response(JSON.stringify({ data: [{ id: 'x', title: 'Evil record', url: 'javascript:alert(1)' }, { id: 'y', title: 'Good record', url: '/orgs/cbox/y' }] }), { status: 200 });
+            return new Response('{"data":[]}', { status: 200 });
+        });
+        await user.click(screen.getByRole('button', { name: 'Search or ask…' }));
+        await user.type(screen.getByRole('combobox'), 'record');
+        expect(await screen.findByRole('option', { name: /Good record/ })).toBeTruthy();
+        expect(screen.queryByRole('option', { name: /Evil record/ })).toBeNull();
     });
 });

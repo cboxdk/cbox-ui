@@ -136,10 +136,12 @@ export function AccountMenu({ inline = false, onDone }: { inline?: boolean; onDo
                 </div>
             </div>
             <div className="cbx-list cbx-list-foot" role="none">
-                <button role="menuitem" tabIndex={tab} type="button" className="cbx-row cbx-row-action" onClick={() => { onDone?.(); navigate(account.switchAccountUrl); }}>
+                {/* A plain link, so it is a full page load: switching account goes through Cbox ID,
+                    which an Inertia visit could not follow cross-origin. */}
+                <a role="menuitem" tabIndex={tab} className="cbx-row cbx-row-action" href={account.switchAccountUrl} onClick={onDone}>
                     <Users size={16} strokeWidth={1.8} aria-hidden />
                     <span className="cbx-row-name">{t('Switch account')}</span>
-                </button>
+                </a>
                 <button role="menuitem" tabIndex={tab} type="button" className="cbx-row cbx-row-action" onClick={() => { onDone?.(); navigate(account.signOutUrl, { method: account.signOutMethod ?? 'post' }); }}>
                     <LogOut size={16} strokeWidth={1.8} aria-hidden />
                     <span className="cbx-row-name">{t('Sign out')}</span>

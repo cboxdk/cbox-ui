@@ -44,6 +44,14 @@ export function parseListPage(body: unknown): ListPage {
     return { items, hasMore: (more === true || more === undefined) && nextCursor !== null, nextCursor };
 }
 
+/**
+ * A server-supplied link the shell may follow: http(s) or a same-origin path. Anything else
+ * (`javascript:`, `data:`) is dropped, so a bad answer from a proxy can never run script.
+ */
+export function safeUrl(url: unknown): string | undefined {
+    return typeof url === 'string' && /^(https?:\/\/|\/)/i.test(url.trim()) ? url.trim() : undefined;
+}
+
 /** `url` with query parameters added; empty values are left out. Works for relative URLs. */
 export function withQuery(url: string, params: Record<string, string | undefined | null>): string {
     const [path, hash = ''] = url.split('#') as [string, string?];
@@ -160,8 +168,8 @@ export async function createItem(createUrl: string, name: string, parent?: strin
     if (parent !== undefined) body.parent = parent;
     const answer = await requestJson<Record<string, unknown>>(createUrl, { method: 'POST', body });
     const id = answer?.id;
-    const detailsUrl = answer?.detailsUrl ?? answer?.details_url;
-    if ((typeof id !== 'string' && typeof id !== 'number') || typeof detailsUrl !== 'string') {
+    const detailsUrl = safeUrl(answer?.detailsUrl ?? answer?.details_url);
+    if ((typeof id !== 'string' && typeof id !== 'number') || detailsUrl === undefined) {
         throw new ShellRequestError(500, { message: 'The answer had no details page.' });
     }
     return { id: String(id), detailsUrl };
@@ -172,7 +180,7 @@ export async function createItem(createUrl: string, name: string, parent?: strin
  * submit with Laravel's `_token`, so the server's redirect is followed like any form.
  */
 export const defaultNavigate: ShellNavigate = (url, options = {}) => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || safeUrl(url) === undefined) return;
     if (options.newTab) {
         window.open(url, '_blank', 'noopener');
         return;

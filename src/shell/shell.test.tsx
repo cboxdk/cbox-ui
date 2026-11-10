@@ -336,7 +336,7 @@ describe('first paint (§12.1)', () => {
         shell.preferences.helpOpen = true;
         const html = renderToString(<CboxShell shell={shell} helpStore={createHelpStore()}><p>Page</p></CboxShell>);
         expect(html).toContain('data-pinned="true"');
-        expect(html).toMatch(/<aside[^>]*id="cbx-help"(?![^>]*hidden)/);
+        expect(html).toMatch(/<div[^>]*id="cbx-help"(?![^>]*hidden)/);
         expect(fetch).not.toHaveBeenCalled();
     });
 
@@ -363,5 +363,141 @@ describe('a visit closes menus', () => {
         expect(screen.getByRole('dialog', { name: 'Organization' })).toBeTruthy();
         act(() => rerender(makeShell({ page: { title: 'Servers' } }), 'Servers'));
         expect(screen.queryByRole('dialog', { name: 'Organization' })).toBeNull();
+    });
+});
+
+describe('Help keeps the conversation and follows the organization (§7.1, §7.3)', () => {
+    it('keeps the same chat element when an article opens and when the person goes back', async () => {
+        const { user } = renderShell();
+        await user.click(screen.getByRole('button', { name: /^Help/ }));
+        const column = screen.getByRole('complementary', { name: 'Help' });
+        const chat = column.querySelector('cbox-support');
+        expect(chat).not.toBeNull();
+        await user.click(await within(column).findByRole('button', { name: /Deploy a project/ }));
+        expect(within(column).getByRole('heading', { name: 'Deploy a project' })).toBeTruthy();
+        expect(column.querySelector('cbox-support')).toBe(chat);
+        await user.click(within(column).getByRole('button', { name: 'Back to Help' }));
+        expect(column.querySelector('cbox-support')).toBe(chat);
+    });
+
+    it('keeps the chat when the palette opens a docs article', async () => {
+        const { user } = renderShell();
+        await user.click(screen.getByRole('button', { name: /^Help/ }));
+        const chat = document.querySelector('#cbx-help cbox-support');
+        await user.click(screen.getByRole('button', { name: 'Search or ask…' }));
+        await user.type(screen.getByRole('combobox', { name: 'Search or ask…' }), 'roll back');
+        await user.click(await screen.findByRole('option', { name: /Roll back a deployment/ }));
+        expect(screen.getByRole('heading', { name: 'Roll back a deployment' })).toBeTruthy();
+        expect(document.querySelector('#cbx-help cbox-support')).toBe(chat);
+    });
+
+    it('reloads support updates after an organization switch, and drops the old count', async () => {
+        const store = createHelpStore();
+        const { calls, rerender } = renderShell({ store });
+        expect(await screen.findByRole('button', { name: 'Help, 2 unread' })).toBeTruthy();
+        const loads = () => calls.filter(call => call.method === 'GET' && call.url.includes('/help/updates')).length;
+        expect(loads()).toBe(1);
+
+        const acme = makeShell();
+        acme.context.levels[0]!.current = { id: 'org_acme', name: 'Acme ApS' };
+        rerender(acme);
+        await waitFor(() => expect(loads()).toBe(2));
+        expect(await screen.findByRole('button', { name: 'Help, 2 unread' })).toBeTruthy();
+
+        // Another organization's list that is unavailable: the old count must not stay.
+        const other = makeShell();
+        other.context.levels[0]!.current = { id: 'org_nordic', name: 'Nordic' };
+        other.help.updatesUrl = '/orgs/nordic/help/updates';
+        rerender(other);
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Help' })).toBeTruthy());
+        expect(store.get().updates).toEqual([]);
+    });
+});
+
+describe('Help left open, on a narrow window (§7.1)', () => {
+    it('does not cover the page below 1280px until the person opens it', async () => {
+        const shell = makeShell();
+        shell.preferences.helpOpen = true;
+        const { user, preference } = renderShell({ shell, environment: { width: 1100 } });
+        expect(document.getElementById('cbx-help')?.hidden).toBe(true);
+        expect(screen.queryByRole('dialog', { name: 'Help' })).toBeNull();
+        const button = screen.getByRole('button', { name: /^Help/ });
+        expect(button.getAttribute('aria-pressed')).toBe('false');
+        await user.click(button);
+        expect(screen.getByRole('dialog', { name: 'Help' })).toBeTruthy();
+        expect(preference).toHaveBeenCalledWith('helpOpen', true);
+    });
+
+    it('still opens docked from 1280px', () => {
+        const shell = makeShell();
+        shell.preferences.helpOpen = true;
+        renderShell({ shell, environment: { width: 1280 } });
+        expect(screen.getByRole('complementary', { name: 'Help' }).hidden).toBe(false);
+    });
+
+    it('marks restored Help for the CSS, so a narrow first paint never shows it', () => {
+        const shell = makeShell();
+        shell.preferences.helpOpen = true;
+        const html = renderToString(<CboxShell shell={shell} helpStore={createHelpStore()}><p>Page</p></CboxShell>);
+        expect(html).toMatch(/<div[^>]*id="cbx-help"[^>]*data-restored="true"/);
+    });
+});
+
+describe('Help gives focus back on close (§12.2)', () => {
+    it('returns focus to the Help button from the Close button', async () => {
+        const { user } = renderShell();
+        const button = screen.getByRole('button', { name: /^Help/ });
+        await user.click(button);
+        await user.click(screen.getByRole('button', { name: 'Close Help' }));
+        expect(document.activeElement).toBe(button);
+    });
+
+    it('returns focus to the overlay’s opener on Escape', async () => {
+        const { user } = renderShell({ environment: { width: 1100 } });
+        const button = screen.getByRole('button', { name: /^Help/ });
+        await user.click(button);
+        expect(screen.getByRole('dialog', { name: 'Help' })).toBeTruthy();
+        await user.keyboard('{Escape}');
+        expect(document.activeElement).toBe(button);
+    });
+
+    it('returns focus to a page header’s ?', async () => {
+        const { user } = renderShell({ page: <PageHeader title="Deployments" help /> });
+        const ask = screen.getByRole('button', { name: 'Help for this page' });
+        await user.click(ask);
+        await user.click(screen.getByRole('button', { name: 'Close Help' }));
+        expect(document.activeElement).toBe(ask);
+    });
+});
+
+describe('account and app grid details', () => {
+    it('makes Switch account a plain link, a full page load to Cbox ID', async () => {
+        const { user, navigate } = renderShell();
+        await user.click(screen.getByRole('button', { name: 'Account and preferences' }));
+        const item = screen.getByRole('menuitem', { name: 'Switch account' });
+        expect(item.tagName).toBe('A');
+        expect(item.getAttribute('href')).toBe('/switch-account');
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('reaches All products with the arrow keys', async () => {
+        const { user } = renderShell();
+        await user.click(screen.getByRole('button', { name: 'Switch app' }));
+        await screen.findByRole('region', { name: 'More from Cbox' });
+        await waitFor(() => expect(document.activeElement?.getAttribute('data-app')).toBe('infra'));
+        await user.keyboard('{End}');
+        const all = screen.getByRole('link', { name: /All products/ });
+        expect(document.activeElement).toBe(all);
+        await user.keyboard('{ArrowUp}');
+        expect(document.activeElement?.getAttribute('data-app')).toBe('status');
+        await user.keyboard('{ArrowDown}');
+        expect(document.activeElement).toBe(all);
+    });
+
+    it('gives the page header ? a 32px hit area, 44px on touch', () => {
+        renderShell({ page: <PageHeader title="Deployments" help /> });
+        const ask = screen.getByRole('button', { name: 'Help for this page' });
+        expect(ask.className).toContain('h-8');
+        expect(ask.className).toContain('[@media(pointer:coarse)]:h-11');
     });
 });

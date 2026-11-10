@@ -57,17 +57,28 @@ type Option = { kind: 'item'; item: ContextItem } | { kind: 'more' };
  * One pane of a context menu: search, heading with View all, the lazily loaded rows, and
  * "New …". Keyboard: ↑↓ Home End move, Enter picks, → and ← cross panes, Esc closes (the
  * popover), Tab leaves. Focus stays in the search field and the active row is announced with
- * `aria-activedescendant`.
+ * `aria-activedescendant`. A row's gear is an option of its own (named "Settings", described
+ * by the row): → makes it active, ← goes back, Enter opens the settings page; in the cascade a
+ * second → crosses to the environments. The pane's own actions sit on the same ring: ↓ past the last row
+ * focuses "New …", ↑ above the first row focuses "View all", and ↑↓ from there go back into
+ * the rows, so both work without a mouse (§12.2).
  */
 export function LevelPane({ level, parent, currentId, heading, viewAll = true, searchable = true, autoFocus = false, chevron = false, createLabel, onPick, onPreview, onArrowRight, onArrowLeft, handle, className }: PaneProps) {
-    const { t, Link } = useShell();
+    const { t, Link, navigate } = useShell();
     const [q, setQ] = useState('');
-    const [active, setActive] = useState(-1);
+    const [active, setActiveRow] = useState(-1);
+    // → on a row with settings makes its gear the active option; any other move leaves it.
+    const [gear, setGear] = useState(false);
+    const setActive = useCallback((next: number | ((index: number) => number)) => {
+        setGear(false);
+        setActiveRow(next);
+    }, []);
     const [creating, setCreating] = useState(false);
     const list = useContextList(level.listUrl, { q, parent });
     const id = useId();
     const input = useRef<HTMLInputElement>(null);
     const box = useRef<HTMLDivElement>(null);
+    const createButton = useRef<HTMLButtonElement>(null);
     const plural = pluralOf(level);
     const environment = isEnvironmentLevel(level);
 
@@ -96,6 +107,11 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
     useImperativeHandle(handle, () => ({ focus: focusSelf }), [focusSelf]);
 
     const optionId = (index: number) => `${id}-option-${index}`;
+    const allId = `${id}-all`;
+    const canCreate = level.createUrl !== undefined && createLabel !== undefined;
+    /** The pane's actions in ring order: View all above the rows, New … below them. */
+    const viewAllLink = () => (viewAll ? document.getElementById(allId) : null);
+    const createAction = () => (canCreate && !creating ? createButton.current : null);
     useEffect(() => {
         if (active < 0) return;
         revealInList(optionId(active));
@@ -109,18 +125,54 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
         else onPick(option.item);
     };
 
+    /** Back into the rows from an action, on the first or the last row. */
+    const enterRows = (at: 'first' | 'last') => {
+        focusSelf();
+        setActive(options.length === 0 ? -1 : at === 'first' ? 0 : options.length - 1);
+    };
+
+    /** ↑↓ on View all or New …: the ring is View all, the rows, New …, and round again. */
+    const onActionKeyDown = (event: KeyboardEvent, action: 'all' | 'create') => {
+        if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+        event.preventDefault();
+        const rows = options.length > 0;
+        const down = event.key === 'ArrowDown';
+        const ring: Array<() => void> = [];
+        const top = viewAllLink();
+        const bottom = createAction();
+        if (top !== null) ring.push(() => top.focus());
+        if (rows) ring.push(() => enterRows(down ? 'first' : 'last'));
+        if (bottom !== null) ring.push(() => bottom.focus());
+        const here = action === 'all' ? 0 : ring.length - 1;
+        const next = (here + (down ? 1 : -1) + ring.length) % ring.length;
+        ring[next]?.();
+    };
+
     const onKeyDown = (event: KeyboardEvent) => {
         if (event.target instanceof HTMLElement && event.target.closest('.cbx-create')) return;
+        if (event.target instanceof HTMLElement && event.target.closest('[data-pane-action]')) return;
         const last = options.length - 1;
         switch (event.key) {
-            case 'ArrowDown':
+            case 'ArrowDown': {
                 event.preventDefault();
+                const bottom = createAction();
+                if (bottom !== null && active >= last) {
+                    bottom.focus();
+                    break;
+                }
                 setActive(index => (index >= last ? 0 : index + 1));
                 break;
-            case 'ArrowUp':
+            }
+            case 'ArrowUp': {
                 event.preventDefault();
+                const top = viewAllLink();
+                if (top !== null && active <= 0) {
+                    top.focus();
+                    break;
+                }
                 setActive(index => (index <= 0 ? last : index - 1));
                 break;
+            }
             case 'Home':
                 if (!searchable || q === '') {
                     event.preventDefault();
@@ -133,24 +185,34 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
                     setActive(last);
                 }
                 break;
-            case 'Enter':
+            case 'Enter': {
                 event.preventDefault();
-                choose(options[active]);
+                const option = options[active];
+                const settings = option?.kind === 'item' ? settingsHref(level, option.item.id) : null;
+                if (gear && settings !== null) navigate(settings);
+                else choose(option);
                 break;
+            }
             case 'ArrowRight': {
                 if (searchable && input.current !== null && input.current.selectionStart !== q.length) break;
-                if (onArrowRight?.()) {
+                const option = options[active];
+                if (!gear && option?.kind === 'item' && settingsHref(level, option.item.id) !== null) {
                     event.preventDefault();
+                    setGear(true);
                     break;
                 }
-                const gear = document.getElementById(`${optionId(active)}-settings`);
-                if (gear !== null) {
+                if (onArrowRight?.()) {
                     event.preventDefault();
-                    gear.focus();
+                    setGear(false);
                 }
                 break;
             }
             case 'ArrowLeft':
+                if (gear) {
+                    event.preventDefault();
+                    setGear(false);
+                    break;
+                }
                 if (onArrowLeft !== undefined && (!searchable || input.current?.selectionStart === 0)) {
                     event.preventDefault();
                     onArrowLeft();
@@ -160,7 +222,7 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
     };
 
     const listboxId = `${id}-listbox`;
-    const activeId = active >= 0 && active < options.length ? optionId(active) : undefined;
+    const activeId = active >= 0 && active < options.length ? (gear ? `${optionId(active)}-settings` : optionId(active)) : undefined;
 
     return (
         <div className={`cbx-pane ${className ?? ''}`} onKeyDown={onKeyDown}>
@@ -186,25 +248,32 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
             )}
             <div className="cbx-pane-heading">
                 <span className="cbx-truncate" title={heading}>{heading}</span>
-                {viewAll && <Link href={level.allUrl} className="cbx-pane-all" tabIndex={-1}>{t('View all')}</Link>}
+                {viewAll && (
+                    <Link href={level.allUrl} id={allId} className="cbx-pane-all" tabIndex={-1} data-pane-action="all" onKeyDown={event => onActionKeyDown(event, 'all')}>
+                        {t('View all')}
+                    </Link>
+                )}
             </div>
             <div
-                ref={box}
-                id={listboxId}
-                role="listbox"
-                aria-label={heading}
-                tabIndex={searchable ? -1 : 0}
-                aria-activedescendant={searchable ? undefined : activeId}
                 className="cbx-list"
                 onScroll={event => {
                     const el = event.currentTarget;
                     if (el.scrollHeight - el.scrollTop - el.clientHeight < 48) list.loadMore();
                 }}
             >
+                <div
+                    ref={box}
+                    id={listboxId}
+                    role="listbox"
+                    aria-label={heading}
+                    tabIndex={searchable ? -1 : 0}
+                    aria-activedescendant={searchable ? undefined : activeId}
+                    className="cbx-listbox"
+                >
                 {options.map((option, index) => {
                     if (option.kind === 'more') {
                         return (
-                            <div key="more" id={optionId(index)} role="option" aria-selected={index === active} className={`cbx-row cbx-row-more ${index === active ? 'is-active' : ''}`} onMouseEnter={() => setActive(index)} onClick={() => list.loadMore()}>
+                            <div key="more" id={optionId(index)} role="option" aria-selected={index === active && !gear} className={`cbx-row cbx-row-more ${index === active ? 'is-active' : ''}`} onMouseEnter={() => setActive(index)} onClick={() => list.loadMore()}>
                                 <span className="cbx-row-name">{list.loadingMore ? t('Loading…') : t('Show more')}</span>
                             </div>
                         );
@@ -214,7 +283,7 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
                     const settings = settingsHref(level, item.id);
                     return (
                         <div key={item.id} className={`cbx-row ${index === active ? 'is-active' : ''} ${current ? 'is-current' : ''}`} onMouseEnter={() => setActive(index)}>
-                            <div id={optionId(index)} role="option" aria-selected={index === active} aria-current={current ? 'true' : undefined} className="cbx-row-main" onClick={() => onPick(item)}>
+                            <div id={optionId(index)} role="option" aria-selected={index === active && !gear} aria-current={current ? 'true' : undefined} className="cbx-row-main" onClick={() => onPick(item)}>
                                 {environment ? <ToneSquare tone={item.tone} /> : <Chip item={item} />}
                                 <span className="cbx-row-name" title={item.name}>{item.name}</span>
                                 {item.label !== undefined && <span className="cbx-row-label">{item.label}</span>}
@@ -224,16 +293,13 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
                                 <Link
                                     href={settings}
                                     id={`${optionId(index)}-settings`}
-                                    className="cbx-row-gear"
+                                    role="option"
+                                    aria-selected={index === active && gear}
+                                    aria-describedby={optionId(index)}
+                                    className={`cbx-row-gear ${index === active && gear ? 'is-active' : ''}`}
                                     tabIndex={-1}
-                                    aria-label={t('Settings for {name}', { name: item.name })}
-                                    title={t('Settings')}
-                                    onKeyDown={event => {
-                                        if (event.key === 'ArrowLeft') {
-                                            event.preventDefault();
-                                            focusSelf();
-                                        }
-                                    }}
+                                    aria-label={t('Settings')}
+                                    title={t('Settings for {name}', { name: item.name })}
                                 >
                                     <Settings size={15} strokeWidth={1.8} aria-hidden />
                                 </Link>
@@ -242,14 +308,15 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
                         </div>
                     );
                 })}
+                </div>
                 <ListStatus status={list.status} empty={options.length === 0} query={q} plural={plural} onRetry={list.retry} />
             </div>
-            {level.createUrl !== undefined && createLabel !== undefined && (
+            {canCreate && (
                 <div className="cbx-pane-foot">
                     {creating ? (
                         <InlineCreate level={level} parent={parent} label={createLabel} onCancel={() => { setCreating(false); focusSelf(); }} />
                     ) : (
-                        <button type="button" className="cbx-row cbx-row-action" onClick={() => setCreating(true)}>
+                        <button ref={createButton} type="button" className="cbx-row cbx-row-action" data-pane-action="create" onClick={() => setCreating(true)} onKeyDown={event => onActionKeyDown(event, 'create')}>
                             <Plus size={16} strokeWidth={1.8} aria-hidden />
                             <span className="cbx-row-name">{createLabel}</span>
                         </button>
@@ -386,9 +453,10 @@ export function OrganizationMenu({ level }: { level: ContextLevel }) {
  * The second trigger's menu (§5.4). With two levels it is the cascade: hovering or focusing a
  * project previews its environments on the right without switching; an environment switches
  * both; a project keeps the environment of the same name, else its first. With one level it
- * is a single pane.
+ * is a single pane. `parent` is the organization's id: every level below the first is listed
+ * with `?parent=`, so an answer can never belong to another organization.
  */
-export function CascadeMenu({ levels }: { levels: ContextLevel[] }) {
+export function CascadeMenu({ levels, parent }: { levels: ContextLevel[]; parent?: string }) {
     const { t, switchTo } = useShell();
     const [outer, inner] = levels as [ContextLevel, ContextLevel | undefined];
     const [preview, setPreview] = useState<ContextItem>(outer.current);
@@ -400,6 +468,7 @@ export function CascadeMenu({ levels }: { levels: ContextLevel[] }) {
             <div className="cbx-menu cbx-menu-single">
                 <LevelPane
                     level={outer}
+                    parent={parent}
                     currentId={outer.current.id}
                     heading={pluralOf(outer)}
                     autoFocus
@@ -417,6 +486,7 @@ export function CascadeMenu({ levels }: { levels: ContextLevel[] }) {
             <LevelPane
                 handle={left}
                 level={outer}
+                parent={parent}
                 currentId={outer.current.id}
                 heading={pluralOf(outer)}
                 autoFocus

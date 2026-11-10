@@ -15,7 +15,9 @@ type Props = {
     actions?: ReactNode;
     /**
      * Show the `?` beside the title that toggles the shell's Help column (spec §7.1). The page's
-     * help topic itself travels in `shell.help.topic`. Ignored outside `CboxShell`.
+     * help topic travels in `shell.help.topic`, set on the server per route (console-kit's
+     * `helpTopic`), so Help knows the topic on the first paint and for pages without a header.
+     * Ignored outside `CboxShell`.
      */
     help?: boolean;
     className?: string;
@@ -60,9 +62,15 @@ export function PageHeader({
                             onClick={() => shellHelp.toggleHelp()}
                             aria-label={t('Help for this page')}
                             aria-controls="cbx-help"
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border text-xs font-semibold text-muted-foreground hover:border-accent-edge hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
+                            className="group inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-ring [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"
                         >
-                            ?
+                            {/* The ring stays small beside the title; the hit area is 32px, 44px on touch (§12.2). */}
+                            <span
+                                aria-hidden="true"
+                                className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border text-xs font-semibold text-muted-foreground group-hover:border-accent-edge group-hover:text-primary"
+                            >
+                                ?
+                            </span>
                         </button>
                     ) : null}
                 </div>

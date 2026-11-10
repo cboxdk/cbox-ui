@@ -140,6 +140,7 @@ export function ContextSheet({ onClose }: { onClose: () => void }) {
                 <section className="cbx-sheet-level" aria-label={outer.label}>
                     <LevelPane
                         level={outer}
+                        parent={organization?.current.id}
                         currentId={outer.current.id}
                         heading={pluralOf(outer)}
                         createLabel={t('New {thing}', { thing: outer.label.toLowerCase() })}

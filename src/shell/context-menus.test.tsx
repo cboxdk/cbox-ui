@@ -4,7 +4,8 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { renderShell, reset } from './testing/harness';
 import { makeShell } from './testing/fixture';
-import { environmentFor, parseListPage, settingsHref, switchPayload, withQuery } from './data';
+import { environmentFor, parseListPage, safeUrl, settingsHref, switchPayload, withQuery } from './data';
+import { parseUpdates } from './help-store';
 
 afterEach(reset);
 
@@ -82,6 +83,9 @@ describe('cascade (§5.4)', () => {
         await user.keyboard('{ArrowDown}');
         expect(await screen.findByText('Environments in Status page')).toBeTruthy();
         await screen.findByRole('option', { name: /Staging/ });
+        // The first → reaches the project's gear, the second crosses to the environments.
+        await user.keyboard('{ArrowRight}');
+        expect(search.getAttribute('aria-activedescendant')).toMatch(/-settings$/);
         await user.keyboard('{ArrowRight}');
         const environments = screen.getByRole('listbox', { name: 'Environments in Status page' });
         expect(document.activeElement).toBe(environments);
@@ -94,11 +98,12 @@ describe('cascade (§5.4)', () => {
         await user.click(cascadeTrigger());
         const list = await screen.findByRole('listbox', { name: 'Environments in Webshop' });
         await within(list).findByText('Sandbox');
-        const names = within(list).getAllByRole('option').map(option => option.textContent);
+        const rows = within(list).getAllByRole('option').filter(option => option.getAttribute('aria-label') !== 'Settings');
+        const names = rows.map(option => option.textContent);
         expect(names[0]).toContain('Production');
         expect(names[1]).toContain('Sandbox');
         expect(names[1]).toContain('test data');
-        expect(within(list).getAllByRole('option')[0]!.getAttribute('aria-current')).toBe('true');
+        expect(rows[0]!.getAttribute('aria-current')).toBe('true');
         expect(list.querySelector('.cbx-tone-sandbox')).not.toBeNull();
     });
 });
@@ -121,7 +126,7 @@ describe('organization menu (§5.3) and lazy lists (§11.2)', () => {
         const current = await screen.findByRole('option', { name: /Cbox/ });
         expect(current.getAttribute('aria-current')).toBe('true');
         expect(screen.getByRole('link', { name: 'View all' }).getAttribute('href')).toBe('/orgs');
-        expect(screen.getByRole('link', { name: 'Settings for Acme ApS' }).getAttribute('href')).toBe('/orgs/org_acme/settings');
+        expect(screen.getByRole('option', { name: 'Settings', description: /Acme ApS/ }).getAttribute('href')).toBe('/orgs/org_acme/settings');
         expect(screen.getByRole('button', { name: 'New organization' })).toBeTruthy();
         const long = screen.getByText(/Nordic Logistics/);
         expect(long.getAttribute('title')).toBe('Nordic Logistics Holding A/S with a very long legal name');
@@ -158,14 +163,20 @@ describe('organization menu (§5.3) and lazy lists (§11.2)', () => {
         expect(navigate.mock.calls[0]![1].data).toMatchObject({ organization: 'org_acme' });
     });
 
-    it('focuses the gear with → and goes back with ←', async () => {
-        const { user } = renderShell();
+    it('makes the gear the active option with →, goes back with ←, and opens settings with Enter', async () => {
+        const { user, navigate } = renderShell();
         await user.click(orgTrigger());
         await screen.findByRole('option', { name: /Acme/ });
+        const search = screen.getByRole('combobox', { name: 'Search organizations' });
+        const gear = screen.getByRole('option', { name: 'Settings', description: /Cbox/ });
         await user.keyboard('{ArrowRight}');
-        expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Settings for Cbox' }));
+        expect(search.getAttribute('aria-activedescendant')).toBe(gear.id);
+        expect(gear.getAttribute('aria-selected')).toBe('true');
+        expect(document.activeElement).toBe(search);
         await user.keyboard('{ArrowLeft}');
-        expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Search organizations' }));
+        expect(screen.getByRole('option', { name: /^Cbox/ }).getAttribute('aria-selected')).toBe('true');
+        await user.keyboard('{ArrowDown}{ArrowRight}{Enter}');
+        expect(navigate).toHaveBeenCalledWith('/orgs/org_acme/settings');
     });
 });
 
@@ -231,5 +242,97 @@ describe('data helpers', () => {
         expect(withQuery('/x?a=1#h', { q: 'b c', parent: undefined })).toBe('/x?a=1&q=b+c#h');
         expect(settingsHref({ settingsUrl: '/orgs/{id}/settings' }, 'a b')).toBe('/orgs/a%20b/settings');
         expect(settingsHref({}, 'a')).toBeNull();
+    });
+});
+
+describe('keyboard reaches every action in a menu (§12.2)', () => {
+    it('goes from the last row to New organization with ↓, and creates without a mouse', async () => {
+        const { user, navigate, calls } = renderShell();
+        await user.click(orgTrigger());
+        await screen.findByRole('option', { name: /Nordic/ });
+        await user.keyboard('{End}{ArrowDown}');
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'New organization' }));
+        await user.keyboard('{Enter}');
+        const name = screen.getByRole('textbox', { name: 'New organization' });
+        expect(document.activeElement).toBe(name);
+        await user.keyboard('Studio{Enter}');
+        await waitFor(() => expect(navigate).toHaveBeenCalledWith('/orgs/new-org'));
+        expect(calls.find(call => call.method === 'POST')).toMatchObject({ url: '/shell/organizations', body: { name: 'Studio' } });
+    });
+
+    it('goes from the first row to View all with ↑, and round the ring back into the rows', async () => {
+        const { user } = renderShell();
+        await user.click(orgTrigger());
+        await screen.findByRole('option', { name: /Acme/ });
+        const viewAll = screen.getByRole('link', { name: 'View all' });
+        await user.keyboard('{Home}{ArrowUp}');
+        expect(document.activeElement).toBe(viewAll);
+        await user.keyboard('{ArrowUp}');
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'New organization' }));
+        await user.keyboard('{ArrowDown}');
+        expect(document.activeElement).toBe(viewAll);
+        await user.keyboard('{ArrowDown}');
+        expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Search organizations' }));
+        expect(screen.getByRole('option', { name: /Cbox/ }).getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('reaches “New environment in …” in the cascade’s right pane', async () => {
+        const { user } = renderShell();
+        await user.click(cascadeTrigger());
+        await screen.findByRole('option', { name: /Preview/ });
+        await user.keyboard('{ArrowRight}{ArrowRight}{End}{ArrowDown}');
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'New environment in Webshop' }));
+        await user.keyboard('{ArrowUp}');
+        expect(screen.getByRole('option', { name: /Preview/ }).getAttribute('aria-selected')).toBe('true');
+    });
+});
+
+describe('lists belong to one context (§11.2)', () => {
+    it('lists level 2 with ?parent= the organization', async () => {
+        const { user, calls } = renderShell();
+        await user.click(cascadeTrigger());
+        await screen.findByRole('option', { name: /Status page/ });
+        expect(calls.some(call => call.url.startsWith('/orgs/cbox/shell/projects') && call.url.includes('parent=org_cbox'))).toBe(true);
+    });
+
+    it('loads again after an organization switch, even when the list URL is the same', async () => {
+        const { user, calls, rerender } = renderShell();
+        const projectLoads = () => calls.filter(call => call.method === 'GET' && call.url.startsWith('/orgs/cbox/shell/projects')).length;
+        const orgLoads = () => calls.filter(call => call.method === 'GET' && call.url.startsWith('/shell/organizations')).length;
+        await user.click(orgTrigger());
+        await screen.findByRole('option', { name: /Acme/ });
+        await user.keyboard('{Escape}');
+        await user.click(cascadeTrigger());
+        await screen.findByRole('option', { name: /Status page/ });
+        await user.keyboard('{Escape}');
+        // Opening again on the same page uses the kept answer.
+        await user.click(cascadeTrigger());
+        await screen.findByRole('option', { name: /Status page/ });
+        await user.keyboard('{Escape}');
+        expect(projectLoads()).toBe(1);
+
+        const acme = makeShell();
+        acme.context.levels[0]!.current = { id: 'org_acme', name: 'Acme ApS' };
+        rerender(acme);
+        await user.click(cascadeTrigger());
+        await screen.findByRole('option', { name: /Status page/ });
+        expect(projectLoads()).toBe(2);
+        expect(calls.some(call => call.url.includes('parent=org_acme'))).toBe(true);
+        await user.keyboard('{Escape}');
+        await user.click(screen.getByRole('button', { name: 'Organization: Acme ApS' }));
+        await screen.findByRole('option', { name: /Nordic/ });
+        expect(orgLoads()).toBe(2);
+    });
+});
+
+describe('safe links', () => {
+    it('keeps only http(s) and same-origin paths from a server answer', () => {
+        expect(safeUrl('https://support.cbox.dk/t/1')).toBe('https://support.cbox.dk/t/1');
+        expect(safeUrl('/orgs/cbox')).toBe('/orgs/cbox');
+        expect(safeUrl('javascript:alert(1)')).toBeUndefined();
+        expect(safeUrl(' JavaScript:alert(1)')).toBeUndefined();
+        expect(safeUrl('data:text/html,x')).toBeUndefined();
+        expect(safeUrl(42)).toBeUndefined();
+        expect(parseUpdates({ data: [{ id: 1, title: 'T', url: 'javascript:alert(1)', unread: true }] })[0]).toEqual({ id: '1', kind: 'ticket', title: 'T', unread: true });
     });
 });

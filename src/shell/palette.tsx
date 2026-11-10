@@ -1,6 +1,6 @@
 import { ArrowRight, BookOpen, Building2, CornerDownLeft, FileText, Search, Sparkles, Zap } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { initialsOf, requestJson, withQuery } from './data';
+import { initialsOf, requestJson, safeUrl, withQuery } from './data';
 import { parseArticles, type HelpArticle } from './help-store';
 import { resolveIcon } from './icons';
 import { canAutofocus } from './media';
@@ -74,7 +74,9 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     const [query, setQuery] = useState('');
     const [groups, setGroups] = useState<Partial<Record<PaletteGroupKey, GroupState>>>({});
     const [expanded, setExpanded] = useState<PaletteGroupKey | null>(null);
-    const [active, setActive] = useState(0);
+    // The active row is held by its id, not its place: a slow group arriving above it must not
+    // move the highlight onto another result under a fast Enter (§12.1, nothing jumps).
+    const [activeKey, setActiveKey] = useState<string | null>(null);
     const field = useRef<HTMLInputElement>(null);
     const dialog = useRef<HTMLDivElement>(null);
     const id = useId();
@@ -122,8 +124,8 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         if (shell.palette.searchUrl !== undefined) {
             run('records', async () =>
                 rows(await requestJson(withQuery(shell.palette.searchUrl!, { q }), { signal })).flatMap(row => {
-                    if (typeof row.title !== 'string' || typeof row.url !== 'string') return [];
-                    const url = row.url;
+                    const url = safeUrl(row.url);
+                    if (typeof row.title !== 'string' || url === undefined) return [];
                     return [{ id: `record:${String(row.id ?? url)}`, title: row.title, subtitle: typeof row.subtitle === 'string' ? row.subtitle : undefined, href: url, icon: <FileText size={16} strokeWidth={1.8} aria-hidden />, run: (newTab: boolean) => open(url, newTab) }];
                 }),
             );
@@ -148,7 +150,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                         rows(body).flatMap(row => {
                             if (typeof row.title !== 'string') return [];
                             const levels = typeof row.levels === 'object' && row.levels !== null ? (row.levels as Record<string, string>) : null;
-                            const url = typeof row.url === 'string' ? row.url : undefined;
+                            const url = safeUrl(row.url);
                             if (levels === null && url === undefined) return [];
                             return [{ id: `goto:${row.title}:${String(row.subtitle ?? '')}`, title: row.title, subtitle: typeof row.subtitle === 'string' ? row.subtitle : undefined, href: url, icon: <Building2 size={16} strokeWidth={1.8} aria-hidden />, run: (newTab: boolean) => { if (levels !== null && !newTab) { onClose(); switchTo(levels); } else if (url !== undefined) open(url, newTab); } }];
                         }),
@@ -234,12 +236,23 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         return { ...section, start, count: items.length + (more ? 1 : 0) };
     });
 
+    const keyOf = (option: Option): string => (option.kind === 'item' ? `${option.group}:${option.item.id}` : `all:${option.group}`);
+    const found = activeKey === null ? -1 : options.findIndex(option => keyOf(option) === activeKey);
+    const active = found >= 0 ? found : 0;
+    const setActive = (next: number | ((index: number) => number)) => {
+        const index = typeof next === 'function' ? next(active) : next;
+        const option = options[index];
+        setActiveKey(option === undefined ? null : keyOf(option));
+    };
+
     useEffect(() => {
-        setActive(0);
+        setActiveKey(null);
     }, [q]);
+    // Pin the first result once there is one, so a group arriving above does not take its place.
+    const firstKey = options[0] === undefined ? null : keyOf(options[0]);
     useEffect(() => {
-        if (active >= options.length) setActive(Math.max(0, options.length - 1));
-    }, [options.length, active]);
+        if (activeKey === null && firstKey !== null) setActiveKey(firstKey);
+    }, [activeKey, firstKey]);
     useEffect(() => {
         revealInList(`${id}-${active}`);
     }, [active, id]);
