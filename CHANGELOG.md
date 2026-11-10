@@ -19,7 +19,11 @@ One shell for every Cbox app (spec `docs/specs/2026-11-10-shell-v1.md`). It repl
 - Phone layout below 768px: ☰ navigation sheet (areas, pages, Switch app, notifications, account), one context button opening every level stacked, Search, Help full screen.
 - `applyTheme`, `themeBootScript`, `useShellHelp`, `createHelpStore`, `pageIntent`.
 - `tokens/shell.css` (imported by `tokens/cbox.css`, also exported as `@cboxdk/cbox-ui/shell.css`): plain CSS on the shared tokens, so the shell needs no Tailwind scan.
-- Unit tests for every behaviour in §12.3 and Playwright snapshots of every open state at 1440 and 390, light and dark (`bun run test:visual`).
+- Unit tests for every behaviour in §12.3, and Playwright snapshots plus axe of every open state at 1440 and 390, light and dark (`bun run test:visual`, in the pinned Playwright container; CI's `visual` job runs the same).
+- Keyboard: "New …", "View all" and "All products" are on the arrow keys; a row's gear is an option of its own (→, Enter); Help gives focus back on close.
+- Help left open shows docked on load and waits below 1280px; support updates reload per organization; opening an article keeps the chat element.
+- Lists below the first level carry `?parent=`, and kept lists and the app catalog are dropped on a context switch.
+- Links from server answers must be `http(s)://` or a `/path`.
 
 ### Removed
 

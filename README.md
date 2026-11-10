@@ -296,8 +296,9 @@ type Shell = {
 
 | URL | Request | Answer |
 |---|---|---|
-| `level.listUrl` | `GET ?q=&parent=&cursor=&limit=` | `{ object: "list", data: ContextItem[], has_more, next_cursor }`. Loaded when a menu opens; `parent` is the level above's id (environments of a project). |
+| `level.listUrl` | `GET ?q=&parent=&cursor=&limit=` | `{ object: "list", data: ContextItem[], has_more, next_cursor }`. Loaded when a menu opens; every level below the first gets `parent`, the level above's id (projects of an organization, environments of a project). Answers are kept for the page and dropped when the context changes. |
 | `level.createUrl` | `POST { name, parent? }` | `{ id, detailsUrl }` (or `details_url`). The person lands on `detailsUrl`. A 422 shows its first error under the field. |
+| `account.switchAccountUrl` | A plain link (full page load) | Usually a redirect to Cbox ID's account chooser. |
 | `context.switchUrl` | `POST { <level key>: id, …, return_to }` (a form post through `navigate`) | A redirect: the same page in the new context, or that area's list for an entity page (§5.6). |
 | `palette.searchUrl` | `GET ?q=` | `{ data: [{ id, title, subtitle?, url }] }`, in the current context. |
 | `palette.gotoUrl` | `GET ?q=` | `{ data: [{ title, subtitle?, levels?: { organization, project, … }, url? }] }` across organizations. |
@@ -306,7 +307,8 @@ type Shell = {
 | `help.searchUrl` | `GET ?q=&topic=` | `{ data: [{ id, title, excerpt?, body?, url?, source? }] }` |
 | `help.articlesUrl` | `GET` (template, `{topic}`) | The same shape; the first three are shown. |
 
-None of these may call another service synchronously (local first): organizations come from
+Every link the shell follows from these answers (`url`, `detailsUrl`) must be `http(s)://` or
+a `/path`; anything else is dropped. None of these may call another service synchronously (local first): organizations come from
 the app's mirror of Cbox ID, the catalog from a cached copy. Help and docs search are proxies of
 Cbox Assistant served by laravel-assistant-client; when Assistant is down, Help says so and
 everything else works.
@@ -330,8 +332,12 @@ Help is part of the shell: support updates (the button's count), docs and knowle
 search, articles for the page's `help.topic`, Ask Cbox, Talk to a person and the support portal.
 It docks beside the page from 1280px (360px, 400px from 1440px) and is a full-screen dialog
 below. Its state (open, article, search, scroll, updates) lives in a store outside React, so it
-survives visits and even a remount; the chat survives as long as the shell sits in the
-persistent layout.
+survives visits and even a remount; the chat element sits outside the home/article view, so
+opening an article never ends the conversation, and it survives as long as the shell sits in
+the persistent layout. Help the person left open shows docked on load; below 1280px it waits
+until they open it, so a phone or a narrow window never lands under the overlay. Support
+updates are per organization: they load again when the organization or `updatesUrl` changes.
+Closing Help gives focus back to what opened it.
 
 The chat is the Assistant SDK's `<cbox-support session-url>` element (laravel-assistant-client,
 `/ai-assistant/support.js` by default, loaded the first time Help opens). The shell sets
@@ -339,14 +345,18 @@ The chat is the Assistant SDK's `<cbox-support session-url>` element (laravel-as
 page, and calls `element.ask(question, intent)` / `element.handover()` when the SDK has them,
 else `element.open()`.
 
-A page's own `?` button uses `useShellHelp()?.toggleHelp()`.
+A page's own `?` button uses `useShellHelp()?.toggleHelp()`, or `<PageHeader help />`. The page's
+help topic is `shell.help.topic`, set on the server per route (console-kit's `helpTopic`), not
+a prop of the header: Help needs it on the first paint and on pages without a header.
 
 ### Keyboard
 
 ⌘K / Ctrl+K opens the palette anywhere (↑↓ move, Enter opens, ⌘Enter opens in a new tab, Esc
-closes). In the context menus ↑↓ Home End move, Enter picks, → focuses a row's settings (or the
-environments pane in the cascade), ← goes back, Esc closes and Tab leaves; focus returns to the
-trigger. ⌘. collapses the subnav. Search fields focus themselves only with a fine pointer and
+closes). In the context menus ↑↓ Home End move, Enter picks, → makes a row's gear the active
+option (Enter opens its settings; in the cascade a second → crosses to the environments), ←
+goes back, Esc closes and Tab leaves; focus returns to the trigger. ↓ past the last row
+reaches "New …" and ↑ above the first reaches "View all", so both work without a mouse; in the
+app grid End and ↓ from the bottom row reach "All products". ⌘. collapses the subnav. Search fields focus themselves only with a fine pointer and
 hover, never on touch. Sheets and the Help overlay trap focus; the docked column does not.
 
 ### Phone (< 768px)
@@ -360,8 +370,10 @@ Nothing is hidden without a replacement.
 `bun run test` runs the unit tests (vitest, Testing Library, happy-dom). `bun run test:visual`
 renders the fixture page in `tests/visual` (the real shell, the fixture `shell` prop and its
 answers) and compares every open state at 1440 and 390, light and dark, against
-`tests/visual/__screenshots__`. After an intended change: `bun run test:visual:update`, then
-look at every changed image. The snapshots are made on macOS.
+`tests/visual/__screenshots__`, and runs axe on every open state. It runs in the pinned
+Playwright container (`scripts/visual.sh`, needs Docker), the same one CI's `visual` job uses,
+so the Linux baselines match pixel for pixel. After an intended change:
+`bun run test:visual:update`, then look at every changed image.
 
 ### Tokens
 
