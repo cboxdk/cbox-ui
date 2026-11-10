@@ -97,14 +97,14 @@ export function authorizeHref(authorizeUrl: string | null, location: Here): stri
 
 /**
  * Where to send the person when the catalog says they must sign in again: the host's
- * `signin_url` as it is (any `https:` URL, or one on this origin), else the legacy authorize
+ * `signin_url` when it is on this origin (the app's own sign-in; never another site), else the legacy authorize
  * link with `return_to`. `null` when neither is usable.
  */
 export function signInTarget(state: { signinUrl: string | null; authorizeUrl: string | null }, location: Here): string | null {
     if (state.signinUrl !== null) {
         try {
             const url = new URL(state.signinUrl, location.origin);
-            if (url.origin === location.origin || url.protocol === 'https:') return url.href;
+            if (url.origin === location.origin) return url.href;
         } catch {
             // Fall through to the legacy link.
         }

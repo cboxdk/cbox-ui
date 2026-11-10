@@ -35,9 +35,10 @@ describe('app catalog contract', () => {
         expect(authorizeHref('https://evil.test/authorize', here)).toBeNull();
         expect(authorizeHref(null, here)).toBeNull();
     });
-    it('resolves where to sign in: signin_url as given, else the legacy link with return_to', () => {
+    it('resolves where to sign in: signin_url on this origin, else the legacy link with return_to', () => {
         const here = { origin: 'https://infra.test', pathname: '/acme/projects', search: '' };
-        expect(signInTarget({ signinUrl: 'https://id.cbox.dk/authorize?x=1', authorizeUrl: null }, here)).toBe('https://id.cbox.dk/authorize?x=1');
+        expect(signInTarget({ signinUrl: 'https://id.cbox.dk/authorize?x=1', authorizeUrl: null }, here)).toBeNull();
+        expect(signInTarget({ signinUrl: 'https://infra.test/login/launch', authorizeUrl: null }, here)).toBe('https://infra.test/login/launch');
         expect(signInTarget({ signinUrl: '/auth/cbox', authorizeUrl: '/ignored' }, here)).toBe('https://infra.test/auth/cbox');
         expect(signInTarget({ signinUrl: 'javascript:alert(1)', authorizeUrl: null }, here)).toBeNull();
         expect(signInTarget({ signinUrl: 'http://evil.test/', authorizeUrl: null }, here)).toBeNull();

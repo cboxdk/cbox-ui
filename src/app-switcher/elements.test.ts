@@ -157,7 +157,7 @@ describe('<cbox-app-switcher>', () => {
     });
 
     it('sends the person straight to signin_url on a 401, with no button and no reconnect link', async () => {
-        vi.stubGlobal('fetch', respond(401, { signin_url: 'https://billing.cbox.dk/auth/cbox?return_to=%2Fplans' }));
+        vi.stubGlobal('fetch', respond(401, { signin_url: '/auth/cbox?return_to=%2Fplans' }));
         const element = mount({ endpoint: '/acme/apps/catalog', current: 'billing' });
         await settle();
         const sent: string[] = [];
@@ -166,7 +166,7 @@ describe('<cbox-app-switcher>', () => {
         // Loading in the background never moves the page; opening the control does.
         expect(sent).toEqual([]);
         trigger.click();
-        expect(sent).toEqual(['https://billing.cbox.dk/auth/cbox?return_to=%2Fplans']);
+        expect(sent).toEqual([new URL('/auth/cbox?return_to=%2Fplans', location.origin).href]);
         expect(root.querySelector('.panel button, .panel a')).toBeNull();
         expect(root.textContent).not.toMatch(/reconnect|try again/i);
     });
