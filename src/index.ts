@@ -12,41 +12,16 @@ export {
     type CboxUser,
 } from './context/cbox-id';
 
-// Layout shell — chrome that sits at the top of every app.
-//
-// Apps SHOULD use `<CboxAppShell>` — it composes the full chrome
-// from a single nav config + brand. The lower-level primitives
-// (AppShell / AppContent / TopBar / CboxAppSidebar / CboxBrand)
-// are exposed for unusual cases (eg the launcher app at
-// `app.cbox.systems` doesn't have a sidebar) but normal product
-// apps shouldn't compose them by hand — drift is the whole reason
-// the wrapper exists.
+// The shell: one for every Cbox app, rendered from the shared `shell` prop (spec 2026-11-10).
+export * from './shell';
+
+// Layout helpers kept for apps without the shell (a launcher page, a public page).
 export { AppContent } from './layout/app-content';
 export { AppShell } from './layout/app-shell';
-export {
-    CboxAppShell,
-    type CboxAppShellProps,
-} from './layout/cbox-app-shell';
-export {
-    CboxAppSidebar,
-    type CboxAppSidebarProps,
-    type CboxNavItem,
-    type CboxNavSection,
-    type LinkComponent,
-} from './layout/cbox-app-sidebar';
-export {
-    CboxMobileNavDrawer,
-    type CboxMobileNavDrawerProps,
-} from './layout/cbox-mobile-nav-drawer';
 export { CboxBrand, type CboxBrandProps } from './layout/cbox-brand';
-export {
-    CboxOrgContextBar,
-    type CboxOrgContextBarProps,
-} from './layout/cbox-org-context-bar';
-export { TopBar } from './layout/top-bar';
 
-// Cross-app chrome controls.
-export { AppLauncher } from './components/app-launcher';
+// App catalog: the framework-free `<cbox-app-switcher>` element (kept for apps still migrating)
+// and the app icons from Cbox ID's catalog.
 export {
     CboxAppCatalog,
     authorizeHref,
@@ -67,11 +42,6 @@ export {
     type CboxKnownApp,
     type CboxServiceMarkProps,
 } from './components/app-icon';
-export { AppSwitcher } from './components/app-switcher';
-export { NotificationsBell } from './components/notifications-bell';
-export { OrgSwitcher } from './components/org-switcher';
-export { SearchTrigger } from './components/search-trigger';
-export { UserMenu } from './components/user-menu';
 
 // Page primitives.
 export {
@@ -81,13 +51,6 @@ export {
     type ComboboxOption,
     type ComboboxProps,
 } from './primitives/combobox';
-export {
-    ContextBar,
-    ContextAvatarChip,
-    type ContextAvatar,
-    type ContextCrumb,
-    type ContextItem,
-} from './primitives/context-bar';
 export { DataPanel, PanelBody, SectionHeader } from './primitives/data-panel';
 export { EmptyState } from './primitives/empty-state';
 export { default as Heading } from './primitives/heading';
@@ -142,7 +105,6 @@ export {
 
 // Host-owned language and formatting, shared by all chrome and primitives.
 export { CboxLocalizationProvider, interpolate, useCboxLocalization, type CboxTranslator, type CboxTranslationValues } from './context/localization';
-export { CboxWorkspaceShell, activeNavArea, activeNavItem, navMatchLength, type CboxWorkspaceShellProps, type CboxNavArea } from './layout/cbox-workspace-shell';
 export { CHART_PALETTE, Sparkline } from './charts/sparkline';
 export { niceTicks, timeTicks, type TimePoint } from './charts/scale';
 // TimeChart and Chart (ECharts) live in '@cboxdk/cbox-ui/charts' so apps without charts never need echarts.

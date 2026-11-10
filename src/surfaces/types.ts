@@ -9,20 +9,18 @@
  * land.
  *
  * The criterion for accepting a new surface: "would it be useful
- * in *every* Cbox app?" Inbox yes. Search yes. Help yes. "Webhook
+ * in *every* Cbox app?" Inbox yes. "Webhook
  * delivery details" no — that's a route inside webhooks, not a
  * cross-app overlay.
  */
 
 import type { ReactNode } from 'react';
 
-export type SurfaceId = 'inbox' | 'search' | 'activity' | 'help';
+/** Search and Help are the shell's palette and Help column now; `inbox` stays for apps that use it. */
+export type SurfaceId = 'inbox';
 
 export type SurfaceArgs = {
     inbox: { focusUnread?: boolean };
-    search: { initialQuery?: string };
-    activity: { scope?: 'user' | 'org' };
-    help: { topic?: string };
 };
 
 /**
@@ -39,7 +37,6 @@ export type Transport = {
      */
     urls: Partial<{
         notifications: string;
-        search: string;
         audit: string;
         realtime: string;
     }>;
@@ -63,10 +60,6 @@ export type Transport = {
 };
 
 export type SurfaceConfig = Partial<{
-    search: {
-        placeholder?: string;
-        scopes?: string[];
-    };
     inbox: {
         // Reserved for future per-host customisation. Empty for now;
         // the inbox renders the same shape everywhere.

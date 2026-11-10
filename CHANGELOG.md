@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.10.0 — 2026-11-10
+
+One shell for every Cbox app (spec `docs/specs/2026-11-10-shell-v1.md`). It replaces the two shell models, the five organization switchers and the hand-placed support of 0.9.
+
+**Breaking.** This is a breaking minor under the 0.x caret rules: `^0.9.0` does not pick it up.
+
+### Added
+
+- `CboxShell`, rendered from one server-built prop, `shell`. Its TypeScript contract is exported: `Shell`, `ContextLevel`, `ContextItem`, `ContextTone`, `NavArea`, `NavPage`, `PaletteAction`, `ShellHelp`, `ShellNotifications`, `ShellAccount`, `ShellBanner`, `ShellPreferences`, `ShellNavigate`, `ShellPreferenceChange`, `AppKey`.
+- Rail with the account button at the bottom; pin, Help open and subnav collapse reported through `onPreferenceChange` for the host to persist (a `cbox_shell_<key>` cookie without it) and read back from `shell.preferences` before first paint.
+- Header: the organization trigger and one trigger for level 2 and 3, styled the same; Search (⌘K); Help with the unread support count; the bell only when the app has a notification source; Switch app.
+- Context menus with search in every menu (it focuses itself only with a fine pointer), lazy lists from `listUrl` (`?q=`, `?parent=`, cursor pages), a gear per row from the `settingsUrl` template, inline "New …" (name only, `POST createUrl`, then the returned details page), and the project/environment cascade: hover or focus previews a project's environments, an environment switches both, a project keeps the environment of the same name, else its first. Environments carry an app-defined tone square, label and test-data flag; the sandbox strip shows only while the current one has test data.
+- Command palette: Pages, Records, Actions, Go to, Docs and help, Ask Cbox; 120 ms debounce; each server group loads on its own; five per group, then "Show all in {group}"; ⌘Enter opens in a new tab.
+- Help column: support updates (unread, mark read), docs and knowledge base search, three articles for the page's topic (shown in the column), Ask Cbox through the Assistant SDK's `<cbox-support>` with the page intent, Talk to a person, the support portal. Docked from 1280px (360px, 400px from 1440px), a full-screen dialog below; its state lives outside React and survives Inertia visits and remounts. It says so when Assistant is unavailable.
+- Switch app grid: 440px, three columns, 48px tiles in each app's fixed hue (`APP_HUES`, or the catalog's `hue`), name and purpose; "In {organization}" and "More from Cbox" (dimmed, to `admission_url`); "All products". `parseShellCatalog` reads the catalog's new `in_organization`, `admission_url`, `purpose` and `hue`.
+- Account menu: Profile and security, language, regional format and time zone (searchable lists), theme System/Light/Dark, Switch account, Sign out.
+- Phone layout below 768px: ☰ navigation sheet (areas, pages, Switch app, notifications, account), one context button opening every level stacked, Search, Help full screen.
+- `applyTheme`, `themeBootScript`, `useShellHelp`, `createHelpStore`, `pageIntent`.
+- `tokens/shell.css` (imported by `tokens/cbox.css`, also exported as `@cboxdk/cbox-ui/shell.css`): plain CSS on the shared tokens, so the shell needs no Tailwind scan.
+- Unit tests for every behaviour in §12.3, and Playwright snapshots plus axe of every open state at 1440 and 390, light and dark (`bun run test:visual`, in the pinned Playwright container; CI's `visual` job runs the same).
+- Keyboard: "New …", "View all" and "All products" are on the arrow keys; a row's gear is an option of its own (→, Enter); Help gives focus back on close.
+- Help left open shows docked on load and waits below 1280px; support updates reload per organization; opening an article keeps the chat element.
+- Lists below the first level carry `?parent=`, and kept lists and the app catalog are dropped on a context switch.
+- Links from server answers must be `http(s)://` or a `/path`.
+
+### Removed
+
+- `CboxAppShell`, `CboxAppSidebar`, `CboxWorkspaceShell` (with `activeNavArea`, `activeNavItem`, `navMatchLength`, `CboxNavArea`, `CboxNavItem`, `CboxNavSection`, `LinkComponent`), `TopBar`, `OrgSwitcher`, `CboxOrgContextBar`, `AppLauncher`, `AppSwitcher` (React), `UserMenu`, `SearchTrigger`, `NotificationsBell`, `CboxMobileNavDrawer`, `ContextBar` (with `ContextAvatarChip` and its types).
+- The `search`, `activity` and `help` surface stubs: `SurfaceId` is `'inbox'`; `Transport.urls.search` and `SurfaceConfig.search` are gone.
+- The `.cbx-workspace*`, `.cbx-rail*` and `.cbx-subnav*` rules of the old workspace shell in `tokens/cbox.css` (the new shell has its own in `tokens/shell.css`).
+
+`<cbox-app-switcher>`, `<cbox-service-mark>` and `CboxAppCatalog` stay for apps that have not moved yet.
+
+### Migration
+
+1. The server shares `shell` (laravel-console-kit's `HandleShell`), with the list, create, switch, search and help endpoints described in the README ("The shell").
+2. Render `<CboxShell shell={shell} LinkComponent={Link} navigate={…} onPreferenceChange={…}>` in the Inertia persistent layout, in place of `CboxAppShell`/`CboxWorkspaceShell` and the app's own header, org switcher, user menu, bell, search trigger and mobile drawer.
+3. Put the theme on `<html>` before paint (server-side class, or `themeBootScript`), and read `railPinned`, `helpOpen` and `subnavCollapsed` from the cookie into `shell.preferences`.
+4. Remove the app's copied `shared-shell.css`, `app-switcher.ts`, `Shell.tsx`, `service-marks.json`, `chrome/*`, and its own `<cbox-support>` mount: the Help column mounts it.
+5. Rename "Workspace", "Tenant" and "Team" to "Organization" in the app's strings.
+
 ## 0.9.0 — 2026-11-10
 
 One Switch-app control for every Cbox app. Until now each Blade app carried its own copy of `app-switcher.ts` and its CSS, and they had drifted apart.

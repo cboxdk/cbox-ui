@@ -2,9 +2,9 @@
 
 Shared UI for the Cbox app family — id, cortex, atlas, track, and whatever's next.
 
-This package gives every Cbox app the same chrome (top bar, org switcher, app launcher, user menu, notifications bell) and the same page primitives (panels, headers, tabs, status pills) so cross-app navigation feels like one product. It also ships the design tokens (colours, fonts, radii) and the brand assets in one place.
+This package gives every Cbox app the same shell (`CboxShell`: rail, header with the context selectors, ⌘K palette, Help column, app switcher, account menu, phone layout) and the same page primitives (panels, headers, tabs, status pills), so moving between apps feels like one product. It also ships the design tokens (colours, fonts, radii) and the brand assets in one place.
 
-The package is **headless about data**: every component reads identity, organization, and notification state from a `<CboxIdProvider>` context that the consuming app populates from the future `@cboxdk/cbox-id-client` SDK. Components never fetch — they render what the host gave them.
+The shell renders one Inertia prop, `shell`, which the server builds (laravel-console-kit). The prop carries only the current selection and URLs; menus, the app catalog, Help and search load in the browser after the page has painted, from same-origin endpoints the app serves. See [The shell](#the-shell) and the spec in `docs/specs/2026-11-10-shell-v1.md`.
 
 ## Install
 
@@ -29,61 +29,40 @@ The package is published on npm as `@cboxdk/cbox-ui` under the MIT License. The 
 
 That's it — every `text-foreground`, `bg-card`, `border-border`, `text-mono`, etc. utility now resolves against the Cbox palette. Light + dark variants come bundled: dark applies under `.dark` or `data-theme="dark"` on the root, whichever the host writes. Add `@source '../../node_modules/@cboxdk/cbox-ui/dist';` so Tailwind generates the utilities the components use, and when the host stores its theme choice as an attribute, point Tailwind's `dark:` variant at it (`@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));`).
 
-### 2. Wrap the app root with `<CboxIdProvider>`
-
-In **id itself** (which IS the source of truth), populate from Inertia shared props:
+### 2. Render the shell in the persistent layout
 
 ```tsx
-import { CboxIdProvider } from '@cboxdk/cbox-ui';
+// resources/js/layouts/AppLayout.tsx
+import { router, usePage, Link } from '@inertiajs/react';
+import { CboxShell, type Shell } from '@cboxdk/cbox-ui';
 
-export default function AppRoot({ shared, children }) {
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+    const { shell } = usePage<{ shell: Shell }>().props;
     return (
-        <CboxIdProvider value={shared.cboxId}>
+        <CboxShell
+            shell={shell}
+            LinkComponent={Link}
+            navigate={(url, o) => (o?.newTab ? window.open(url, '_blank', 'noopener') : router.visit(url, { method: o?.method, data: o?.data }))}
+            onPreferenceChange={(key, value) => router.post('/settings/shell', { [key]: value }, { preserveState: true, preserveScroll: true })}
+        >
             {children}
-        </CboxIdProvider>
+        </CboxShell>
     );
 }
+
+// Every page: `Page.layout = page => <AppLayout>{page}</AppLayout>`, so the rail, Help and the
+// chat stay mounted between visits.
 ```
 
-In **cortex / atlas / track / future apps**, populate from the id-client SDK on session start:
+Set the theme before the first paint: the server writes `class="dark"` and `data-theme` on
+`<html>` from `shell.preferences.theme`, or the head carries the inline script
+`themeBootScript(theme)` returns (it resolves `system` from the device without saving it).
+Copy `public/brand/` (the Cbox wordmark: `cbox-logo.png`, `cbox-logo-white.png` and their `@2x`)
+as before; `brandAssetBase` changes the path.
 
-```tsx
-import { CboxIdProvider } from '@cboxdk/cbox-ui';
-import { useIdSession } from '@cboxdk/cbox-id-client';
+### 3. Identity context (inbox only)
 
-export default function AppRoot({ children }) {
-    const session = useIdSession(); // {user, organizations, currentOrg, ...}
-    return (
-        <CboxIdProvider value={session.cboxIdContext}>
-            {children}
-        </CboxIdProvider>
-    );
-}
-```
-
-The context shape is exported as `CboxIdContextValue` — see `src/context/cbox-id.tsx` for the full surface. Required keys:
-
-- `user` — `{id, name, email, avatar_url?, locale?, timezone?}`
-- `currentOrganization` — current org context (or null on user-only surfaces)
-- `organizations` — every org the user belongs to (drives the switcher)
-- `apps` — sister apps for the launcher
-- `urls` — `{idBaseUrl, accountUrl, orgSettingsUrl, switchOrgUrl, signOutUrl}`
-- `notifications?` — `{unreadCount, inboxUrl}` (optional, hides the bell when missing)
-- `onSwitchOrganization?` — callback when the user picks an org (default: form-POST to `urls.switchOrgUrl`)
-
-### 3. Drop in the chrome
-
-```tsx
-import { TopBar } from '@cboxdk/cbox-ui';
-
-<TopBar
-    brand={<MyAppLogo />}
-    centre={<MySearchBar />}
-    showOrgSwitcher
-/>
-```
-
-The default right-cluster is `<AppLauncher>` → `<NotificationsBell>` → `<UserMenu>`. Override with `rightCluster={...}` if a particular app needs a different mix.
+`<CboxIdProvider>` still feeds the inbox surface (`CboxSurfaces`). The shell does not read it.
 
 ### 4. Use page primitives
 
@@ -106,16 +85,15 @@ Match id's existing patterns — see id/resources/js/pages/* for examples.
 
 ## Components
 
-### Chrome (cross-app navigation)
+### Shell
 
-| Component | What it does |
+| Export | What it does |
 |---|---|
-| `TopBar` | Standard 56px-tall app bar. Slot for brand + centre + right cluster. |
-| `OrgSwitcher` | Dropdown listing the user's orgs. Calls `onSwitchOrganization` (or POSTs to `urls.switchOrgUrl`) on pick. |
-| `AppLauncher` | 9-dot grid showing sister Cbox apps the user can jump into. |
-| `UserMenu` | Avatar dropdown with "Manage account ↗" + "Team & billing ↗" (deep-links into id) + Sign out. Pass `LinkComponent` when those rows are pages of the host app, so the visit stays client-side. |
-| `CboxAppCatalog` | The Switch-app control fed live from the host's catalog endpoint: the shared `<cbox-app-switcher>` element (see "App catalog" below). |
-| `NotificationsBell` | Bell icon with unread badge, links to id's unified inbox. Renders nothing if context lacks `notifications`. |
+| `CboxShell` | The one shell for every app, rendered from the `shell` prop. See [The shell](#the-shell). |
+| `Shell`, `ContextLevel`, `ContextItem`, `NavArea`, `PaletteAction`, … | The prop's TypeScript contract (spec §11.1). laravel-console-kit produces it. |
+| `useShellHelp()` | `toggleHelp`, `openArticle`, `ask` for a page's own `?` button. |
+| `applyTheme`, `themeBootScript` | Put a theme choice on the document the way the tokens read it. |
+| `CboxAppCatalog` | The framework-free `<cbox-app-switcher>` element in React. Kept for apps that have not moved to the shell yet. |
 
 ### Page primitives
 
@@ -175,7 +153,7 @@ no provider is present. The host owns the selected language and its catalogs:
 
 ```tsx
 <CboxLocalizationProvider locale={language} translate={t}>
-    <CboxAppShell {...shellProps}>{children}</CboxAppShell>
+    <CboxShell shell={shell}>{children}</CboxShell>
 </CboxLocalizationProvider>
 ```
 
@@ -192,6 +170,8 @@ format and timezone preferences separately. Notification timestamps use that
 callback; without it, existing browser formatting is preserved.
 
 ### App catalog (Switch app)
+
+The shell's own app grid reads the same endpoint (see [The shell](#the-shell)). The element below stays for apps that have not moved to the shell yet.
 
 Every Cbox app, Blade or React, draws the same Switch-app control: the `<cbox-app-switcher>`
 custom element from `@cboxdk/cbox-ui/app-switcher`. It has no React dependency and renders
@@ -270,30 +250,132 @@ In React, `<CboxServiceMark appKey="infra" />` and the collapsed `CboxBrand` rea
 kept catalog; `CboxAppIcon` renders any single app's icon, and a host that loads the catalog
 itself calls `rememberAppCatalog(apps)`.
 
-### Workspace navigation (current design contract)
+## The shell
 
-`CboxWorkspaceShell` is the two-tier product shell. Pass `areas` (each has a
-label, href, icon and optional child `items`), the router's `currentPath` and
-`LinkComponent`, plus `context`, `tools` and `account` slots. Include the real
-organization context, search, notifications and Switch app in these slots;
-render `UserMenu placement="top-start"` in `account`. The account stays at the
-bottom of the main rail. Existing `CboxAppShell` consumers retain their API.
+`CboxShell` is the one shell for every Cbox app (spec: `docs/specs/2026-11-10-shell-v1.md`).
+The app passes the `shell` prop and the page; the shell does the rest.
 
-The rail reserves 64px, expands on hover/focus without moving content, and
-reserves 222px when pinned. Context navigation only appears for multi-page
-areas; its panel button and Command/Control-period collapse it to a 26px strip.
-Mobile uses a modal navigation sheet and retains the header app switcher.
-Query strings do not change active navigation, and the **most specific href wins**: an
-area at the organization root (`/acme`) does not claim `/acme/projects/...` when a
-Projects area exists, and inside a subnav only the deepest matching item is active. Active
-links carry `aria-current="page"`.
+```
+┌──────┬────────────────────────────────────────────────────────────────────┬──────────┐
+│ rail │ [C] Cbox ⇕ / [W] Webshop · ■ Production ⇕   [Search or ask… ⌘K] [Help²] [🔔] [⣿] │ Help     │
+│      ├────────────────────────────────────────────────────────────────────┤ (docked  │
+│ areas│ sandbox strip (only while the environment has test data)           │ ≥1280px) │
+│ …    │ subnav │ page                                                      │          │
+│ [SD] │        │                                                           │          │
+└──────┴────────┴───────────────────────────────────────────────────────────┴──────────┘
+```
 
-Hosts own route construction, organization switching, search and preference persistence.
-For the two shell preferences the host persists, pass them in: `pinned` + `onPinnedChange`
-and `collapsed` + `onCollapsedChange` (controlled), or `defaultPinned` / `defaultCollapsed`
-to seed the shell's own state. `brandHref` points the brand row somewhere other than `/`
-(the current organization's overview), and `mainId` names the `<main>` landmark for the
-host's skip link (default `main-content`).
+### The `shell` prop
+
+The types are exported (`Shell`, `ContextLevel`, `ContextItem`, `NavArea`, `NavPage`,
+`PaletteAction`, `ShellHelp`, `ShellPreferences`, …) and are the contract laravel-console-kit
+produces. Abridged:
+
+```ts
+type Shell = {
+    app: { key; name; homeUrl };
+    person: { id; name; initials; avatarUrl? };
+    page?: { title; route? };                       // "On this page" and the chat's page intent
+    nav: { areas: NavArea[]; activeArea; activePage? };
+    context: { levels: ContextLevel[]; switchUrl };  // 1–3 levels, organization first
+    palette: { searchUrl?; gotoUrl?; actions: PaletteAction[] };
+    help: { enabled; topic?; sessionUrl?; scriptUrl?; portalUrl?; updatesUrl?; searchUrl?; articlesUrl? };
+    notifications: { enabled: false } | { enabled: true; unread; url };
+    apps: { catalogUrl; productsUrl? };
+    account: { profileUrl; switchAccountUrl; signOutUrl; signOutMethod?; languages?; formats?; signedInWith? };
+    banner?: { kind: 'sandbox' | 'impersonation' | 'notice'; text; action? };
+    preferences: { theme; locale; railPinned; helpOpen; subnavCollapsed?; regionalFormat?; timeZone? };
+};
+```
+
+`ContextLevel.settingsUrl` is a URL template on the wire: `{id}` is replaced with the row's id
+(`/orgs/{id}/settings`). Nav and action icons are Lucide names (`"rocket"`, `"server"`); pass
+`icons` to `CboxShell` for others.
+
+### What the app serves (all same-origin JSON)
+
+| URL | Request | Answer |
+|---|---|---|
+| `level.listUrl` | `GET ?q=&parent=&cursor=&limit=` | `{ object: "list", data: ContextItem[], has_more, next_cursor }`. Loaded when a menu opens; every level below the first gets `parent`, the level above's id (projects of an organization, environments of a project). Answers are kept for the page and dropped when the context changes. |
+| `level.createUrl` | `POST { name, parent? }` | `{ id, detailsUrl }` (or `details_url`). The person lands on `detailsUrl`. A 422 shows its first error under the field. |
+| `account.switchAccountUrl` | A plain link (full page load) | Usually a redirect to Cbox ID's account chooser. |
+| `context.switchUrl` | `POST { <level key>: id, …, return_to }` (a form post through `navigate`) | A redirect: the same page in the new context, or that area's list for an entity page (§5.6). |
+| `palette.searchUrl` | `GET ?q=` | `{ data: [{ id, title, subtitle?, url }] }`, in the current context. |
+| `palette.gotoUrl` | `GET ?q=` | `{ data: [{ title, subtitle?, levels?: { organization, project, … }, url? }] }` across organizations. |
+| `apps.catalogUrl` | `GET` | The catalog below, plus `in_organization`, `admission_url`, `purpose` and `hue` per app. |
+| `help.updatesUrl` | `GET`; `POST {updatesUrl}/{id}/read` | `{ data: [{ id, kind: "ticket" \| "chat", title, excerpt?, at, unread, url? }] }` |
+| `help.searchUrl` | `GET ?q=&topic=` | `{ data: [{ id, title, excerpt?, body?, url?, source? }] }` |
+| `help.articlesUrl` | `GET` (template, `{topic}`) | The same shape; the first three are shown. |
+
+Every link the shell follows from these answers (`url`, `detailsUrl`) must be `http(s)://` or
+a `/path`; anything else is dropped. None of these may call another service synchronously (local first): organizations come from
+the app's mirror of Cbox ID, the catalog from a cached copy. Help and docs search are proxies of
+Cbox Assistant served by laravel-assistant-client; when Assistant is down, Help says so and
+everything else works.
+
+Requests send `X-XSRF-TOKEN` (from the `XSRF-TOKEN` cookie) or `X-CSRF-TOKEN` (from
+`<meta name="csrf-token">`). Without a `navigate` prop, POSTs are real form submits with
+`_token`.
+
+### Preferences and first paint
+
+The shell reports every preference change through `onPreferenceChange(key, value)`: `theme`,
+`locale`, `regionalFormat`, `timeZone` (Cbox ID's shared preferences), and `railPinned`,
+`helpOpen`, `subnavCollapsed` (the app's cookie, read on the server). Without the callback it
+writes a `cbox_shell_<key>` cookie. The server sends them back in `shell.preferences`, so the
+rail, Help and the subnav render in place on the server; `themeBootScript(theme)` (or the same
+class and `data-theme` written by the server) sets the theme before paint.
+
+### Help
+
+Help is part of the shell: support updates (the button's count), docs and knowledge base
+search, articles for the page's `help.topic`, Ask Cbox, Talk to a person and the support portal.
+It docks beside the page from 1280px (360px, 400px from 1440px) and is a full-screen dialog
+below. Its state (open, article, search, scroll, updates) lives in a store outside React, so it
+survives visits and even a remount; the chat element sits outside the home/article view, so
+opening an article never ends the conversation, and it survives as long as the shell sits in
+the persistent layout. Help the person left open shows docked on load; below 1280px it waits
+until they open it, so a phone or a narrow window never lands under the overlay. Support
+updates are per organization: they load again when the organization or `updatesUrl` changes.
+Closing Help gives focus back to what opened it.
+
+The chat is the Assistant SDK's `<cbox-support session-url>` element (laravel-assistant-client,
+`/ai-assistant/support.js` by default, loaded the first time Help opens). The shell sets
+`element.intent = { route, title, context, url }` (and an `intent` JSON attribute) on every
+page, and calls `element.ask(question, intent)` / `element.handover()` when the SDK has them,
+else `element.open()`.
+
+A page's own `?` button uses `useShellHelp()?.toggleHelp()`, or `<PageHeader help />`. The page's
+help topic is `shell.help.topic`, set on the server per route (console-kit's `helpTopic`), not
+a prop of the header: Help needs it on the first paint and on pages without a header.
+
+### Keyboard
+
+⌘K / Ctrl+K opens the palette anywhere (↑↓ move, Enter opens, ⌘Enter opens in a new tab, Esc
+closes). In the context menus ↑↓ Home End move, Enter picks, → makes a row's gear the active
+option (Enter opens its settings; in the cascade a second → crosses to the environments), ←
+goes back, Esc closes and Tab leaves; focus returns to the trigger. ↓ past the last row
+reaches "New …" and ↑ above the first reaches "View all", so both work without a mouse; in the
+app grid End and ↓ from the bottom row reach "All products". ⌘. collapses the subnav. Search fields focus themselves only with a fine pointer and
+hover, never on touch. Sheets and the Help overlay trap focus; the docked column does not.
+
+### Phone (< 768px)
+
+The header holds ☰ (areas, pages, Switch app, notifications, the account), one context button
+(`Cbox / Webshop / Production`) that opens every level stacked, Search and Help (full screen).
+Nothing is hidden without a replacement.
+
+### Tests and snapshots
+
+`bun run test` runs the unit tests (vitest, Testing Library, happy-dom). `bun run test:visual`
+renders the fixture page in `tests/visual` (the real shell, the fixture `shell` prop and its
+answers) and compares every open state at 1440 and 390, light and dark, against
+`tests/visual/__screenshots__`, and runs axe on every open state. It runs in the pinned
+Playwright container (`scripts/visual.sh`, needs Docker), the same one CI's `visual` job uses,
+so the Linux baselines match pixel for pixel. After an intended change:
+`bun run test:visual:update`, then look at every changed image.
+
+### Tokens
 
 Core tokens now match the warm cream/ink design-system colors. Body text uses
 the system stack; hosts self-host Plus Jakarta Sans for headings and JetBrains

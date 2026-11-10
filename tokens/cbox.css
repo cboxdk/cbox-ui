@@ -1,3 +1,6 @@
+/* The shell's own stylesheet (CboxShell). */
+@import './shell.css';
+
 /* Cbox colour tokens — cbox-ui structure, warmed toward cbox.dk's cream/ink palette
  * so the products share temperature with the brand site (and aren't a Linear clone).
  * Single deep-blue primary (matches the logo). Light default; dark under `.dark` or
@@ -241,41 +244,6 @@
         background: radial-gradient(ellipse at 30% 0, var(--accent-soft), transparent 48%), var(--canvas);
     }
 }
-
-/* Workspace shell: one geometry for every product, including floating hover expansion. */
-.cbx-workspace{display:flex;height:100svh;overflow:hidden;font-family:var(--font-sans)}
-.cbx-rail-slot{position:relative;flex:0 0 64px;width:64px;z-index:40}
-.cbx-rail-slot[data-pinned=true]{flex-basis:222px;width:222px}
-.cbx-rail{position:absolute;inset:6px auto 6px 6px;width:52px;border:1px solid var(--border);border-radius:12px;background:var(--sidebar);display:flex;flex-direction:column;padding:6px;transition:width 200ms cubic-bezier(.4,0,.2,1)}
-.cbx-rail[data-open=true]{width:210px;box-shadow:0 1px 2px #0001,0 8px 24px #0001}
-.cbx-rail-brand{display:flex;align-items:center;justify-content:space-between;height:44px;flex-shrink:0;gap:4px}
-.cbx-rail-brand button,.cbx-subnav-header button,.cbx-mobile-trigger{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:28px;height:28px;border-radius:8px}
-.cbx-rail nav{flex:1;overflow:auto;padding-top:12px}
-.cbx-workspace-link{display:flex;align-items:center;gap:10px;min-height:34px;padding:0 10px;margin-bottom:3px;border-radius:8px;font-size:13px;white-space:nowrap;color:var(--sidebar-foreground);text-decoration:none}
-.cbx-workspace-link span{overflow:hidden;text-overflow:ellipsis}
-.cbx-workspace-link:hover{background:var(--secondary)}
-.cbx-workspace-link.is-active{background:var(--accent-soft);font-weight:600}
-.cbx-workspace-link.is-active svg{color:var(--primary)}
-.cbx-rail-account{padding-top:8px;border-top:1px solid var(--border)}
-.cbx-workspace-column{display:flex;flex:1;min-width:0;flex-direction:column}
-.cbx-workspace-header{height:56px;flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 20px;background:var(--background);border-bottom:1px solid var(--border)}
-.cbx-workspace-context{min-width:0;flex:1}
-.cbx-workspace-tools{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.cbx-workspace-body{display:flex;flex:1;min-height:0}
-.cbx-workspace-main{flex:1;min-width:0;overflow:auto}
-.cbx-subnav{width:210px;flex-shrink:0;background:var(--background);border-right:1px solid var(--border);overflow:auto;padding:12px 8px}
-.cbx-subnav[data-collapsed=true]{width:26px;padding:0}
-.cbx-subnav-header{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px;margin-bottom:12px;padding:0 8px;font-size:13px}
-.cbx-subnav-strip{display:flex;align-items:center;gap:16px;padding:14px 4px;height:100%;width:26px;flex-direction:column;font-size:12px}
-.cbx-subnav-strip span{writing-mode:vertical-rl}
-.cbx-mobile-trigger{display:none}
-.cbx-workspace-mobile{margin:0;height:100svh;max-height:100svh;width:min(320px,90vw);padding:20px 12px;background:var(--background);color:var(--foreground);border-right:1px solid var(--border)}
-.cbx-workspace-mobile::backdrop{background:#0006}
-@media(max-width:1023px){.cbx-rail-slot,.cbx-subnav{display:none}.cbx-mobile-trigger{display:flex}.cbx-workspace-header{padding:0 12px;gap:8px}}
-@media(prefers-reduced-motion:reduce){.cbx-rail{transition:none}}
-
-.cbx-workspace-context [data-component=context-bar] button{max-width:100%}
-@media(max-width:639px){.cbx-workspace-header{flex-wrap:wrap;height:auto;min-height:56px;padding-block:8px}.cbx-workspace-context{order:3;flex-basis:100%;width:100%}.cbx-workspace-tools{margin-left:auto}.cbx-workspace-context [data-component=context-bar]>div{flex:1}}
 
 /* App icons come from Cbox ID's catalog: one light and one dark upload per app. The dark one
    shows under the same switch as the dark tokens. */

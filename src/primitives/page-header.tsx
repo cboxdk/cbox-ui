@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { useCboxLocalization } from '../context/localization';
+import { useShellHelp } from '../shell/context';
 import { cn } from '../utils/cn';
 
 type Props = {
@@ -11,6 +13,13 @@ type Props = {
     eyebrow?: ReactNode;
     description?: ReactNode;
     actions?: ReactNode;
+    /**
+     * Show the `?` beside the title that toggles the shell's Help column (spec §7.1). The page's
+     * help topic travels in `shell.help.topic`, set on the server per route (console-kit's
+     * `helpTopic`), so Help knows the topic on the first paint and for pages without a header.
+     * Ignored outside `CboxShell`.
+     */
+    help?: boolean;
     className?: string;
 };
 
@@ -25,8 +34,11 @@ export function PageHeader({
     eyebrow,
     description,
     actions,
+    help = false,
     className,
 }: Props) {
+    const { t } = useCboxLocalization();
+    const shellHelp = useShellHelp();
     return (
         <header
             className={cn(
@@ -40,9 +52,28 @@ export function PageHeader({
                         {eyebrow}
                     </p>
                 ) : null}
-                <h1 className="text-2xl leading-tight font-semibold tracking-tight text-foreground">
-                    {title}
-                </h1>
+                <div className="flex items-center gap-2">
+                    <h1 className="text-2xl leading-tight font-semibold tracking-tight text-foreground">
+                        {title}
+                    </h1>
+                    {help && shellHelp !== null ? (
+                        <button
+                            type="button"
+                            onClick={() => shellHelp.toggleHelp()}
+                            aria-label={t('Help for this page')}
+                            aria-controls="cbx-help"
+                            className="group inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-ring [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11"
+                        >
+                            {/* The ring stays small beside the title; the hit area is 32px, 44px on touch (§12.2). */}
+                            <span
+                                aria-hidden="true"
+                                className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border text-xs font-semibold text-muted-foreground group-hover:border-accent-edge group-hover:text-primary"
+                            >
+                                ?
+                            </span>
+                        </button>
+                    ) : null}
+                </div>
                 {description ? (
                     <p className="text-sm text-muted-foreground">
                         {description}
