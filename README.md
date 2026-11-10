@@ -278,7 +278,7 @@ type Shell = {
     page?: { title; route? };                       // "On this page" and the chat's page intent
     nav: { areas: NavArea[]; activeArea; activePage? };
     context: { levels: ContextLevel[]; switchUrl };  // 1–3 levels, organization first
-    palette: { searchUrl?; gotoUrl?; actions: PaletteAction[] };
+    palette: { searchUrl?; gotoUrl?; actions: PaletteAction[]; placeholder? };
     help: { enabled; topic?; sessionUrl?; scriptUrl?; portalUrl?; updatesUrl?; searchUrl?; articlesUrl? };
     notifications: { enabled: false } | { enabled: true; unread; url };
     apps: { catalogUrl; productsUrl? };
@@ -287,6 +287,25 @@ type Shell = {
     preferences: { theme; locale; railPinned; helpOpen; subnavCollapsed?; regionalFormat?; timeZone? };
 };
 ```
+
+```ts
+type NavArea = { key; label; url; icon?; pages?: NavPage[] };
+type NavPage = {
+    key; label; url; icon?;
+    locked?: boolean;   // not in the plan: a lock and "(locked)", `url` leads to the upgrade prompt
+    count?: number;     // a badge (open drafts); hidden at 0
+    group?: string;     // a heading in the subnav and the phone nav ("Organization", "Project")
+};
+```
+
+Pages of one `group` show together under its heading, in the order each group first appears.
+Locked pages still show in the palette's Pages, marked "Locked". Every nav link (and the
+banner action) also accepts `href` in place of `url`, the name laravel-console-kit 0.2.2 sends.
+`palette.placeholder` replaces "Search or ask…" in the palette's field (the header button keeps
+"Search or ask…").
+
+The shell's first focusable element is a "Skip to content" link, hidden until focused. It
+moves focus to `<main id={mainId}>` (default `main-content`).
 
 `ContextLevel.settingsUrl` is a URL template on the wire: `{id}` is replaced with the row's id
 (`/orgs/{id}/settings`). Nav and action icons are Lucide names (`"rocket"`, `"server"`); pass

@@ -6,6 +6,7 @@ import { LevelPane, pickKeepingEnvironment } from './context-menus';
 import { useShell } from './context';
 import { pluralOf } from './data';
 import { resolveIcon } from './icons';
+import { NavPageList, NavPageMarks, navUrl } from './nav-pages';
 import { trapTab } from './popover';
 
 /**
@@ -81,20 +82,24 @@ export function NavSheet({ onClose }: { onClose: () => void }) {
                     const activeArea = area.key === shell.nav.activeArea;
                     return (
                         <div key={area.key} className="cbx-sheet-area">
-                            <Link href={area.url} className={`cbx-row cbx-row-action ${activeArea ? ((area.pages ?? []).length > 1 ? 'is-open' : 'is-current') : ''}`} aria-current={activeArea && (area.pages ?? []).length <= 1 ? 'page' : undefined} onClick={onClose}>
+                            <Link href={navUrl(area)} className={`cbx-row cbx-row-action ${activeArea ? ((area.pages ?? []).length > 1 ? 'is-open' : 'is-current') : ''}`} aria-current={activeArea && (area.pages ?? []).length <= 1 ? 'page' : undefined} onClick={onClose}>
                                 <Icon size={16} strokeWidth={1.8} aria-hidden />
                                 <span className="cbx-row-name">{area.label}</span>
                             </Link>
                             {(area.pages ?? []).length > 1 && (
                                 <div className="cbx-sheet-pages">
-                                    {(area.pages ?? []).map(page => {
-                                        const on = activeArea && page.key === shell.nav.activePage;
-                                        return (
-                                            <Link key={page.key} href={page.url} className={`cbx-row cbx-row-action ${on ? 'is-current' : ''}`} aria-current={on ? 'page' : undefined} onClick={onClose}>
-                                                <span className="cbx-row-name">{page.label}</span>
-                                            </Link>
-                                        );
-                                    })}
+                                    <NavPageList
+                                        pages={area.pages ?? []}
+                                        renderPage={page => {
+                                            const on = activeArea && page.key === shell.nav.activePage;
+                                            return (
+                                                <Link key={page.key} href={navUrl(page)} className={`cbx-row cbx-row-action ${on ? 'is-current' : ''} ${page.locked === true ? 'is-locked' : ''}`} aria-current={on ? 'page' : undefined} data-locked={page.locked === true ? 'true' : undefined} onClick={onClose}>
+                                                    <span className="cbx-row-name">{page.label}</span>
+                                                    <NavPageMarks page={page} />
+                                                </Link>
+                                            );
+                                        }}
+                                    />
                                 </div>
                             )}
                         </div>

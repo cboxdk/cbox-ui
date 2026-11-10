@@ -26,6 +26,17 @@ for (const theme of ['light', 'dark'] as const) {
             await audit(page);
         });
 
+        test('skip link and a subnav with groups, a count and a locked page', async ({ page, isMobile }) => {
+            await open(page, theme, '&nav=settings');
+            await page.keyboard.press('Tab');
+            await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
+            await audit(page);
+            await page.getByRole('link', { name: 'Skip to content' }).blur();
+            if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click();
+            await expect(page.getByRole('link', { name: 'Single sign-on (locked)' })).toBeVisible();
+            await audit(page);
+        });
+
         test('palette', async ({ page }) => {
             await open(page, theme);
             await page.getByRole('button', { name: 'Search or ask…' }).click();

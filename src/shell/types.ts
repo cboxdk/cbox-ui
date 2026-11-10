@@ -24,13 +24,39 @@ export type AppKey =
     | 'domains'
     | (string & {});
 
-export type Link = { label: string; url: string };
+/**
+ * A labelled link. `href` is the same URL under the name laravel-console-kit 0.2 sends; the
+ * shell reads `url` first, then `href`.
+ */
+export type Link = { label: string; url: string; href?: string };
 
-/** One page inside an area. `icon` is a Lucide icon name (`"git-branch"`), resolved by the shell. */
-export type NavPage = { key: string; label: string; url: string; icon?: string };
+/**
+ * One page inside an area. `icon` is a Lucide icon name (`"git-branch"`), resolved by the shell.
+ * `href` is the same URL under the name laravel-console-kit 0.2 sends; the shell reads `url`
+ * first, then `href`.
+ */
+export type NavPage = {
+    key: string;
+    label: string;
+    url: string;
+    href?: string;
+    icon?: string;
+    /**
+     * The page is not part of the organization's plan: it shows with a lock and an accessible
+     * "(locked)", and `url` leads to the upgrade prompt.
+     */
+    locked?: boolean;
+    /** A badge, such as open drafts. Not shown when 0 or absent. */
+    count?: number;
+    /**
+     * A heading inside the area's subnav (Settings → "Organization", "Project"). Pages of one
+     * group show together under it, in the order each group first appears.
+     */
+    group?: string;
+};
 
 /** One area in the rail. The subnav shows its pages when it has more than one. */
-export type NavArea = { key: string; label: string; url: string; icon?: string; pages?: NavPage[] };
+export type NavArea = { key: string; label: string; url: string; href?: string; icon?: string; pages?: NavPage[] };
 
 export type ContextTone = 'production' | 'sandbox' | 'neutral';
 
@@ -165,6 +191,8 @@ export type Shell = {
         /** `GET ?q=` → level 2/3 combinations across organizations (§6.1.4). */
         gotoUrl?: string;
         actions: PaletteAction[];
+        /** The palette search field's placeholder, e.g. "Search customers, invoices… or pages". Default "Search or ask…". */
+        placeholder?: string;
     };
     help: ShellHelp;
     notifications: ShellNotifications;

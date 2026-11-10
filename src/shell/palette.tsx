@@ -3,6 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type R
 import { initialsOf, requestJson, safeUrl, withQuery } from './data';
 import { parseArticles, type HelpArticle } from './help-store';
 import { resolveIcon } from './icons';
+import { navUrl } from './nav-pages';
 import { canAutofocus } from './media';
 import { revealInList, trapTab } from './popover';
 import { useShell } from './context';
@@ -39,13 +40,17 @@ export function matchScore(text: string, query: string): number {
     return score;
 }
 
-function localPages(shell: Shell, query: string, open: (url: string, newTab: boolean) => void): PaletteItem[] {
+function localPages(shell: Shell, query: string, open: (url: string, newTab: boolean) => void, lockedLabel: string): PaletteItem[] {
     const entries: Array<{ id: string; title: string; subtitle?: string; url: string; icon?: string }> = [];
     for (const area of shell.nav.areas) {
-        entries.push({ id: `area:${area.key}`, title: area.label, url: area.url, icon: area.icon });
+        const areaUrl = navUrl(area);
+        entries.push({ id: `area:${area.key}`, title: area.label, url: areaUrl, icon: area.icon });
         for (const page of area.pages ?? []) {
-            if (page.url === area.url) continue;
-            entries.push({ id: `page:${area.key}:${page.key}`, title: page.label, subtitle: area.label, url: page.url, icon: page.icon ?? area.icon });
+            const url = navUrl(page);
+            if (url === areaUrl) continue;
+            // A locked page is still found, and says so: it leads to the upgrade prompt.
+            const subtitle = page.locked === true ? `${area.label} · ${lockedLabel}` : area.label;
+            entries.push({ id: `page:${area.key}:${page.key}`, title: page.label, subtitle, url, icon: page.locked === true ? 'lock' : (page.icon ?? area.icon) });
         }
     }
     return entries
@@ -207,7 +212,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     }, [query, shell]);
 
     const q = input.trim();
-    const pages = useMemo(() => localPages(shell, q, open), [shell, q]);
+    const pages = useMemo(() => localPages(shell, q, open, t('Locked')), [shell, q, t]);
     const actions = useMemo<PaletteItem[]>(
         () =>
             shell.palette.actions
@@ -324,8 +329,8 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                         aria-controls={`${id}-list`}
                         aria-activedescendant={activeOption !== undefined ? `${id}-${active}` : undefined}
                         aria-autocomplete="list"
-                        aria-label={t('Search or ask…')}
-                        placeholder={t('Search or ask…')}
+                        aria-label={shell.palette.placeholder ?? t('Search or ask…')}
+                        placeholder={shell.palette.placeholder ?? t('Search or ask…')}
                         value={input}
                         onChange={event => setInput(event.target.value)}
                         autoComplete="off"

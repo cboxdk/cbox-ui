@@ -45,6 +45,14 @@ for (const theme of ['light', 'dark'] as const) {
             await expect(page).toHaveScreenshot(`${theme}-palette.png`);
         });
 
+        test('skip link focused', async ({ page }) => {
+            await open(page, theme);
+            await page.keyboard.press('Tab');
+            await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
+            await settle(page);
+            await expect(page).toHaveScreenshot(`${theme}-skip-link.png`);
+        });
+
         test('help with updates', async ({ page }) => {
             await open(page, theme);
             await page.getByRole('button', { name: /^Help/ }).click();
@@ -94,6 +102,13 @@ for (const theme of ['light', 'dark'] as const) {
                 await expect(page).toHaveScreenshot(`${theme}-account-menu.png`);
             });
 
+            test('subnav with groups, a count and a locked page', async ({ page }) => {
+                await open(page, theme, '&nav=settings');
+                await expect(page.getByRole('link', { name: 'Single sign-on (locked)' })).toBeVisible();
+                await settle(page);
+                await expect(page).toHaveScreenshot(`${theme}-subnav-groups.png`);
+            });
+
             test('help left open on load', async ({ page }) => {
                 // Another page than the "help with updates" state: Help is docked, untouched (no
                 // focus, no search), and "On this page" follows the page.
@@ -139,6 +154,14 @@ for (const theme of ['light', 'dark'] as const) {
                 await page.getByRole('menuitem', { name: 'Sign out' }).scrollIntoViewIfNeeded();
                 await settle(page);
                 await expect(page).toHaveScreenshot(`${theme}-account-menu.png`);
+            });
+
+            test('navigation sheet with groups, a count and a locked page', async ({ page }) => {
+                await open(page, theme, '&nav=settings');
+                await page.getByRole('button', { name: 'Open navigation' }).click();
+                await expect(page.getByRole('link', { name: 'Single sign-on (locked)' })).toBeVisible();
+                await settle(page);
+                await expect(page).toHaveScreenshot(`${theme}-nav-sheet-groups.png`);
             });
 
             test('app switcher', async ({ page }) => {
