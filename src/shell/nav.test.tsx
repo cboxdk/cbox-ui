@@ -130,3 +130,28 @@ describe('palette placeholder', () => {
         expect(field.getAttribute('placeholder')).toBe('Search customers, invoices… or pages');
     });
 });
+
+describe('account menu without links (laravel-console-kit 0.2.2)', () => {
+    it('opens with only the preferences when `account` is absent', async () => {
+        const shell = makeShell();
+        delete (shell as Partial<Shell>).account;
+        const { user } = renderShell({ shell });
+        await user.click(screen.getByRole('button', { name: 'Account and preferences' }));
+        const menu = screen.getByRole('menu', { name: 'Account' });
+        expect(within(menu).getByRole('menuitem', { name: /Language/ })).toBeTruthy();
+        expect(within(menu).queryByRole('menuitem', { name: /Profile and security/ })).toBeNull();
+        expect(within(menu).queryByRole('menuitem', { name: 'Switch account' })).toBeNull();
+        expect(within(menu).queryByRole('menuitem', { name: 'Sign out' })).toBeNull();
+        expect(within(menu).getByText('Signed in with Cbox ID')).toBeTruthy();
+    });
+
+    it('shows only the rows whose URL it has', async () => {
+        const shell = makeShell({ account: { signOutUrl: '/logout' } });
+        const { user, navigate } = renderShell({ shell });
+        await user.click(screen.getByRole('button', { name: 'Account and preferences' }));
+        const menu = screen.getByRole('menu', { name: 'Account' });
+        expect(within(menu).queryByRole('menuitem', { name: 'Switch account' })).toBeNull();
+        await user.click(within(menu).getByRole('menuitem', { name: 'Sign out' }));
+        expect(navigate).toHaveBeenCalledWith('/logout', { method: 'post' });
+    });
+});

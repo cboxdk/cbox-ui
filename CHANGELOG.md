@@ -12,6 +12,10 @@ All additions are optional fields; a 0.10.0 `shell` prop renders as before.
 - `NavPage.group`: group headings within an area's subnav and phone nav, each an ARIA group; pages of one group show together.
 - `shell.palette.placeholder`: the app's text for the palette's search field (default "Search or ask…").
 
+### Changed
+
+- `shell.account` and its `profileUrl`, `switchAccountUrl` and `signOutUrl` are optional. The account menu leaves out a row without its URL; without `account` it holds only the preferences, where it used to throw. laravel-console-kit builds `account` with `->account()`.
+
 ### Fixed
 
 - Nav areas, nav pages and the banner action also read `href` when `url` is absent. laravel-console-kit 0.2.2 sends `href`, so these links were empty.

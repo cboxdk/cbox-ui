@@ -157,12 +157,15 @@ export type ShellPreferences = {
 
 export type ShellOption = { code: string; label: string };
 
-/** What the account menu (§10) links to. */
+/**
+ * What the account menu (§10) links to. A row whose URL is absent is not shown (laravel-console-kit
+ * leaves out what the app has no route for).
+ */
 export type ShellAccount = {
     /** Profile and security, in Cbox ID. */
-    profileUrl: string;
-    switchAccountUrl: string;
-    signOutUrl: string;
+    profileUrl?: string;
+    switchAccountUrl?: string;
+    signOutUrl?: string;
     /** Default `post`. */
     signOutMethod?: 'get' | 'post';
     /** Languages the app is translated into. */
@@ -202,7 +205,8 @@ export type Shell = {
         /** "All products ↗". Default https://cbox.dk. */
         productsUrl?: string;
     };
-    account: ShellAccount;
+    /** The account menu's links. Absent (laravel-console-kit 0.2.2): the menu has only the preferences. */
+    account?: ShellAccount;
     banner?: ShellBanner;
     preferences: ShellPreferences;
 };
