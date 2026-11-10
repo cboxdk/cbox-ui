@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.10.1 — 2026-11-11
 
 All additions are optional fields; a 0.10.0 `shell` prop renders as before.
 
