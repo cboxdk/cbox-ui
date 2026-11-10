@@ -110,6 +110,17 @@ describe('command palette (§6)', () => {
         expect(navigate).toHaveBeenCalledWith('/shell/switch', expect.objectContaining({ method: 'post', data: expect.objectContaining({ organization: 'org_acme' }) }));
     });
 
+    it('reads records and Go to from console-kit\'s grouped search answer', async () => {
+        const shell = makeShell();
+        shell.palette = { ...shell.palette, searchUrl: '/shell/search?context%5Borganization%5D=org_cbox', gotoUrl: undefined };
+        const { user } = renderShell({ shell });
+        await user.click(screen.getByRole('button', { name: 'Search or ask…' }));
+        await user.type(screen.getByRole('combobox'), 'fjord');
+        expect(await screen.findByRole('option', { name: /Fjord Studio/ })).toBeTruthy();
+        expect(await screen.findByRole('option', { name: /Fjord · Production/ })).toBeTruthy();
+        expect(groupNames()).toEqual(expect.arrayContaining(['Records', 'Go to']));
+    });
+
     it('matches every word and ranks a prefix first', () => {
         expect(matchScore('Invite members', 'inv mem')).toBeGreaterThan(matchScore('Reinvite old members', 'inv mem'));
         expect(matchScore('Servers', 'deploy')).toBe(0);

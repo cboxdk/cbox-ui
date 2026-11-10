@@ -58,8 +58,17 @@ function localPages(shell: Shell, query: string, open: (url: string, newTab: boo
         });
 }
 
-function rows(body: unknown): Array<Record<string, unknown>> {
-    const data = Array.isArray(body) ? body : typeof body === 'object' && body !== null ? (body as { data?: unknown }).data : null;
+/**
+ * The rows of a list answer: a bare array, `{data: [...]}` (a context list), or console-kit's
+ * search answer `{groups: [{key, items}]}`, of which `group`'s items.
+ */
+function rows(body: unknown, group?: string): Array<Record<string, unknown>> {
+    let data: unknown = Array.isArray(body) ? body : typeof body === 'object' && body !== null ? (body as { data?: unknown }).data : null;
+    if (data === undefined && group !== undefined && typeof body === 'object' && body !== null) {
+        const groups = (body as { groups?: unknown }).groups;
+        const match = Array.isArray(groups) ? groups.find((g): g is { items?: unknown } => typeof g === 'object' && g !== null && (g as { key?: unknown }).key === group) : undefined;
+        data = match?.items;
+    }
     return Array.isArray(data) ? data.filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null) : [];
 }
 
@@ -123,7 +132,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         }
         if (shell.palette.searchUrl !== undefined) {
             run('records', async () =>
-                rows(await requestJson(withQuery(shell.palette.searchUrl!, { q }), { signal })).flatMap(row => {
+                rows(await requestJson(withQuery(shell.palette.searchUrl!, { q, group: 'records' }), { signal }), 'records').flatMap(row => {
                     const url = safeUrl(row.url);
                     if (typeof row.title !== 'string' || url === undefined) return [];
                     return [{ id: `record:${String(row.id ?? url)}`, title: row.title, subtitle: typeof row.subtitle === 'string' ? row.subtitle : undefined, href: url, icon: <FileText size={16} strokeWidth={1.8} aria-hidden />, run: (newTab: boolean) => open(url, newTab) }];
@@ -133,7 +142,21 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         const organization = shell.context.levels[0];
         run('goto', async () => {
             const loads: Array<Promise<PaletteItem[]>> = [];
-            if (organization !== undefined) {
+            // console-kit answers "Go to" (organizations, and level 2 and 2 · 3 across them) from
+            // its search endpoint; a host without one lists the organizations itself.
+            const kitGoto = shell.palette.gotoUrl === undefined && shell.palette.searchUrl !== undefined;
+            if (kitGoto) {
+                loads.push(
+                    requestJson(withQuery(shell.palette.searchUrl!, { q, group: 'goto' }), { signal }).then(body =>
+                        rows(body, 'goto').flatMap(row => {
+                            const url = safeUrl(row.url);
+                            if (typeof row.title !== 'string' || url === undefined) return [];
+                            return [{ id: `goto:${String(row.id ?? url)}`, title: row.title, subtitle: typeof row.subtitle === 'string' ? row.subtitle : undefined, href: url, icon: <Building2 size={16} strokeWidth={1.8} aria-hidden />, run: (newTab: boolean) => open(url, newTab) }];
+                        }),
+                    ),
+                );
+            }
+            if (organization !== undefined && !kitGoto) {
                 loads.push(
                     requestJson(withQuery(organization.listUrl, { q, limit: '5' }), { signal }).then(body =>
                         rows(body).flatMap(row => {
