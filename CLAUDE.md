@@ -24,7 +24,7 @@ Any change to `CboxAppShell`'s props API is a minor or major version bump. Consu
 
 ## Versioning
 
-Current: `0.8.0`. Next minor: `0.9.0`. Publishing is the `v*.*.*` tag push: `.github/workflows/release.yml` publishes to npmjs with trusted publishing. Bump `package.json` version and push a git tag (`v0.x.y`) on every release. Publish to npm registry under `@cboxdk` scope.
+Current: `0.9.0`. Next minor: `0.10.0`. Publishing is the `v*.*.*` tag push: `.github/workflows/release.yml` publishes to npmjs with trusted publishing. Bump `package.json` version and push a git tag (`v0.x.y`) on every release. Publish to npm registry under `@cboxdk` scope.
 
 ## Brand assets
 

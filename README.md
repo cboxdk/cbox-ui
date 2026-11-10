@@ -114,7 +114,7 @@ Match id's existing patterns — see id/resources/js/pages/* for examples.
 | `OrgSwitcher` | Dropdown listing the user's orgs. Calls `onSwitchOrganization` (or POSTs to `urls.switchOrgUrl`) on pick. |
 | `AppLauncher` | 9-dot grid showing sister Cbox apps the user can jump into. |
 | `UserMenu` | Avatar dropdown with "Manage account ↗" + "Team & billing ↗" (deep-links into id) + Sign out. Pass `LinkComponent` when those rows are pages of the host app, so the visit stays client-side. |
-| `CboxAppCatalog` | The Switch-app control fed live from the host's catalog endpoint (see "App catalog" below). |
+| `CboxAppCatalog` | The Switch-app control fed live from the host's catalog endpoint: the shared `<cbox-app-switcher>` element (see "App catalog" below). |
 | `NotificationsBell` | Bell icon with unread badge, links to id's unified inbox. Renders nothing if context lacks `notifications`. |
 
 ### Page primitives
@@ -193,35 +193,82 @@ callback; without it, existing browser formatting is preserved.
 
 ### App catalog (Switch app)
 
-`AppSwitcher` and `AppLauncher` render the static `apps` list from `CboxIdProvider`. Apps
-that read the person's catalog live from Cbox ID use `CboxAppCatalog` instead: the host
-serves a same-origin endpoint (a proxy of Cbox ID's catalog under the signed-in person's
-grant) and the component renders its answer, refreshes it when `refresh_after` expires
-while the panel is open, and offers the way back to Cbox ID when the grant is missing.
+Every Cbox app, Blade or React, draws the same Switch-app control: the `<cbox-app-switcher>`
+custom element from `@cboxdk/cbox-ui/app-switcher`. It has no React dependency and renders
+in a shadow root with its own styles, so no app stylesheet (a reset, a missing preflight, a
+global `button`, `img` or `svg` rule) changes how it looks. It takes only the host's Cbox
+colour tokens (`--foreground`, `--popover`, `--border`, `--secondary`, `--muted`,
+`--accent-soft`, `--ring`), each with a fallback.
+
+**Blade (or any server-rendered page).** Import the module once in the app's Vite entry
+(`resources/js/app.js`):
+
+```js
+import '@cboxdk/cbox-ui/app-switcher';
+```
+
+and put the tags in the layout:
+
+```blade
+<cbox-app-switcher
+    endpoint="{{ $appCatalogUrl ?? '' }}"
+    current="billing"
+    labels="{{ json_encode(['title' => __('Switch app'), 'loading' => __('Loading apps…'), 'empty' => __('No apps available'), 'unavailable' => __('Apps could not be loaded.')], JSON_UNESCAPED_UNICODE) }}"
+></cbox-app-switcher>
+
+{{-- The app's own mark (rail, brand), from the same catalog --}}
+<cbox-service-mark service="billing" aria-hidden="true"></cbox-service-mark>
+```
+
+**React.** `CboxAppCatalog` renders the same element:
 
 ```tsx
 <CboxAppCatalog endpoint={appCatalogUrl} currentAppKey="infra" />
 ```
 
-The endpoint contract (`parseAppCatalog` is exported, so a host can test its own answer):
+Attributes of `<cbox-app-switcher>`:
+
+| Attribute | |
+|---|---|
+| `endpoint` | The host's same-origin catalog URL. Empty disables the control (pages without an organization). Another origin is refused. |
+| `current` | This app's key: its tile is marked current. |
+| `labels` | JSON with any of `title`, `loading`, `empty`, `unavailable`. Missing keys stay English. |
+| `theme` | `auto` (default): `.dark`/`[data-theme="dark"]` or `.light`/`[data-theme="light"]` on `<html>`, else `prefers-color-scheme`. `class`: only the root marker counts, no marker is light (a host whose tokens only turn dark under `.dark`). `light`/`dark` pin it. |
+
+`<cbox-service-mark service="key">` paints that app's icon from the catalog this browser last
+kept, and repaints when a newer one arrives. It is 24px; set
+`cbox-service-mark { --cbox-service-mark-size: 22px; }` to change it. It takes `theme` too.
+
+The endpoint contract (`parseAppCatalog` and `signInTarget` are exported, so a host can test
+its own answer):
 
 - `200 { apps: [{ key, name, launch_url, icon_url?, icon_dark_url?, description? }], refresh_after?: seconds }`
   — `refresh_after` is clamped to 1–60 s; apps without an `http(s)` launch URL are dropped.
-- `401`/`403` with `{ authorize_url }` or `{ state: 'authorization_required' }` — the panel
-  says the apps could not be loaded and links "Reconnect to Cbox ID" to `authorize_url` with
-  `return_to` set to the current path (same-origin URLs only).
-- Anything else — "Apps could not be loaded." with a retry.
+- `401`/`403 { signin_url }` — the person has to sign in again. When they open the control
+  (or it is open when the answer arrives), the element sends the top window to `signin_url`:
+  no message, no button. A page that merely loads in the background is never moved. If the
+  same sign-in was tried in the last 30 seconds and the catalog still refuses, it shows "Apps
+  could not be loaded." instead, so it never loops. The legacy `{ authorize_url }` is followed
+  the same way, with `return_to` set to the current path (same-origin URLs only).
+  `signin_url` must be on the app's own origin; anything else is ignored.
+- Anything else, or no network — "Apps could not be loaded.", quietly, and it tries again by
+  itself (2 s, 4 s, 8 s … up to 60 s). A grid it already shows stays.
 
-`endpoint={null}` renders the control disabled, so the chrome keeps its shape on pages
-without an organization.
+Before navigating it fires `cbox-app-switcher:signin` (bubbling, composed, cancelable, with
+`detail.url`); `preventDefault()` keeps the page where it is.
 
-App icons come from Cbox ID's catalog: `icon_url` for light surfaces and `icon_dark_url` for
-dark ones. The tiles render both and the token stylesheet shows the one for the current theme
-(`.dark` or `[data-theme="dark"]` on the root); an app without an icon shows its initials. Apps
-keep no local copy of the marks. Each answer is kept in this browser (`cbox-app-catalog`), so
-`<CboxServiceMark appKey="infra" />` and the collapsed `CboxBrand` in the rail paint the app's
-own icon at once on the next page. A host that loads the catalog itself calls
-`rememberAppCatalog(apps)`; `CboxAppIcon` renders any single app's icon.
+App icons come from Cbox ID's catalog only: `icon_url` for light surfaces and
+`icon_dark_url` for dark ones; the element swaps them with the theme. Only `https:` icons
+render; an app without one, or whose icon fails to load, shows its initials. Apps keep no
+local copy of the marks. Each answer is kept in this browser (`localStorage`,
+`cbox-app-catalog`), so the grid and the marks paint at once on the next page and the live
+answer replaces them. The icons are served by Cbox ID, so the host's CSP needs
+`img-src https://cbox.cboxid.com` (the element's styles are constructed stylesheets, which
+`style-src` does not govern).
+
+In React, `<CboxServiceMark appKey="infra" />` and the collapsed `CboxBrand` read the same
+kept catalog; `CboxAppIcon` renders any single app's icon, and a host that loads the catalog
+itself calls `rememberAppCatalog(apps)`.
 
 ### Workspace navigation (current design contract)
 

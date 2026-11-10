@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { CboxAppCatalog, authorizeHref, parseAppCatalog } from './app-catalog';
+import { CboxAppCatalog, authorizeHref, parseAppCatalog, signInTarget } from './app-catalog';
 
 describe('app catalog contract', () => {
     it('reads apps and clamps the refresh interval', () => {
@@ -22,9 +22,10 @@ describe('app catalog contract', () => {
         expect(parseAppCatalog(true, { apps: [] })).toEqual({ status: 'ready', apps: [], refreshAfter: 60 });
         expect(parseAppCatalog(true, { nope: true })).toEqual({ status: 'unavailable' });
     });
-    it('recognises both spellings of a missing grant', () => {
-        expect(parseAppCatalog(false, { authorize_url: '/acme/apps/authorize' })).toEqual({ status: 'authorization_required', authorizeUrl: '/acme/apps/authorize' });
-        expect(parseAppCatalog(false, { state: 'authorization_required' })).toEqual({ status: 'authorization_required', authorizeUrl: null });
+    it('reads signin_url, and both legacy spellings of a missing grant', () => {
+        expect(parseAppCatalog(false, { signin_url: '/auth/cbox' })).toEqual({ status: 'signin_required', signinUrl: '/auth/cbox', authorizeUrl: null });
+        expect(parseAppCatalog(false, { authorize_url: '/acme/apps/authorize' })).toEqual({ status: 'signin_required', signinUrl: null, authorizeUrl: '/acme/apps/authorize' });
+        expect(parseAppCatalog(false, { state: 'authorization_required' })).toEqual({ status: 'signin_required', signinUrl: null, authorizeUrl: null });
         expect(parseAppCatalog(false, { error: 'catalog_unavailable' })).toEqual({ status: 'unavailable' });
         expect(parseAppCatalog(false, null)).toEqual({ status: 'unavailable' });
     });
@@ -34,8 +35,24 @@ describe('app catalog contract', () => {
         expect(authorizeHref('https://evil.test/authorize', here)).toBeNull();
         expect(authorizeHref(null, here)).toBeNull();
     });
-    it('renders a labelled trigger, disabled without an endpoint', () => {
-        expect(renderToStaticMarkup(<CboxAppCatalog endpoint="/acme/apps/catalog" currentAppKey="infra" />)).toContain('aria-label="Switch app"');
-        expect(renderToStaticMarkup(<CboxAppCatalog endpoint={null} currentAppKey="infra" />)).toContain('disabled=""');
+    it('resolves where to sign in: signin_url on this origin, else the legacy link with return_to', () => {
+        const here = { origin: 'https://infra.test', pathname: '/acme/projects', search: '' };
+        expect(signInTarget({ signinUrl: 'https://id.cbox.dk/authorize?x=1', authorizeUrl: null }, here)).toBeNull();
+        expect(signInTarget({ signinUrl: 'https://infra.test/login/launch', authorizeUrl: null }, here)).toBe('https://infra.test/login/launch');
+        expect(signInTarget({ signinUrl: '/auth/cbox', authorizeUrl: '/ignored' }, here)).toBe('https://infra.test/auth/cbox');
+        expect(signInTarget({ signinUrl: 'javascript:alert(1)', authorizeUrl: null }, here)).toBeNull();
+        expect(signInTarget({ signinUrl: 'http://evil.test/', authorizeUrl: null }, here)).toBeNull();
+        expect(signInTarget({ signinUrl: null, authorizeUrl: '/acme/apps/authorize' }, here)).toBe('https://infra.test/acme/apps/authorize?return_to=%2Facme%2Fprojects');
+        expect(signInTarget({ signinUrl: null, authorizeUrl: null }, here)).toBeNull();
+    });
+    it('renders the shared <cbox-app-switcher> element with translated labels', () => {
+        const html = renderToStaticMarkup(<CboxAppCatalog endpoint="/acme/apps/catalog" currentAppKey="infra" className="ml-1" />);
+        expect(html).toMatch(/^<cbox-app-switcher /);
+        expect(html).toContain('endpoint="/acme/apps/catalog"');
+        expect(html).toContain('current="infra"');
+        expect(html).toContain('class="ml-1"');
+        expect(html).toContain('&quot;title&quot;:&quot;Switch app&quot;');
+        expect(html).not.toMatch(/reconnect|try again/i);
+        expect(renderToStaticMarkup(<CboxAppCatalog endpoint={null} currentAppKey="infra" />)).toContain('endpoint=""');
     });
 });

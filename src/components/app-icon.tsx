@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { cn } from '../utils/cn';
+import { initials, readKnownAppCatalog, secureIconUrl, subscribeKnownAppCatalog, type CboxKnownApp } from '../app-switcher/catalog';
 
 /**
  * Every Cbox app's icon comes from Cbox ID's catalog: one light and one dark upload per app
@@ -7,89 +8,14 @@ import { cn } from '../utils/cn';
  * app. The last catalog the browser saw is kept here so an app's own mark and the switcher
  * paint at once on the next page; the live answer replaces it when it arrives.
  */
-export type CboxKnownApp = { key: string; name: string; icon_url: string | null; icon_dark_url: string | null };
+export type { CboxKnownApp } from '../app-switcher/catalog';
+export { readKnownAppCatalog, rememberAppCatalog, secureIconUrl } from '../app-switcher/catalog';
 
-const KEPT = 'cbox-app-catalog';
-const EVENT = 'cbox-app-catalog';
 const EMPTY: CboxKnownApp[] = [];
-let cache: { raw: string | null; apps: CboxKnownApp[] } = { raw: null, apps: EMPTY };
-
-function storage(): Storage | null {
-    try {
-        return typeof window === 'undefined' ? null : window.localStorage;
-    } catch {
-        return null;
-    }
-}
-
-/** The kept catalog, read outside React (the hook below is the way in for components). */
-export function readKnownAppCatalog(): CboxKnownApp[] {
-    let raw: string | null = null;
-    try {
-        raw = storage()?.getItem(KEPT) ?? null;
-    } catch {
-        raw = null;
-    }
-    if (raw === cache.raw) return cache.apps;
-    let apps: CboxKnownApp[] = EMPTY;
-    try {
-        const value: unknown = raw === null ? [] : JSON.parse(raw);
-        if (Array.isArray(value)) {
-            apps = value.flatMap((entry: unknown) => {
-                if (typeof entry !== 'object' || entry === null) return [];
-                const app = entry as Record<string, unknown>;
-                if (typeof app.key !== 'string' || typeof app.name !== 'string') return [];
-                return [{ key: app.key, name: app.name, icon_url: secureIconUrl(app.icon_url), icon_dark_url: secureIconUrl(app.icon_dark_url) }];
-            });
-        }
-    } catch {
-        apps = EMPTY;
-    }
-    cache = { raw, apps };
-
-    return apps;
-}
-
-function subscribe(change: () => void): () => void {
-    if (typeof window === 'undefined') return () => undefined;
-    const storageChange = (event: StorageEvent) => { if (event.key === KEPT) change(); };
-    document.addEventListener(EVENT, change);
-    window.addEventListener('storage', storageChange);
-    return () => {
-        document.removeEventListener(EVENT, change);
-        window.removeEventListener('storage', storageChange);
-    };
-}
-
-/** Keep the catalog the person just loaded, so every mark on this origin repaints from it. */
-export function rememberAppCatalog(apps: ReadonlyArray<{ key: string; name: string; icon_url?: string | null; icon_dark_url?: string | null }>): void {
-    const kept = apps.map(({ key, name, icon_url, icon_dark_url }) => ({ key, name, icon_url: icon_url ?? null, icon_dark_url: icon_dark_url ?? null }));
-    try {
-        storage()?.setItem(KEPT, JSON.stringify(kept));
-    } catch {
-        // A private window or blocked storage: the marks fall back until the next live answer.
-    }
-    if (typeof document !== 'undefined') document.dispatchEvent(new CustomEvent(EVENT));
-}
 
 /** The last catalog this browser kept; empty on the server and before the first answer. */
 export function useKnownAppCatalog(): CboxKnownApp[] {
-    return useSyncExternalStore(subscribe, readKnownAppCatalog, () => EMPTY);
-}
-
-/** Only `https:` icon URLs are rendered: the icons are hosted by Cbox ID. */
-export function secureIconUrl(url: unknown): string | null {
-    if (typeof url !== 'string' || url === '') return null;
-    try {
-        const parsed = new URL(url);
-        return parsed.protocol === 'https:' ? parsed.href : null;
-    } catch {
-        return null;
-    }
-}
-
-function initials(name: string): string {
-    return name.replace(/^Cbox\s*·\s*/i, '').slice(0, 2);
+    return useSyncExternalStore(subscribeKnownAppCatalog, readKnownAppCatalog, () => EMPTY);
 }
 
 export type CboxAppIconProps = {

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.0 — 2026-11-10
+
+One Switch-app control for every Cbox app. Until now each Blade app carried its own copy of `app-switcher.ts` and its CSS, and they had drifted apart.
+
+- New entry `@cboxdk/cbox-ui/app-switcher` (ESM, no React): importing it defines `<cbox-app-switcher endpoint current labels theme>` and `<cbox-service-mark service theme>`. Both render in a shadow root with their own styles (constructed stylesheets, so a strict `style-src` CSP is fine), so no app stylesheet can change them; they take only the Cbox colour tokens, each with a fallback.
+- Icons only from the catalog's `icon_url`/`icon_dark_url`, swapped with the theme (`.dark`/`[data-theme]` on the root, else `prefers-color-scheme`; `theme="class"` for hosts whose tokens only follow `.dark`). Initials, on the same small tile, when an app has no icon or its icon fails; a real icon never sits on a tile.
+- **Breaking:** no "Reconnect to Cbox ID" link and no "Try again" button. A `401 { signin_url }` sends the top window to `signin_url` when the person opens the control; the legacy `{ authorize_url }` the same way with `return_to`. A guard stops it from looping. Network and server errors show "Apps could not be loaded." and retry by themselves with backoff. The `retry` and `reconnect` labels are ignored.
+- **Breaking:** `CboxAppCatalogState`'s `authorization_required` is now `signin_required` with `signinUrl` and `authorizeUrl`. `signInTarget` is exported.
+- `CboxAppCatalog` is now a thin wrapper that renders `<cbox-app-switcher>`, so React and Blade apps are identical. It takes `theme`.
+- The kept catalog (`localStorage` `cbox-app-catalog`) also keeps `launch_url`, so the grid paints at once on the next page. `readKnownAppCatalog` is exported from the root entry.
+- Arrow keys, Home and End move between tiles; Tab stays in the panel; Escape closes it and gives focus back to the button.
+
 ## 0.8.0 — 2026-11-10
 
 App icons come from Cbox ID's catalog, one light and one dark upload per app. No app keeps a local copy of the marks.
