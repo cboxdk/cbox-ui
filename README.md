@@ -250,7 +250,7 @@ its own answer):
   same sign-in was tried in the last 30 seconds and the catalog still refuses, it shows "Apps
   could not be loaded." instead, so it never loops. The legacy `{ authorize_url }` is followed
   the same way, with `return_to` set to the current path (same-origin URLs only).
-  `signin_url` may be any `https:` URL or one on this origin.
+  `signin_url` must be on the app's own origin; anything else is ignored.
 - Anything else, or no network — "Apps could not be loaded.", quietly, and it tries again by
   itself (2 s, 4 s, 8 s … up to 60 s). A grid it already shows stays.
 
