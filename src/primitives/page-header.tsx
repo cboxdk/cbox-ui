@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { useCboxLocalization } from '../context/localization';
+import { useShellHelp } from '../shell/context';
 import { cn } from '../utils/cn';
 
 type Props = {
@@ -11,6 +13,11 @@ type Props = {
     eyebrow?: ReactNode;
     description?: ReactNode;
     actions?: ReactNode;
+    /**
+     * Show the `?` beside the title that toggles the shell's Help column (spec §7.1). The page's
+     * help topic itself travels in `shell.help.topic`. Ignored outside `CboxShell`.
+     */
+    help?: boolean;
     className?: string;
 };
 
@@ -25,8 +32,11 @@ export function PageHeader({
     eyebrow,
     description,
     actions,
+    help = false,
     className,
 }: Props) {
+    const { t } = useCboxLocalization();
+    const shellHelp = useShellHelp();
     return (
         <header
             className={cn(
@@ -40,9 +50,22 @@ export function PageHeader({
                         {eyebrow}
                     </p>
                 ) : null}
-                <h1 className="text-2xl leading-tight font-semibold tracking-tight text-foreground">
-                    {title}
-                </h1>
+                <div className="flex items-center gap-2">
+                    <h1 className="text-2xl leading-tight font-semibold tracking-tight text-foreground">
+                        {title}
+                    </h1>
+                    {help && shellHelp !== null ? (
+                        <button
+                            type="button"
+                            onClick={() => shellHelp.toggleHelp()}
+                            aria-label={t('Help for this page')}
+                            aria-controls="cbx-help"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border text-xs font-semibold text-muted-foreground hover:border-accent-edge hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                            ?
+                        </button>
+                    ) : null}
+                </div>
                 {description ? (
                     <p className="text-sm text-muted-foreground">
                         {description}

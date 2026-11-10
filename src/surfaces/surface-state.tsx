@@ -20,7 +20,7 @@ const SurfaceContext = createContext<SurfaceController | null>(null);
 
 /**
  * Mount the cbox-ui surface runtime once per app, alongside the
- * page tree. The host's chrome (bell, search trigger) reads
+ * page tree. The host's chrome (the bell) reads
  * `useCboxSurfaces()` to open surfaces; cbox-ui renders the
  * active one as a modal/drawer over the page.
  *
@@ -80,10 +80,6 @@ export function CboxSurfaces({
                     open={active?.id === 'inbox'}
                     onClose={close}
                 />
-                {/* Search / activity / help surfaces will render here
-                  * as additional `<Surface open={…} onClose={…} />`
-                  * lines once shipped. They're additive — adding a
-                  * new surface doesn't change anything in hosts. */}
             </SurfaceContext.Provider>
         </TransportContext.Provider>
     );
@@ -106,7 +102,7 @@ export function useCboxSurfaces(): SurfaceController {
 
 /**
  * Optional variant — returns `null` when no `<CboxSurfaces>` host is
- * mounted. Chrome controls (bell, search trigger) use this to
+ * mounted. Chrome controls (the bell) use this to
  * degrade gracefully to cross-app navigation when the host hasn't
  * opted into the surface runtime yet.
  */
