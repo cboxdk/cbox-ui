@@ -95,12 +95,25 @@ for (const theme of ['light', 'dark'] as const) {
             });
 
             test('help left open on load', async ({ page }) => {
-                await open(page, theme, '&help=1');
-                await page.getByRole('button', { name: 'Organization: Cbox' }).hover();
+                // Another page than the "help with updates" state: Help is docked, untouched (no
+                // focus, no search), and "On this page" follows the page.
+                await open(page, theme, '&help=1&page=releases');
                 await expect(page.getByRole('complementary', { name: 'Help' })).toBeVisible();
+                await expect(page.getByRole('complementary', { name: 'Help' }).getByText('Releases')).toBeVisible();
+                await expect(page.getByRole('button', { name: /Deploy stuck/ })).toBeVisible();
                 await page.mouse.move(700, 450);
                 await settle(page);
                 await expect(page).toHaveScreenshot(`${theme}-help-open-on-load.png`);
+            });
+
+            test('help left open, on a narrow window', async ({ page }) => {
+                // Below 1280px Help left open waits for the person: the page is not covered.
+                await page.setViewportSize({ width: 1100, height: 800 });
+                await open(page, theme, '&help=1');
+                await expect(page.getByRole('button', { name: /^Help/ })).toHaveAttribute('aria-pressed', 'false');
+                await expect(page.locator('#cbx-help')).toBeHidden();
+                await settle(page);
+                await expect(page).toHaveScreenshot(`${theme}-help-left-open-narrow.png`);
             });
         });
 

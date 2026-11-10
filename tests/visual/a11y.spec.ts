@@ -1,0 +1,94 @@
+import AxeBuilder from '@axe-core/playwright';
+import { expect, test, type Page } from '@playwright/test';
+
+/**
+ * axe on every open state of the shell (spec §12.2), light and dark: the menus, the palette,
+ * Help, the app grid, the account menu and the phone sheets. A violation fails the run.
+ */
+
+async function open(page: Page, theme: 'light' | 'dark', query = ''): Promise<void> {
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+    await page.goto(`/?theme=${theme}${query}`);
+    await page.locator('.cbx-shell').waitFor();
+    await page.waitForLoadState('networkidle');
+}
+
+async function audit(page: Page): Promise<void> {
+    const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice']).exclude('.fixture-page').analyze();
+    const found = result.violations.map(violation => `${violation.id}: ${violation.help}\n  ${violation.nodes.map(node => node.target.join(' ')).join('\n  ')}`);
+    expect(found, found.join('\n')).toEqual([]);
+}
+
+for (const theme of ['light', 'dark'] as const) {
+    test.describe(`axe ${theme}`, () => {
+        test('closed', async ({ page }) => {
+            await open(page, theme);
+            await audit(page);
+        });
+
+        test('palette', async ({ page }) => {
+            await open(page, theme);
+            await page.getByRole('button', { name: 'Search or ask…' }).click();
+            await page.getByRole('combobox', { name: 'Search or ask…' }).fill('deploy');
+            await expect(page.getByRole('option', { name: /Deployment 3f9c21a/ })).toBeVisible();
+            await audit(page);
+        });
+
+        test('help', async ({ page }) => {
+            await open(page, theme);
+            await page.getByRole('button', { name: /^Help/ }).click();
+            await expect(page.getByRole('button', { name: /Deploy stuck/ })).toBeVisible();
+            await audit(page);
+        });
+
+        test.describe('desktop', () => {
+            test.skip(({ isMobile }) => isMobile, 'The phone opens these as sheets.');
+
+            test('organization menu', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: 'Organization: Cbox' }).click();
+                await expect(page.getByRole('option', { name: /Acme ApS/ })).toBeVisible();
+                await audit(page);
+            });
+
+            test('cascade', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: /Project: Webshop/ }).click();
+                await expect(page.getByRole('option', { name: /Preview/ })).toBeVisible();
+                await audit(page);
+            });
+
+            test('app switcher', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: 'Switch app' }).click();
+                await expect(page.getByRole('region', { name: 'More from Cbox' })).toBeVisible();
+                await audit(page);
+            });
+
+            test('account menu', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: 'Account and preferences' }).click();
+                await expect(page.getByRole('menu', { name: 'Account' })).toBeVisible();
+                await audit(page);
+            });
+        });
+
+        test.describe('phone', () => {
+            test.skip(({ isMobile }) => !isMobile, 'Desktop opens these as menus.');
+
+            test('context sheet', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: /Where you are/ }).click();
+                await expect(page.getByRole('dialog', { name: 'Where you are' }).getByRole('option', { name: /Sandbox/ })).toBeVisible();
+                await audit(page);
+            });
+
+            test('navigation sheet', async ({ page }) => {
+                await open(page, theme);
+                await page.getByRole('button', { name: 'Open navigation' }).click();
+                await expect(page.getByRole('menuitem', { name: 'Sign out' })).toBeAttached();
+                await audit(page);
+            });
+        });
+    });
+}

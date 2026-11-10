@@ -5,7 +5,8 @@ const PORT = 4177;
 /**
  * Visual snapshots of the shell's open states (spec §12.3): desktop 1440 and mobile 390, light
  * and dark. `bun run test:visual`; after an intended change, `bun run test:visual:update` and
- * review the new images. The snapshots are made on macOS (Chromium headless shell).
+ * review the new images. Both run in the pinned Playwright container (scripts/visual.sh), the same
+ * one CI uses, so the Linux baselines match pixel for pixel.
  */
 export default defineConfig({
     testDir: 'tests/visual',

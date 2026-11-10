@@ -2,7 +2,7 @@
  * The fixture page the visual snapshots render: the real `CboxShell` on the fixture `shell` prop,
  * a stand-in Deployments page, and the tokens and shell CSS as published. Query parameters:
  * `theme=light|dark`, `sandbox=1` (the current environment has test data), `help=1` (Help was
- * left open).
+ * left open), `page=releases` (another page of the Deploy area).
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -18,6 +18,10 @@ const shell = makeShell({
 });
 shell.preferences.theme = theme;
 shell.preferences.helpOpen = params.get('help') === '1';
+if (params.get('page') === 'releases') {
+    shell.page = { title: 'Releases', route: 'releases.index' };
+    shell.nav.activePage = 'releases';
+}
 if (params.get('sandbox') === '1') shell.context.levels[2]!.current = ENVIRONMENTS.prj_webshop![1]!;
 // `<cbox-support>` stands in for the Assistant SDK: the snapshots never load a real chat.
 shell.help.scriptUrl = '/support-stub.js';
@@ -33,7 +37,7 @@ function Page() {
     return (
         <div className="fixture-page">
             <p className="fixture-eyebrow">Webshop · {shell.context.levels[2]!.current.name}</p>
-            <h1 className="fixture-title">Deployments</h1>
+            <h1 className="fixture-title">{shell.page?.title ?? 'Deployments'}</h1>
             <p className="fixture-desc">Every push to main is built and deployed to this environment.</p>
             <div className="fixture-card">
                 {rows.map(([commit, message, status, when]) => (
