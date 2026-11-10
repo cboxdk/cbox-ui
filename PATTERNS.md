@@ -220,7 +220,7 @@ matches the current URL — there is no `activeTab` prop, no
 
 | Width | Layout                                                                                    |
 | ----- | ----------------------------------------------------------------------------------------- |
-| ≥ sm  | Horizontal underline strip + optional `actions` slot to the right. Sticky under the TopBar. |
+| ≥ sm  | Horizontal underline strip + optional `actions` slot to the right. Sticky under the shell's header. |
 | < sm  | Dropdown (active tab + chevron). Opens to a panel with the full list. Actions stack below. |
 
 This is the **only** section-nav layout. No vertical rails, no chip
@@ -343,8 +343,8 @@ review (and eventually as an eslint-no-restricted-imports rule).
   Case-insensitive substring match.
 - Keyboard contract: ↑/↓ move highlight, Home/End jump to bounds,
   Enter selects, Escape closes, Tab exits without selecting.
-- Optional avatar per option (`{initials, accent, src}`) — same
-  shape as ContextBar's avatar.
+- Optional avatar per option (`{initials, accent, src}`): a small
+  initials chip like the shell's context menus.
 - Optional grouped sections via `ComboboxGroup`.
 - Optional empty-state text when filter excludes everything.
 - Optional footer link ("+ New X") at the bottom of the panel.
@@ -353,92 +353,52 @@ review (and eventually as an eslint-no-restricted-imports rule).
   - **Navigation mode** (items have `href`, `LinkComponent` is set):
     each option is a Link.
 
-## 2.d. Identity + context up top, navigation in the rail
+## 2.d. Context up top, navigation and the account in the rail
 
-The chrome split across every Cbox app:
+One shell for every app (`CboxShell`, spec `docs/specs/2026-11-10-shell-v1.md`):
 
 ```
-TOPBAR     [drawer] [collapse] [BRAND] / [ContextBar] … [actions] [⌘K] [Apps] [Bell] [User]
-SIDEBAR    [nav sections only — Workspace, Security, Billing, Organization, …]
+RAIL     [app] areas … [account]
+HEADER   [C] Cbox ⇕ / [W] Webshop · ■ Production ⇕   [Search or ask… ⌘K] [Help] [Bell?] [Switch app]
+SUBNAV   the area's pages, when it has more than one
 ```
 
-The brand mark and the contextual selectors (org / project / env /
-branch as those layers grow) live in the **top bar**. The sidebar is
-**pure navigation** — labelled rails, no brand, no org card, no user
-identity card.
+- **The tenant is an Organization**, in every app and every string. Level 2 is named by the
+  app (Project, Site, Space, Status page); level 3 is Environment.
+- **Two triggers, styled the same:** the organization, and one for level 2 and 3 together
+  (the cascade). No borders, a hover background, 32px tall, a light `/` between them.
+- **Every menu has search** (it focuses itself only with a fine pointer), lists load lazily
+  from the level's `listUrl`, and **New …** asks only for a name, creates it and lands on its
+  details page. Never a dead end.
+- **Switching keeps the page** when it exists in the new context; an entity page falls back
+  to its area's list. The URL is the state (`/orgs/{org}/…`).
+- **The account lives at the bottom of the rail**, never in the header. The header's right
+  side is the same in every app: Search, Help, the bell only when the app has a source,
+  Switch app.
+- **Density:** rows at least 40px, 12px row padding, 4px between rows, 8px around a list,
+  12px inside a pane; names truncate with the full name in a tooltip.
 
-This is the cloud-platform standard (Vercel, Render, Forge, Cortex,
-GitHub, Stripe). It scales:
+Environments are app-defined: each row may carry a `tone` (production, sandbox, neutral), a
+short `label` and `testData`. The shell never sorts them, and the sandbox strip shows only
+while the current one has test data.
 
-- id today: 1 crumb (org)
-- cortex tomorrow: 3 crumbs (org / project / environment)
-- atlas later: 4 crumbs (org / project / region / cluster)
+## 3. The shell lives in cbox-ui
 
-The same `<ContextBar>` primitive renders all of those. Each app
-populates its crumbs from its own data source.
+The rail, header, context menus, palette, Help column, app switcher, account menu and the
+phone sheets are owned by cbox-ui and described by one server-built prop, `shell`
+(laravel-console-kit). An app never draws its own: no copied `shared-shell.css`,
+`app-switcher.ts`, `Shell.tsx` or `chrome/*`.
 
-```tsx
-import { ContextBar } from '@cboxdk/cbox-ui';
+### Changing the shell
 
-<ContextBar
-    LinkComponent={Link}
-    crumbs={[
-        {
-            id: 'org',
-            label: org.name,
-            avatar: { initials: 'CB' },
-            items: orgs.map((o) => ({
-                id: o.slug,
-                label: o.name,
-                secondary: o.slug,
-                avatar: { initials: deriveInitials(o.name) },
-                current: o.slug === org.slug,
-            })),
-            onSelect: (slug) => switchOrg(slug),
-            footerLink: {
-                label: 'Manage organizations',
-                href: '/settings/organizations',
-            },
-            ariaLabel: 'Switch organization',
-        },
-        // optional: project crumb
-        // optional: env crumb
-    ]}
-/>
-```
+1. Change `src/shell/*` and the `Shell` type together; the type is the public contract.
+2. Add a unit test for the behaviour and, for anything visible, a state in
+   `tests/visual/shell.spec.ts`; run `bun run test:visual` and look at the images.
+3. A changed or removed field in `Shell` is a breaking minor while we are 0.x.
+4. console-kit produces the new field in the same round.
 
-### Why not the OrgCard in the sidebar?
-
-The OrgCard pattern competes with the rail's nav for vertical space,
-breaks down at 3+ levels of context, and scatters identity across
-two chromes (sidebar vs topbar). The split-chrome model puts every
-"who am I / where am I" signal in one row at the top of every page,
-and frees the sidebar to be a pure information-architecture rail.
-
-## 3. Chrome lives in cbox-ui
-
-The cross-app chrome — TopBar, OrgSwitcher, AppLauncher, UserMenu,
-NotificationsBell, AppShell, AppContent — is owned by cbox-ui. Apps
-mount `<CboxIdProvider>` once, populate it from their identity
-source, and consume the chrome.
-
-The contract is enforced by `useCboxId()` throwing when no provider
-is present. The exception is `useCboxIdOptional()` for chrome
-components that should gracefully no-op when an unauthenticated
-surface (admin tools without an org context, etc.) renders them.
-
-### Adding a new chrome control
-
-1. Build the component in `cbox-ui/src/components/<name>.tsx`.
-2. Read context via `useCboxId()` (or `useCboxIdOptional()` for
-   defensive cases).
-3. Export from `cbox-ui/src/index.ts`.
-4. Bump cbox-ui minor version if the change is additive; major-minor
-   if any existing consumer breaks.
-5. Update consuming apps' `package.json`.
-
-Never duplicate chrome in an app. If id and cortex both render an
-"environment switcher", that switcher belongs in cbox-ui, period.
+Never duplicate the shell in an app. If an app needs something the shell lacks, that is a
+cbox-ui change.
 
 ---
 
@@ -544,6 +504,11 @@ right ARIA roles, and respects `prefers-reduced-motion`. Failing
 this in PR review is reason enough to send it back.
 
 Specifics that come up:
+- Menus are listboxes or `role="menu"` with roving focus: ↑↓ Home End Enter Esc work, Tab
+  leaves, and focus returns to the trigger on close.
+- Search fields focus themselves only on `(hover: hover) and (pointer: fine)`, never on touch.
+- Targets are at least 32px on desktop and 44px on a coarse pointer.
+- Sheets and overlays trap focus only while they are modal.
 - Popovers close on Escape and click-outside.
 - Tab strips have `role="tablist"` and links carry
   `aria-current="page"` when active.
