@@ -13,6 +13,7 @@ import { helpVisible, sharedHelpStore, type HelpStore } from './help-store';
 import { resolveIcon, type ShellIcon } from './icons';
 import { HELP_DOCKED, MOBILE, matches, useMedia } from './media';
 import { ContextSheet, NavSheet } from './mobile';
+import { NavPageList, NavPageMarks, navUrl } from './nav-pages';
 import { CommandPalette } from './palette';
 import { Popover } from './popover';
 import { scopeLists } from './use-list';
@@ -39,7 +40,7 @@ export type CboxShellProps = {
     helpStore?: HelpStore;
     /** Where the Cbox wordmark is served. Default `/brand`. */
     brandAssetBase?: string;
-    /** `id` of the `<main>` landmark for a skip link. Default `main-content`. */
+    /** `id` of the `<main>` landmark, which the shell's "Skip to content" link targets. Default `main-content`. */
     mainId?: string;
 };
 
@@ -195,18 +196,31 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
     return (
         <ShellContext.Provider value={api}>
             <div className="cbx-shell" data-help-open={helpOpen}>
+                <a
+                    className="cbx-skip-link"
+                    href={`#${mainId}`}
+                    onClick={event => {
+                        const main = document.getElementById(mainId);
+                        if (main === null) return;
+                        event.preventDefault();
+                        main.focus();
+                        main.scrollIntoView?.({ block: 'start' });
+                    }}
+                >
+                    {t('Skip to content')}
+                </a>
                 <Rail brandAssetBase={brandAssetBase} />
                 <div className="cbx-shell-column">
                     <Header mobile={mobile} />
                     {banner !== undefined && (
                         <div className={`cbx-banner cbx-banner-${banner.kind}`} role="status">
                             <span className="cbx-banner-text">{banner.text}</span>
-                            {banner.action !== undefined && <LinkComponent href={banner.action.url} className="cbx-banner-action">{banner.action.label}</LinkComponent>}
+                            {banner.action !== undefined && <LinkComponent href={navUrl(banner.action)} className="cbx-banner-action">{banner.action.label}</LinkComponent>}
                         </div>
                     )}
                     <div className="cbx-shell-body">
                         <Subnav />
-                        <main id={mainId} className="cbx-shell-main canvas-gradient">{children}</main>
+                        <main id={mainId} tabIndex={-1} className="cbx-shell-main canvas-gradient">{children}</main>
                     </div>
                 </div>
                 <HelpColumn docked={docked} />
@@ -272,7 +286,7 @@ function Rail({ brandAssetBase }: { brandAssetBase: string }) {
                         const Icon = resolveIcon(area.icon, icons);
                         const active = area.key === shell.nav.activeArea;
                         return (
-                            <Link key={area.key} href={area.url} className={`cbx-rail-link ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined} title={open ? undefined : area.label} aria-label={area.label}>
+                            <Link key={area.key} href={navUrl(area)} className={`cbx-rail-link ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined} title={open ? undefined : area.label} aria-label={area.label}>
                                 <Icon size={18} strokeWidth={1.7} aria-hidden />
                                 <span className="cbx-rail-label">{area.label}</span>
                             </Link>
@@ -329,14 +343,18 @@ function Subnav() {
                 </button>
             </div>
             <nav aria-label={area.label} className="cbx-subnav-list">
-                {pages.map(page => {
-                    const active = page.key === shell.nav.activePage;
-                    return (
-                        <Link key={page.key} href={page.url} className={`cbx-subnav-link ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined}>
-                            <span className="cbx-truncate" title={page.label}>{page.label}</span>
-                        </Link>
-                    );
-                })}
+                <NavPageList
+                    pages={pages}
+                    renderPage={page => {
+                        const active = page.key === shell.nav.activePage;
+                        return (
+                            <Link key={page.key} href={navUrl(page)} className={`cbx-subnav-link ${active ? 'is-active' : ''} ${page.locked === true ? 'is-locked' : ''}`} aria-current={active ? 'page' : undefined} data-locked={page.locked === true ? 'true' : undefined}>
+                                <span className="cbx-truncate" title={page.label}>{page.label}</span>
+                                <NavPageMarks page={page} />
+                            </Link>
+                        );
+                    }}
+                />
             </nav>
         </aside>
     );

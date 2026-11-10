@@ -45,7 +45,8 @@ type View = 'main' | 'language' | 'format' | 'timeZone';
  */
 export function AccountMenu({ inline = false, onDone }: { inline?: boolean; onDone?: () => void }) {
     const { shell, t, preferences, setPreference, navigate } = useShell();
-    const { account, person } = shell;
+    const { person } = shell;
+    const account = shell.account ?? {};
     const [view, setView] = useState<View>('main');
     const menu = useRef<HTMLDivElement>(null);
     // In the mobile sheet the items are ordinary tab stops; as a popover they rove.
@@ -92,11 +93,13 @@ export function AccountMenu({ inline = false, onDone }: { inline?: boolean; onDo
                 </div>
             </div>
             <div className="cbx-list" role="none">
-                <a role="menuitem" tabIndex={tab} className="cbx-row cbx-row-action" href={account.profileUrl} onClick={onDone}>
-                    <UserRound size={16} strokeWidth={1.8} aria-hidden />
-                    <span className="cbx-row-name">{t('Profile and security')}</span>
-                    <ArrowUpRight className="cbx-row-trail" size={14} strokeWidth={1.8} aria-hidden />
-                </a>
+                {account.profileUrl !== undefined && (
+                    <a role="menuitem" tabIndex={tab} className="cbx-row cbx-row-action" href={account.profileUrl} onClick={onDone}>
+                        <UserRound size={16} strokeWidth={1.8} aria-hidden />
+                        <span className="cbx-row-name">{t('Profile and security')}</span>
+                        <ArrowUpRight className="cbx-row-trail" size={14} strokeWidth={1.8} aria-hidden />
+                    </a>
+                )}
                 <button role="menuitem" tabIndex={tab} type="button" className="cbx-row cbx-row-action" aria-haspopup="listbox" onClick={() => setView('language')}>
                     <Globe size={16} strokeWidth={1.8} aria-hidden />
                     <span className="cbx-row-name">{t('Language')}</span>
@@ -135,18 +138,24 @@ export function AccountMenu({ inline = false, onDone }: { inline?: boolean; onDo
                     </div>
                 </div>
             </div>
-            <div className="cbx-list cbx-list-foot" role="none">
-                {/* A plain link, so it is a full page load: switching account goes through Cbox ID,
-                    which an Inertia visit could not follow cross-origin. */}
-                <a role="menuitem" tabIndex={tab} className="cbx-row cbx-row-action" href={account.switchAccountUrl} onClick={onDone}>
-                    <Users size={16} strokeWidth={1.8} aria-hidden />
-                    <span className="cbx-row-name">{t('Switch account')}</span>
-                </a>
-                <button role="menuitem" tabIndex={tab} type="button" className="cbx-row cbx-row-action" onClick={() => { onDone?.(); navigate(account.signOutUrl, { method: account.signOutMethod ?? 'post' }); }}>
-                    <LogOut size={16} strokeWidth={1.8} aria-hidden />
-                    <span className="cbx-row-name">{t('Sign out')}</span>
-                </button>
-            </div>
+            {(account.switchAccountUrl !== undefined || account.signOutUrl !== undefined) && (
+                <div className="cbx-list cbx-list-foot" role="none">
+                    {/* A plain link, so it is a full page load: switching account goes through Cbox ID,
+                        which an Inertia visit could not follow cross-origin. */}
+                    {account.switchAccountUrl !== undefined && (
+                        <a role="menuitem" tabIndex={tab} className="cbx-row cbx-row-action" href={account.switchAccountUrl} onClick={onDone}>
+                            <Users size={16} strokeWidth={1.8} aria-hidden />
+                            <span className="cbx-row-name">{t('Switch account')}</span>
+                        </a>
+                    )}
+                    {account.signOutUrl !== undefined && (
+                        <button role="menuitem" tabIndex={tab} type="button" className="cbx-row cbx-row-action" onClick={() => { onDone?.(); navigate(account.signOutUrl!, { method: account.signOutMethod ?? 'post' }); }}>
+                            <LogOut size={16} strokeWidth={1.8} aria-hidden />
+                            <span className="cbx-row-name">{t('Sign out')}</span>
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+All additions are optional fields; a 0.10.0 `shell` prop renders as before.
+
+### Added
+
+- "Skip to content": a link hidden until it has focus, the shell's first focusable element. It moves focus to `<main>` (`mainId`, default `main-content`), which is now focusable (`tabIndex={-1}`).
+- `NavPage.locked`: a lock and an accessible "(locked)" in the subnav and the phone nav; the page's `url` leads to the upgrade prompt. The palette's Pages show it as "Locked".
+- `NavPage.count`: a badge in the subnav and the phone nav, hidden at 0.
+- `NavPage.group`: group headings within an area's subnav and phone nav, each an ARIA group; pages of one group show together.
+- `shell.palette.placeholder`: the app's text for the palette's search field (default "Search or ask…").
+
+### Changed
+
+- `shell.account` and its `profileUrl`, `switchAccountUrl` and `signOutUrl` are optional. The account menu leaves out a row without its URL; without `account` it holds only the preferences, where it used to throw. laravel-console-kit builds `account` with `->account()`.
+
+### Fixed
+
+- Nav areas, nav pages and the banner action also read `href` when `url` is absent. laravel-console-kit 0.2.2 sends `href`, so these links were empty.
+
 ## 0.10.0 — 2026-11-10
 
 One shell for every Cbox app (spec `docs/specs/2026-11-10-shell-v1.md`). It replaces the two shell models, the five organization switchers and the hand-placed support of 0.9.
