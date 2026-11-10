@@ -16,8 +16,13 @@ jobs:
                   bun-version: latest
             - run: bun install --frozen-lockfile
             - run: bun run typecheck
+            - run: bun run test
             - run: bun run build
             - name: Verify build output exists
               run: |
                   test -f dist/index.js
                   test -f dist/index.d.ts
+                  test -f dist/app-switcher.js
+                  test -f dist/app-switcher.d.ts
+                  # The framework-free entry and the chunks it loads must not import React.
+                  ! grep -l "from ['\"]react" dist/app-switcher.js $(grep -o "chunk-[A-Za-z0-9_-]*\.js" dist/app-switcher.js | sed 's|^|dist/|')

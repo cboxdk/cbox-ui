@@ -51,6 +51,7 @@ export {
     CboxAppCatalog,
     authorizeHref,
     parseAppCatalog,
+    signInTarget,
     type CboxAppCatalogProps,
     type CboxAppCatalogState,
     type CboxCatalogApp,
@@ -58,6 +59,7 @@ export {
 export {
     CboxAppIcon,
     CboxServiceMark,
+    readKnownAppCatalog,
     rememberAppCatalog,
     secureIconUrl,
     useKnownAppCatalog,

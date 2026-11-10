@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-    entry: { index: 'src/index.ts', charts: 'src/charts/index.ts' },
+    entry: { index: 'src/index.ts', charts: 'src/charts/index.ts', 'app-switcher': 'src/app-switcher/index.ts' },
     format: ['esm'],
     dts: true,
     sourcemap: true,
