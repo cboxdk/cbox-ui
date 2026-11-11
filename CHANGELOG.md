@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.11.0 — 2026-11-11
 
 The phone layout is the approved V6 design, plus V7's create sheet. Every addition to the
 `shell` prop and `CboxShell` is optional: a 0.10 prop renders, on a desktop as before.

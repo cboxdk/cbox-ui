@@ -473,7 +473,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                         aria-activedescendant={activeOption !== undefined ? `${id}-${active}` : undefined}
                         aria-autocomplete="list"
                         aria-label={shell.palette.placeholder ?? t('Search or ask…')}
-                        placeholder={shell.palette.placeholder ?? (mobile ? t('Search or do something on {page}', { page: topic }) : t('Search or ask…'))}
+                        placeholder={shell.palette.placeholder ?? (mobile ? t('Search, act or ask…') : t('Search or ask…'))}
                         value={input}
                         onChange={event => setInput(event.target.value)}
                         autoComplete="off"
