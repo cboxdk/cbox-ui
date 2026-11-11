@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (suggested v0.10.4)
+## v0.10.4 — 2026-11-11
 
 Backward compatible: no `shell` prop or component prop changes.
 
