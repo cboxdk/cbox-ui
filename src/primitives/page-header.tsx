@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useCboxLocalization } from '../context/localization';
-import { useShellHelp } from '../shell/context';
+import { sameTitle, useShellHelp, useShellPageTitle } from '../shell/context';
 import { cn } from '../utils/cn';
 
 type Props = {
@@ -39,6 +39,10 @@ export function PageHeader({
 }: Props) {
     const { t } = useCboxLocalization();
     const shellHelp = useShellHelp();
+    // On the phone the shell's top bar already shows the area's name large: the same title here
+    // would show twice, so it stays for screen readers only (with its `?`, which the top bar has).
+    const shellTitle = useShellPageTitle();
+    const duplicate = shellTitle !== null && typeof title === 'string' && sameTitle(title, shellTitle);
     return (
         <header
             className={cn(
@@ -52,7 +56,7 @@ export function PageHeader({
                         {eyebrow}
                     </p>
                 ) : null}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" data-cbx-same-title={duplicate ? '' : undefined}>
                     <h1 className="text-2xl leading-tight font-semibold tracking-tight text-foreground">
                         {title}
                     </h1>

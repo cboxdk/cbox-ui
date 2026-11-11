@@ -4,7 +4,7 @@ import { Avatar } from './account-menu';
 import { AppGrid, hueFor } from './app-grid';
 import { createLabel } from './create';
 import { Chip, InlineCreate, LevelPane, pickKeepingEnvironment, ToneSquare } from './context-menus';
-import { useShell, type ContextStep } from './context';
+import { sameTitle, useShell, useShellPageTitle, type ContextStep } from './context';
 import { environmentLevel, groupItems, isLive, pluralOf, quickEnvironments } from './data';
 import { helpTopicName, useUnreadCount } from './help';
 import { resolveIcon } from './icons';
@@ -697,5 +697,35 @@ export function AppsSheet({ onClose }: { onClose: () => void }) {
         <Sheet label={t('Switch app')} onClose={onClose}>
             <AppGrid autoFocus={false} />
         </Sheet>
+    );
+}
+
+/**
+ * The page under the phone chrome. It stays mounted under More, so its state survives. A heading
+ * the app marks `data-cbx-page-title` that says what the top bar already shows large is hidden
+ * on the phone (kept for screen readers), so the title is not there twice.
+ */
+export function MobilePage({ hidden, children }: { hidden: boolean; children: ReactNode }) {
+    const box = useRef<HTMLDivElement>(null);
+    const title = useShellPageTitle();
+    useEffect(() => {
+        const page = box.current;
+        if (page === null) return;
+        const mark = () => {
+            for (const heading of page.querySelectorAll<HTMLElement>('[data-cbx-page-title]')) {
+                const same = title !== null && sameTitle(heading.textContent ?? '', title);
+                if (same !== heading.hasAttribute('data-cbx-same-title')) heading.toggleAttribute('data-cbx-same-title', same);
+            }
+        };
+        mark();
+        if (typeof MutationObserver === 'undefined') return;
+        const observer = new MutationObserver(mark);
+        observer.observe(page, { childList: true, subtree: true, characterData: true });
+        return () => observer.disconnect();
+    }, [title]);
+    return (
+        <div ref={box} className="cbx-m-page" hidden={hidden}>
+            {children}
+        </div>
     );
 }

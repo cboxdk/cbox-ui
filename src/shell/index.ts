@@ -1,5 +1,5 @@
 export { CboxShell, applyTheme, themeBootScript, type CboxShellProps } from './shell';
-export { useShellCreate, useShellHelp, type ShellLinkComponent, type ShellRecordSearch } from './context';
+export { useShellCreate, useShellHelp, useShellPageTitle, type ShellLinkComponent, type ShellRecordSearch } from './context';
 export { CreateField, CreateForm, CreateRefField, CreateSubmit, type ShellCreated, type ShellCreateForm, type ShellRenderCreate } from './create';
 export { createHelpStore, type HelpArticle, type HelpState, type HelpStore, type SupportUpdate } from './help-store';
 export { contextTrail, pageIntent, type PageIntent } from './help';

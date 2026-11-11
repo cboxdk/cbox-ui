@@ -83,3 +83,21 @@ export function useShellHelp(): Pick<ShellApi, 'toggleHelp' | 'openArticle' | 'a
     const api = useContext(ShellContext);
     return api === null ? null : { toggleHelp: api.toggleHelp, openArticle: api.openArticle, ask: api.ask };
 }
+
+/** Title text compared loosely: case, spacing and a trailing colon do not matter. */
+export function sameTitle(a: string, b: string): boolean {
+    const norm = (text: string) => text.replace(/\s+/g, ' ').trim().replace(/:$/, '').toLocaleLowerCase();
+    return norm(a) !== '' && norm(a) === norm(b);
+}
+
+/**
+ * The title the phone's top bar shows large (the current area's name), or `null` on a desktop and
+ * outside the shell. A page heading that says the same is hidden on the phone (shown to screen
+ * readers), so the title is not there twice: `PageHeader` does this itself; any other heading
+ * opts in with `data-cbx-page-title`.
+ */
+export function useShellPageTitle(): string | null {
+    const api = useContext(ShellContext);
+    if (api === null || !api.mobile) return null;
+    return api.shell.nav.areas.find(area => area.key === api.shell.nav.activeArea)?.label ?? null;
+}

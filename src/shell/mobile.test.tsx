@@ -8,6 +8,8 @@ import { BILLING_ENVIRONMENTS, makeBillingShell } from './testing/billing';
 import { renderBillingCreate } from './testing/billing-forms';
 import { pillLines, tabAreas } from './mobile';
 import { quickEnvironments, isLive } from './data';
+import { scrollLockCount } from './scroll-lock';
+import { PageHeader } from '../primitives/page-header';
 
 afterEach(reset);
 
@@ -331,5 +333,84 @@ describe('desktop keeps its layout (V6 shared parts)', () => {
         reset();
         renderShell({ shell: makeShell() });
         expect(screen.queryByRole('status')).toBeNull();
+    });
+});
+
+describe('phone feel: the page holds still under a sheet', () => {
+    const locked = () => document.documentElement.hasAttribute('data-cbx-scroll-locked');
+
+    it('locks while Switch app is open over More, and lets go when it closes', async () => {
+        const { user } = phone();
+        await user.click(screen.getByRole('button', { name: 'More' }));
+        expect(locked()).toBe(false);
+        await user.click(screen.getByRole('button', { name: 'Switch app' }));
+        const sheet = screen.getByRole('dialog', { name: 'Switch app' });
+        expect(locked()).toBe(true);
+        expect(sheet.querySelector('.cbx-sheet-handle.cbx-sheet-grab')).not.toBeNull();
+        expect(sheet.querySelector('.cbx-sheet-head.cbx-sheet-grab')).not.toBeNull();
+        expect(sheet.querySelector('[data-cbx-sheet-scroll]')?.className).toContain('cbx-sheet-body');
+        await user.click(within(sheet).getByRole('button', { name: 'Close' }));
+        expect(screen.queryByRole('dialog', { name: 'Switch app' })).toBeNull();
+        expect(locked()).toBe(false);
+        expect(scrollLockCount()).toBe(0);
+    });
+
+    it('holds one lock across the context sheet’s steps', async () => {
+        const { user } = phone();
+        await user.click(screen.getByRole('button', { name: /^Where you work/ }));
+        expect(scrollLockCount()).toBe(1);
+        await user.click(await screen.findByRole('button', { name: /All \d+ environments/ }));
+        const step = screen.getByRole('dialog');
+        expect(scrollLockCount()).toBe(1);
+        await user.click(within(step).getByRole('button', { name: 'Close' }));
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(scrollLockCount()).toBe(0);
+    });
+
+    it('locks for Help and the palette, and a tap on the scrim closes', async () => {
+        const { user } = phone();
+        await user.click(screen.getByRole('button', { name: /^Help with Invoices/ }));
+        expect(locked()).toBe(true);
+        await user.click(within(screen.getByRole('dialog', { name: 'Help with Invoices' })).getByRole('button', { name: 'Close Help' }));
+        expect(locked()).toBe(false);
+        await user.click(screen.getByRole('button', { name: 'Search and commands' }));
+        expect(locked()).toBe(true);
+        const scrim = document.querySelector('.cbx-palette-backdrop')!;
+        await user.click(scrim);
+        expect(screen.queryByRole('dialog', { name: 'Search' })).toBeNull();
+        expect(locked()).toBe(false);
+    });
+
+    it('does not close when a press starts in the sheet and ends on the scrim', async () => {
+        const { user } = phone();
+        await user.click(screen.getByRole('button', { name: 'Search and commands' }));
+        const scrim = document.querySelector('.cbx-palette-backdrop')!;
+        const field = screen.getByRole('combobox', { name: 'Search or ask…' });
+        await user.pointer([{ keys: '[MouseLeft>]', target: field }, { target: scrim }, { keys: '[/MouseLeft]', target: scrim }]);
+        expect(screen.getByRole('dialog', { name: 'Search' })).toBeTruthy();
+    });
+});
+
+describe('phone: the page title is not shown twice', () => {
+    it('PageHeader keeps a title equal to the top bar’s for screen readers only, and shows a different one', () => {
+        phone({ page: <PageHeader title="billing " help /> });
+        const shown = document.querySelector('.cbx-m-title')!.textContent!;
+        expect(shown).toBe('Billing');
+        const row = screen.getByRole('heading', { level: 1, name: 'billing' }).parentElement!;
+        expect(row.hasAttribute('data-cbx-same-title')).toBe(true);
+        reset();
+        phone({ page: <PageHeader title="Invoices" /> });
+        expect(screen.getByRole('heading', { level: 1, name: 'Invoices' }).parentElement!.hasAttribute('data-cbx-same-title')).toBe(false);
+    });
+
+    it('marks an app’s own heading that opts in with data-cbx-page-title', async () => {
+        phone({ page: <><h1 data-cbx-page-title="">Billing</h1><h2 data-cbx-page-title="">Overdue</h2></> });
+        await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Billing' }).hasAttribute('data-cbx-same-title')).toBe(true));
+        expect(screen.getByRole('heading', { level: 2, name: 'Overdue' }).hasAttribute('data-cbx-same-title')).toBe(false);
+    });
+
+    it('leaves the desktop heading alone', () => {
+        renderShell({ shell: makeBillingShell(), page: <PageHeader title="Billing" /> });
+        expect(screen.getByRole('heading', { level: 1, name: 'Billing' }).parentElement!.hasAttribute('data-cbx-same-title')).toBe(false);
     });
 });

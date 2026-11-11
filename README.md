@@ -430,6 +430,37 @@ The phone has its own chrome (the approved V6 design):
   the Assistant SDK's element, as on a desktop.
 - **Palette:** a near full-screen sheet with Cancel (see the palette below).
 
+**Sheets behave like iOS sheets.** The grab handle and the header drag the sheet; the content
+drags it too when scrolled to its top (down) or while the sheet can still grow (up). A sheet
+that fits its content opens at most about half way and grows to 92% when there is more; a tall
+sheet (Help, create, an environment list) opens at 90% and rests at half the screen too. Pulled
+well down or flicked down, it closes; a tap on the scrim closes it. Each sheet has one scroller,
+its body. While a sheet, the palette or Help is open the page behind does not scroll (iOS
+included); the page's scroll position is kept. Fields are 16px on a phone, so iOS does not zoom
+into them, and the chrome does not double-tap zoom (pinch-zoom stays). While the on-screen
+keyboard is up, sheets sit above it and the tab bar steps aside.
+
+**One title.** The top bar shows the area's name large. A page heading that says the same is
+hidden on the phone and kept for screen readers: `PageHeader` does it by itself (string titles);
+an app's own heading opts in with `data-cbx-page-title`, e.g.
+`<h1 data-cbx-page-title>Status pages</h1>`. `useShellPageTitle()` gives the top bar's title on
+the phone (`null` elsewhere) for a header the app lays out itself.
+
+**The app's viewport meta tag.** The shell does not rewrite the host page's `<head>`. Every app
+that renders `CboxShell` needs:
+
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+```
+
+`viewport-fit=cover` gives the tab bar and sheets the safe-area insets of the home indicator;
+`interactive-widget=resizes-content` makes Android shrink the page for the keyboard (iOS ignores
+it; the shell measures the keyboard itself). Do not add `maximum-scale=1` or
+`user-scalable=no`: pinch-zoom is an accessibility need, and the 16px fields already stop the
+zoom on focus. An app's own fields on the phone should be 16px or more too (the shell sets 16px
+on fields inside the page; an app that styles its fields in a later cascade layer keeps its
+own size).
+
 Environments say whether they are live: `ContextItem.live` (else `testData` true is not live,
 else `tone: 'production'` is live; with neither the banner never shows). The shell never guesses
 from the name. `group` and `description` list them under headings with a second line; `tone`

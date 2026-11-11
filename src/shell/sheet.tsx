@@ -2,11 +2,15 @@ import { ChevronLeft, X } from 'lucide-react';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useShell } from './context';
 import { trapTab } from './popover';
+import { useScrollLock } from './scroll-lock';
+import { scrimHandlers, useSheetDrag } from './sheet-drag';
 
 /**
  * A modal sheet: a bottom sheet on the phone, a panel sliding in from the right on a desktop. It
  * traps focus, closes on Escape and on the scrim, and gives focus back to what opened it.
- * `back` puts a back button before the title (a pushed step).
+ * `back` puts a back button before the title (a pushed step). The page behind does not scroll while
+ * it is open. A bottom sheet drags by its handle and header (and by its content from the top):
+ * between its detents, and down to close.
  */
 export function Sheet({
     label,
@@ -34,16 +38,19 @@ export function Sheet({
 }) {
     const { t } = useShell();
     const panel = useRef<HTMLDivElement>(null);
+    const scrim = useRef<HTMLDivElement>(null);
+    useScrollLock();
+    useSheetDrag({ panel, scrim, size: size ?? 'fit', onClose, enabled: side === 'bottom' });
     const opener = useRef<Element | null>(typeof document !== 'undefined' ? document.activeElement : null);
     useEffect(() => {
         panel.current?.focus();
         const restore = opener.current;
         return () => {
-            if (restore instanceof HTMLElement && restore.isConnected) restore.focus();
+            if (restore instanceof HTMLElement && restore.isConnected) restore.focus({ preventScroll: true });
         };
     }, []);
     return (
-        <div className="cbx-overlay cbx-sheet-backdrop" onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+        <div ref={scrim} className="cbx-overlay cbx-sheet-backdrop" {...scrimHandlers(onClose)}>
             <div
                 ref={panel}
                 className={`cbx-sheet cbx-sheet-${side} ${size !== undefined ? `is-${size}` : ''} ${className ?? ''}`}
@@ -59,8 +66,8 @@ export function Sheet({
                     trapTab(event, panel.current);
                 }}
             >
-                {side === 'bottom' && <div className="cbx-sheet-handle" aria-hidden="true" />}
-                <div className={`cbx-sheet-head ${back !== undefined ? 'has-back' : ''}`}>
+                {side === 'bottom' && <div className="cbx-sheet-handle cbx-sheet-grab" aria-hidden="true" />}
+                <div className={`cbx-sheet-head ${side === 'bottom' ? 'cbx-sheet-grab' : ''} ${back !== undefined ? 'has-back' : ''}`}>
                     {back !== undefined && (
                         <button type="button" className="cbx-sheet-back" onClick={back.onBack} aria-label={back.label}>
                             <ChevronLeft size={20} strokeWidth={1.8} aria-hidden />
@@ -72,7 +79,7 @@ export function Sheet({
                         <X size={18} strokeWidth={1.8} aria-hidden />
                     </button>
                 </div>
-                <div className={`cbx-sheet-body ${bodyClassName ?? ''}`}>{children}</div>
+                <div className={`cbx-sheet-body ${bodyClassName ?? ''}`} data-cbx-sheet-scroll="">{children}</div>
             </div>
         </div>
     );
