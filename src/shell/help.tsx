@@ -6,6 +6,8 @@ import { useShell } from './context';
 import { environmentLevel } from './data';
 import { canAutofocus } from './media';
 import { trapTab } from './popover';
+import { useScrollLock } from './scroll-lock';
+import { scrimHandlers, useSheetDrag } from './sheet-drag';
 import { DEBOUNCE_MS } from './use-list';
 import type { Shell } from './types';
 
@@ -107,7 +109,12 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
     const chatHost = useRef<HTMLDivElement>(null);
     const searchField = useRef<HTMLInputElement>(null);
     const opener = useRef<HTMLElement | null>(null);
+    const scrim = useRef<HTMLDivElement>(null);
     const { help } = shell;
+    // The phone's Help is a bottom sheet: the page behind holds still, and it drags like one.
+    useScrollLock(mobile && open);
+    const closeSheet = useCallback(() => toggleHelp(false), [toggleHelp]);
+    useSheetDrag({ panel: column, scrim, size: 'tall', onClose: closeSheet, enabled: mobile && open });
     const portal = help.portalUrl;
 
     // Support updates are per person per organization (§7.3). They feed the button's count, so
@@ -231,7 +238,7 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
             const active = document.activeElement;
             if (active === null || active === document.body || column.current?.contains(active)) {
                 const back = opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>('[aria-controls="cbx-help"]');
-                back?.focus();
+                back?.focus({ preventScroll: true });
             }
             opener.current = null;
             return;
@@ -277,7 +284,7 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
         const chatReady = help.enabled && help.sessionUrl !== undefined;
         const close = () => toggleHelp(false);
         return (
-            <div className="cbx-overlay cbx-sheet-backdrop" hidden={!open} onPointerDown={event => { if (event.target === event.currentTarget) close(); }}>
+            <div ref={scrim} className="cbx-overlay cbx-sheet-backdrop" hidden={!open} {...scrimHandlers(close)}>
                 <div
                     ref={column}
                     id="cbx-help"
@@ -294,8 +301,8 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
                         trapTab(event, column.current);
                     }}
                 >
-                    <div className="cbx-sheet-handle" aria-hidden="true" />
-                    <div className={`cbx-sheet-head ${article !== null ? 'has-back' : ''}`}>
+                    <div className="cbx-sheet-handle cbx-sheet-grab" aria-hidden="true" />
+                    <div className={`cbx-sheet-head cbx-sheet-grab ${article !== null ? 'has-back' : ''}`}>
                         {article !== null && (
                             <button type="button" className="cbx-sheet-back" onClick={() => store.set({ article: null })} aria-label={t('Back to Help')}>
                                 <ChevronLeft size={20} strokeWidth={1.8} aria-hidden />
@@ -306,7 +313,7 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
                             <X size={18} strokeWidth={1.8} aria-hidden />
                         </button>
                     </div>
-                    <div ref={body} className="cbx-sheet-body" onScroll={event => store.set({ scrollTop: event.currentTarget.scrollTop })}>
+                    <div ref={body} className="cbx-sheet-body" data-cbx-sheet-scroll="" onScroll={event => store.set({ scrollTop: event.currentTarget.scrollTop })}>
                         {article !== null ? (
                             <article className="cbx-help-article">
                                 <h2 className="cbx-help-article-title">{article.title}</h2>

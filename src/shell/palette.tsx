@@ -11,6 +11,8 @@ import { resolveIcon } from './icons';
 import { navUrl } from './nav-pages';
 import { canAutofocus } from './media';
 import { revealInList, trapTab } from './popover';
+import { useScrollLock } from './scroll-lock';
+import { scrimHandlers, useSheetDrag } from './sheet-drag';
 import { useShell } from './context';
 import type { PaletteAction, Shell } from './types';
 
@@ -112,7 +114,11 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     const [activeKey, setActiveKey] = useState<string | null>(null);
     const field = useRef<HTMLInputElement>(null);
     const dialog = useRef<HTMLDivElement>(null);
+    const scrim = useRef<HTMLDivElement>(null);
     const id = useId();
+    // A modal: the page behind holds still. On the phone it is a sheet that drags.
+    useScrollLock();
+    useSheetDrag({ panel: dialog, scrim, size: 'full', onClose, enabled: mobile });
     const opener = useRef<Element | null>(typeof document !== 'undefined' ? document.activeElement : null);
 
     useEffect(() => {
@@ -120,7 +126,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         else dialog.current?.focus();
         const back = opener.current;
         return () => {
-            if (back instanceof HTMLElement) back.focus();
+            if (back instanceof HTMLElement) back.focus({ preventScroll: true });
         };
     }, []);
 
@@ -458,10 +464,10 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         { value: 'help', label: t('Help') },
     ];
     return (
-        <div className={`cbx-overlay cbx-palette-backdrop ${mobile ? 'is-sheet' : ''}`} onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+        <div ref={scrim} className={`cbx-overlay cbx-palette-backdrop ${mobile ? 'is-sheet' : ''}`} {...scrimHandlers(onClose)}>
             <div ref={dialog} className={`cbx-palette ${mobile ? 'is-sheet' : ''}`} role="dialog" aria-modal="true" aria-label={t('Search')} tabIndex={-1} onKeyDown={onKeyDown}>
-                {mobile && <div className="cbx-sheet-handle" aria-hidden="true" />}
-                <div className="cbx-palette-search">
+                {mobile && <div className="cbx-sheet-handle cbx-sheet-grab" aria-hidden="true" />}
+                <div className={`cbx-palette-search ${mobile ? 'cbx-sheet-grab' : ''}`}>
                     <label className="cbx-palette-field">
                     <Search size={18} strokeWidth={1.8} aria-hidden />
                     <input
@@ -493,7 +499,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                         </button>
                     ))}
                 </div>
-                <div id={`${id}-list`} role="listbox" aria-label={t('Results')} className="cbx-palette-list">
+                <div id={`${id}-list`} role="listbox" aria-label={t('Results')} className="cbx-palette-list" data-cbx-sheet-scroll="">
                     {rendered.map(section => {
                         const loading = section.state.status === 'loading' && section.state.items.length === 0;
                         if (section.count === 0 && !loading) return null;

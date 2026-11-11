@@ -14,9 +14,10 @@ import { HelpColumn, useHelpState, useUnreadCount } from './help';
 import { helpVisible, sharedHelpStore, type HelpStore } from './help-store';
 import { resolveIcon, type ShellIcon } from './icons';
 import { HELP_DOCKED, MOBILE, matches, useMedia } from './media';
-import { AppsSheet, ContextSheet, MobileAreaHead, MobileTopBar, MoreScreen, notLiveEnvironment, TabBar, useMoreView } from './mobile';
+import { AppsSheet, ContextSheet, MobileAreaHead, MobilePage, MobileTopBar, MoreScreen, notLiveEnvironment, TabBar, useMoreView } from './mobile';
 import { areaLocked, NavPageList, NavPageMarks, navUrl, shellBanners } from './nav-pages';
 import { CommandPalette } from './palette';
+import { useViewportInsets } from './viewport';
 import { Popover } from './popover';
 import { scopeLists } from './use-list';
 import type { Shell, ShellNavigate, ShellPreferenceChange, ShellPreferences, ShellTheme } from './types';
@@ -112,6 +113,8 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
     const [contextStep, setContextStep] = useState<ContextStep>({ step: 'root', direct: false });
     const [createKey, setCreateKey] = useState<string | null>(null);
     const mobile = useMedia(MOBILE, false);
+    // The phone layout follows the on-screen keyboard (sheets sit above it, the tab bar hides).
+    useViewportInsets(mobile);
     const [moreView, setMoreView] = useMoreView();
 
     // Help starts as the person left it, once per page; later visits keep the live state. Left
@@ -283,7 +286,7 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
                         <main id={mainId} tabIndex={-1} className="cbx-shell-main canvas-gradient">
                             {moreOpen && <MoreScreen view={moreView} setView={setMoreView} />}
                             {/* The page stays mounted under More, so its state survives. */}
-                            <div className="cbx-m-page" hidden={moreOpen}>{children}</div>
+                            <MobilePage hidden={moreOpen}>{children}</MobilePage>
                         </main>
                     </div>
                     <TabBar

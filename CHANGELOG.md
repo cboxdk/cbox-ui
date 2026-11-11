@@ -1,5 +1,71 @@
 # Changelog
 
+## 0.11.1 — 2026-11-11
+
+The phone shell feels like an app: sheets drag and resize, the page behind holds still, nothing
+zooms by accident and every list scrolls both ways. No prop changes; nothing for apps to change
+in code. Apps should check their viewport meta tag (below).
+
+### Fixed
+
+- **Switch app on the phone got stuck** ("scrolls one way, then won't come back"). The app grid
+  inside the sheet was a scroll container of its own (`.cbx-menu-apps { overflow-y: auto }`,
+  given an 8px phantom range by the footer's negative margin) nested in the sheet's scrolling
+  body. iOS latches a gesture onto the innermost scroller and bounces it at its edge instead of
+  handing it to the body, so the body could not scroll back. Inside a sheet, menus and lists no
+  longer scroll on their own: each sheet has one scroller, its body.
+- **The page behind a sheet scrolled.** `overscroll-behavior: contain` on the sheet body was
+  all there was, and iOS ignores it when the gesture starts on the header or a list is at its
+  edge. A counted scroll lock now holds the page while any sheet, the palette or the phone's
+  Help is open (`overflow: hidden` on the root, plus a touch guard that cancels any touch that
+  would scroll outside the open layer or past a list's edge; pinch-zoom is never taken). The
+  scroll position, and a scrollable `<main>`/`scroll-region` if an app has one, come back
+  unchanged on close. No `position: fixed` on the body, so the sticky top bar does not jump.
+- **Closing a sheet scrolled the page** in Safari: focus went back to the opener with
+  scrolling. It now returns with `preventScroll`.
+- **A swipe across the scrim closed the sheet** (it closed on pointer down). It now closes on a
+  tap that starts and ends on the scrim.
+
+### Changed
+
+- **Sheets drag like iOS sheets** (every bottom sheet: Where you work and its steps, Switch app,
+  create, Help, the palette). The grab handle and header drag; the content drags from its top,
+  or upward while the sheet can still grow. Detents: a sheet that fits its content opens at
+  most about half way (60%) and grows to 92% when there is more; tall sheets open at 90% (the
+  palette 94%) and rest at half the screen too. Pulled well down or flicked down, it closes.
+  Pointer events and inline height/transform, no new dependency; `prefers-reduced-motion`
+  turns the settle animation off.
+- **No accidental zoom:** fields in the shell are 16px on a phone or touch screen, and fields
+  in the page are 16px in the phone layout (iOS zooms into anything smaller).
+  `touch-action: manipulation` on the phone shell and on overlays stops double-tap zoom;
+  pinch-zoom is untouched.
+- **Ordinary pages:** the root gets `overscroll-behavior-y: none` while the phone layout is
+  on, so the page scrolls under the fixed top bar and tab bar without the whole document
+  rubber-banding (this also turns off Chrome's pull-to-refresh in the phone layout).
+- **On-screen keyboard:** the shell tracks the visual viewport (`--cbx-keyboard`, `--cbx-vvh`
+  on `<html>`); bottom sheets and the palette sit above the keyboard and fit what is visible,
+  and the tab bar hides while a field has the keyboard up instead of riding over the page.
+- Sheet heights use `dvh` (with the `svh` values as fallback).
+
+### Added
+
+- **No double title on the phone.** The top bar shows the area's name large; a page heading
+  saying the same is now hidden on the phone (kept for screen readers). `PageHeader` does it by
+  itself when its `title` is a string equal to the area's name (case and spacing ignored), and
+  drops its `?` there (the top bar has Help). An app's own heading opts in with the
+  `data-cbx-page-title` attribute. `useShellPageTitle()` returns the top bar's title on the
+  phone (`null` on a desktop) for apps that lay out their own header. Desktop is unchanged.
+
+### For apps
+
+- The viewport meta tag should be
+  `width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content`.
+  The shell does not rewrite `<head>`. Do not add `maximum-scale` or `user-scalable=no`.
+- An app that renders its own page heading (not `PageHeader`) adds `data-cbx-page-title` to it,
+  and can drop any per-app hack that hid a duplicate title on the phone.
+- Keep the app's own phone fields at 16px or more (an app that styles fields in a later cascade
+  layer than the shell CSS keeps its own size).
+
 ## 0.11.0 — 2026-11-11
 
 The phone layout is the approved V6 design, plus V7's create sheet. Every addition to the

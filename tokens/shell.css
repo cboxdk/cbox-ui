@@ -276,7 +276,7 @@ textarea.cbx-input { height: auto; padding: 10px 12px; resize: vertical; min-hei
 
 /* ── Palette (§6) ───────────────────────────────────────────────────────────── */
 .cbx-overlay { position: fixed; inset: 0; z-index: 70; font-family: var(--cbx-font-sans); font-size: 14px; line-height: 1.45; color: var(--foreground); }
-.cbx-palette-backdrop { display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 16px; background: oklch(0.18 0.01 80 / 0.32); animation: cbx-fade 150ms var(--cbx-ease); }
+.cbx-palette-backdrop { display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 16px; background: oklch(0.18 0.01 80 / calc(0.32 * var(--cbx-scrim, 1))); animation: cbx-fade 150ms var(--cbx-ease); }
 @keyframes cbx-fade { from { opacity: 0; } }
 .cbx-palette { display: flex; flex-direction: column; width: min(640px, 100%); max-height: min(560px, 76vh); overflow: hidden; background: var(--popover); color: var(--popover-foreground); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--cbx-shadow); outline: none; animation: cbx-pop 200ms var(--cbx-ease); }
 .cbx-palette-search { display: flex; align-items: center; gap: 12px; height: 56px; flex: none; padding: 0 16px; border-bottom: 1px solid var(--border); color: var(--muted-foreground); }
@@ -343,7 +343,10 @@ textarea.cbx-input { height: auto; padding: 10px 12px; resize: vertical; min-hei
 .cbx-help-foot .cbx-row-action:disabled { opacity: 0.55; cursor: default; }
 
 /* ── Sheets (phone) ─────────────────────────────────────────────────────────── */
-.cbx-sheet-backdrop { background: oklch(0.18 0.01 80 / 0.45); animation: cbx-fade 150ms var(--cbx-ease); }
+/* A dragged sheet fades its scrim through --cbx-scrim (0–1); the sheet sits inside the scrim, so
+ * the scrim's own opacity cannot be used. Registered so it can transition. */
+@property --cbx-scrim { syntax: '<number>'; inherits: false; initial-value: 1; }
+.cbx-sheet-backdrop { background: oklch(0.18 0.01 80 / calc(0.45 * var(--cbx-scrim, 1))); animation: cbx-fade 150ms var(--cbx-ease); }
 .cbx-sheet { position: absolute; display: flex; flex-direction: column; background: var(--popover); color: var(--popover-foreground); outline: none; box-shadow: var(--cbx-shadow); }
 .cbx-sheet-left { inset: 0 auto 0 0; width: min(340px, 88vw); border-right: 1px solid var(--border); animation: cbx-slide-left 200ms var(--cbx-ease); }
 .cbx-sheet-bottom { left: 0; right: 0; bottom: 0; max-height: 88svh; border-top: 1px solid var(--border); border-radius: 16px 16px 0 0; animation: cbx-slide-up 200ms var(--cbx-ease); }
@@ -352,7 +355,11 @@ textarea.cbx-input { height: auto; padding: 10px 12px; resize: vertical; min-hei
 .cbx-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 56px; flex: none; padding: 0 8px 0 20px; border-bottom: 1px solid var(--border); }
 .cbx-sheet-head .cbx-back { margin: 0 0 0 -12px; }
 .cbx-sheet-title { font-size: 15px; }
-.cbx-sheet-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 12px 24px; overscroll-behavior: contain; }
+.cbx-sheet-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 12px 24px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* One scroller per sheet: its body. A list or menu inside it that is a scroll container of its own
+ * (the app grid, a context list) traps an iOS gesture at its edge, so the sheet stops scrolling
+ * back the other way. Inside a sheet they grow with their content instead. */
+.cbx-sheet-body :is(.cbx-menu, .cbx-list) { overflow: visible; max-height: none; }
 .cbx-sheet-body > .cbx-list { margin: 0; }
 .cbx-sheet-body .cbx-menu-apps { width: auto; padding: 4px 0; }
 .cbx-sheet-pages { display: flex; flex-direction: column; gap: 4px; padding-left: 28px; }
@@ -484,7 +491,19 @@ textarea.cbx-input { height: auto; padding: 10px 12px; resize: vertical; min-hei
 .cbx-sheet-bottom { max-height: 88svh; }
 .cbx-sheet-bottom.is-tall { height: 90svh; max-height: 90svh; }
 .cbx-sheet-bottom.is-full { height: 94svh; max-height: 94svh; }
-.cbx-sheet-handle { flex: none; width: 40px; height: 4px; margin: 8px auto 2px; border-radius: 2px; background: var(--border); }
+/* Detents (sheet-drag.ts): a sheet that fits its content opens at most about half way (60%), a tall
+ * one at 90% and the palette at 94%; dragging resizes it between half and 92% and closes it.
+ * Heights follow what is really visible (`--cbx-vvh`, the visual viewport) and the sheet sits
+ * above the on-screen keyboard (`--cbx-keyboard`), so no field ends up under it. */
+.cbx-sheet-bottom { bottom: var(--cbx-keyboard, 0px); max-height: min(60dvh, calc(var(--cbx-vvh, 100dvh) - 8px)); }
+.cbx-sheet-bottom.is-tall { height: 90dvh; max-height: calc(var(--cbx-vvh, 100dvh) - 8px); }
+.cbx-sheet-bottom.is-full { height: 94dvh; max-height: calc(var(--cbx-vvh, 100dvh) - 8px); }
+.cbx-sheet-bottom[data-cbx-dragging] { user-select: none; -webkit-user-select: none; }
+/* The grab handle and the header drag the sheet; the browser must not pan or zoom from them. */
+.cbx-sheet-grab { touch-action: none; }
+.cbx-sheet-handle { position: relative; flex: none; width: 40px; height: 5px; margin: 8px auto 2px; border-radius: 3px; background: var(--border); cursor: grab; }
+.cbx-sheet-handle::before { content: ''; position: absolute; inset: -8px -60px -6px; }
+[data-cbx-dragging] .cbx-sheet-handle { cursor: grabbing; background: var(--muted-foreground); }
 .cbx-sheet-bottom .cbx-sheet-head { min-height: 50px; padding: 2px 6px 6px; border-bottom: 0; }
 .cbx-sheet-bottom .cbx-sheet-title { flex: 1; padding: 0 6px; font-size: 17px; font-weight: 650; }
 .cbx-sheet-bottom .cbx-sheet-head.has-back .cbx-sheet-title { padding: 0; }
@@ -519,7 +538,8 @@ textarea.cbx-input { height: auto; padding: 10px 12px; resize: vertical; min-hei
 
 /* The palette as the phone's sheet */
 .cbx-palette-backdrop.is-sheet { align-items: flex-end; padding: 0; }
-.cbx-palette.is-sheet { width: 100%; height: 94svh; max-height: 94svh; border: 0; border-top: 1px solid var(--border); border-radius: 16px 16px 0 0; animation: cbx-slide-up 200ms var(--cbx-ease); }
+.cbx-palette-backdrop.is-sheet { padding-bottom: var(--cbx-keyboard, 0px); }
+.cbx-palette.is-sheet { width: 100%; height: 94svh; max-height: 94svh; height: 94dvh; max-height: calc(var(--cbx-vvh, 100dvh) - 8px); border: 0; border-top: 1px solid var(--border); border-radius: 16px 16px 0 0; animation: cbx-slide-up 200ms var(--cbx-ease); }
 .cbx-palette.is-sheet .cbx-palette-search { height: auto; gap: 6px; padding: 6px 16px 0; border-bottom: 0; }
 .cbx-palette.is-sheet .cbx-palette-field { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; height: 42px; padding: 0 12px; border-radius: 10px; background: var(--secondary); color: var(--muted-foreground); }
 .cbx-palette.is-sheet .cbx-palette-field:focus-within { box-shadow: 0 0 0 2px var(--ring); }
@@ -552,3 +572,24 @@ textarea.cbx-input { height: auto; padding: 10px 12px; resize: vertical; min-hei
 .cbx-cinput::placeholder { color: var(--muted-foreground); }
 .cbx-cinput:focus { border-color: var(--ring); }
 .cbx-create-submit { width: 100%; height: 46px; margin-top: auto; border-radius: 12px; font-size: 15px; }
+
+/* ── Phone feel (0.11.1) ─────────────────────────────────────────────────────── */
+/* No double-tap zoom on the chrome and in overlays (pinch-zoom stays). */
+.cbx-shell.is-mobile, .cbx-overlay, .cbx-popover { touch-action: manipulation; }
+/* The page scrolls under a fixed top bar and tab bar without the whole document rubber-banding. */
+:root:has(.cbx-shell.is-mobile) { overscroll-behavior-y: none; }
+/* The on-screen keyboard is up: the tab bar steps aside instead of riding up over the fields. */
+:root[data-cbx-keyboard] .cbx-tabbar { display: none; }
+/* Every scroller in a sheet or a menu scrolls on its own, in both directions. */
+.cbx-palette-list, .cbx-help-body, .cbx-list, .cbx-rail-nav, .cbx-subnav { -webkit-overflow-scrolling: touch; }
+/* iOS zooms into any field under 16px when it takes focus. The shell's own fields are 16px on a
+ * phone or a touch screen; the page's fields are 16px in the phone layout (an app that styles its
+ * fields in a later cascade layer keeps its own size, and should keep it at 16px or more there). */
+@media (max-width: 767px), (pointer: coarse) {
+    :is(.cbx-overlay, .cbx-popover, .cbx-m-chrome, .cbx-more, .cbx-help) :is(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea) { font-size: 16px; }
+}
+.cbx-shell.is-mobile .cbx-m-page :is(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea) { font-size: 16px; }
+/* A page heading that repeats the top bar's large title (PageHeader's own, or one marked
+ * `data-cbx-page-title`) stays for screen readers only; a `?` beside it goes (the top bar has Help). */
+.cbx-shell.is-mobile [data-cbx-same-title] { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; white-space: nowrap !important; border: 0 !important; }
+.cbx-shell.is-mobile [data-cbx-same-title] button { display: none !important; }
