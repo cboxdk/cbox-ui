@@ -55,10 +55,17 @@ export type NavPage = {
     group?: string;
 };
 
-/** One area in the rail. The subnav shows its pages when it has more than one. */
+/**
+ * One area in the rail. The subnav shows its pages when it has more than one. On a phone, the
+ * areas named in `nav.tabs` sit in the bottom tab bar and every area is listed under More.
+ */
 export type NavArea = { key: string; label: string; url: string; href?: string; icon?: string; pages?: NavPage[] };
 
-export type ContextTone = 'production' | 'sandbox' | 'neutral';
+/**
+ * The colour of an environment. `production`, `sandbox` and `neutral` since 0.10; `staging`,
+ * `preview` and `development` since 0.11, so an app with many environments can tell them apart.
+ */
+export type ContextTone = 'production' | 'sandbox' | 'neutral' | 'staging' | 'preview' | 'development';
 
 /**
  * One selectable item of a level: the current one in the prop, and every row a level's
@@ -76,6 +83,20 @@ export type ContextItem = {
     label?: string;
     /** The sandbox strip shows while the current item has test data. */
     testData?: boolean;
+    /**
+     * The app's word on whether this environment is live (real customers, real money). `false`
+     * puts the "Not production" banner under the page title. Absent: the shell reads `testData`
+     * (true is not live) and `tone` (`production` is live, another tone is not), and shows no
+     * banner when neither is set. The shell never guesses from the name.
+     */
+    live?: boolean;
+    /**
+     * The heading this item is listed under in "All environments" ("Live", "Test", "Preview",
+     * "Development"). Groups show in the order each first appears.
+     */
+    group?: string;
+    /** A second line under the name ("Live customers", "From branch feat/quotes"). */
+    description?: string;
 };
 
 export type ContextLevel = {
@@ -111,7 +132,41 @@ export type PaletteAction = {
     icon?: string;
     /** Extra words the palette matches on. */
     keywords?: string[];
+    /** A short second line ("Create a draft for a customer"). */
+    hint?: string;
+    /**
+     * A `shell.create` key: the action opens the create sheet on that form instead of `url`
+     * (when the app renders create forms). `url` stays the fallback.
+     */
+    create?: string;
 };
+
+/** A record the app suggests in the palette before anything is typed ("Recent"). */
+export type PaletteRecord = { id: string; title: string; subtitle?: string; url: string };
+
+/**
+ * One thing the person can create, for the "+" button and the create sheet. `area` is the key
+ * of the nav area it is listed under in "What do you want to create?".
+ */
+export type ShellCreatable = {
+    key: string;
+    /** Singular, as a noun: "Invoice", "Credit note", "API token". */
+    label: string;
+    area: string;
+    keywords?: string[];
+    /** The bottom form's submit text. Default "Create {label}"; a stacked form says "Create and use in {parent}". */
+    submitLabel?: string;
+};
+
+/** What the app can create from the shell. The forms themselves come from `CboxShell`'s `renderCreate`. */
+export type ShellCreate = {
+    items: ShellCreatable[];
+    /** The creatable "+" opens on a page that declares none (`page.create`). Absent: the tree. */
+    default?: string;
+};
+
+/** An article the app hands Help directly, for an app without `articlesUrl`. */
+export type ShellHelpArticle = { id: string; title: string; excerpt?: string; body?: string; url?: string };
 
 export type ShellHelp = {
     /** False: Help still renders, and says it is not available here. */
@@ -130,6 +185,13 @@ export type ShellHelp = {
     searchUrl?: string;
     /** Articles for a topic, as a template: `{topic}` is replaced. */
     articlesUrl?: string;
+    /** Articles for this page, sent with the page. Used when there is no `articlesUrl`. */
+    articles?: ShellHelpArticle[];
+    /**
+     * Unread support replies, sent with the page, so the Help button shows its dot before
+     * `updatesUrl` has answered. The loaded updates win once they are in.
+     */
+    unread?: number;
 };
 
 export type ShellNotifications = { enabled: false } | { enabled: true; unread: number; url: string };
@@ -180,8 +242,27 @@ export type Shell = {
     app: { key: AppKey; name: string; homeUrl: string };
     person: { id: string; name: string; initials: string; avatarUrl?: string; email?: string };
     /** The page title and route, for "On this page" and the chat's page intent. */
-    page?: { title: string; route?: string };
-    nav: { areas: NavArea[]; activeArea: string; activePage?: string };
+    page?: {
+        title: string;
+        route?: string;
+        /**
+         * The key of the creatable this page makes (`shell.create`): the phone's "+" opens its form
+         * directly, labelled "New {label}". Absent: "+" opens the app's default create target.
+         */
+        create?: string;
+        /** What can be done on this page, shown first in the palette ("On {page}"). */
+        actions?: PaletteAction[];
+    };
+    nav: {
+        areas: NavArea[];
+        activeArea: string;
+        activePage?: string;
+        /**
+         * The phone's bottom tab bar: up to four area keys, in order, before More. Absent: the
+         * first four areas.
+         */
+        tabs?: string[];
+    };
     context: {
         /** 1–3, in order. The first is the organization. */
         levels: ContextLevel[];
@@ -199,7 +280,11 @@ export type Shell = {
          * "Search or ask…". The header's Search button keeps "Search or ask…" in every app (spec §4.3).
          */
         placeholder?: string;
+        /** What the palette shows under "Recent" before anything is typed. Absent: the pages last visited here. */
+        recent?: PaletteRecord[];
     };
+    /** Things the person can create from "+" and the palette. Absent: no "+". */
+    create?: ShellCreate;
     help: ShellHelp;
     notifications: ShellNotifications;
     apps: {

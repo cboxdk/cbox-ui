@@ -39,7 +39,7 @@ describe('command palette (§6)', () => {
         await user.type(screen.getByRole('combobox'), 'deploy');
         await screen.findByRole('option', { name: /Deployment 3f9c21a/ });
         await screen.findByRole('option', { name: /Deploy a project/ });
-        expect(groupNames()).toEqual(['Pages', 'Records', 'Actions', 'Docs and help', 'Ask Cbox']);
+        expect(groupNames()).toEqual(['Actions', 'Records', 'Pages', 'Help', 'Ask Cbox']);
         await user.clear(screen.getByRole('combobox'));
         await user.type(screen.getByRole('combobox'), 'sandbox');
         await screen.findByRole('option', { name: /Webshop · Sandbox/ });

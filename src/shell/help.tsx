@@ -1,8 +1,9 @@
-import { ArrowLeft, ArrowUpRight, BookOpen, CircleAlert, LifeBuoy, MessageSquare, Search, Sparkles, Ticket, UserRound, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowUpRight, BookOpen, ChevronLeft, ChevronRight, CircleAlert, FileText, LifeBuoy, MessageSquare, Search, Sparkles, Ticket, UserRound, X } from 'lucide-react';
 import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { requestJson, withQuery } from './data';
 import { helpVisible, parseArticles, parseUpdates, type HelpArticle, type HelpState, type HelpStore, type SupportUpdate } from './help-store';
 import { useShell } from './context';
+import { environmentLevel } from './data';
 import { canAutofocus } from './media';
 import { trapTab } from './popover';
 import { DEBOUNCE_MS } from './use-list';
@@ -13,6 +14,18 @@ const SUPPORT_TAG = 'cbox-support';
 
 export function useHelpState<T>(store: HelpStore, select: (state: HelpState) => T): T {
     return useSyncExternalStore(store.subscribe, () => select(store.get()), () => select(store.get()));
+}
+
+/** Unread support replies: the loaded updates once they are in, else the count sent with the page. */
+export function useUnreadCount(store: HelpStore, sent: number | undefined): number {
+    const loaded = useHelpState(store, state => (state.updatesStatus === 'ready' ? state.updates.filter(update => update.unread).length : null));
+    return loaded ?? sent ?? 0;
+}
+
+/** What Help is about here: the page title, else the area, else the app. */
+export function helpTopicName(shell: Shell): string {
+    const area = shell.nav.areas.find(item => item.key === shell.nav.activeArea);
+    return shell.page?.title ?? area?.label ?? shell.app.name;
 }
 
 /** The page intent the chat is given (§7.2.4): route, title and context. */
@@ -72,7 +85,7 @@ function whenSupportReady(host: HTMLElement | null, timeoutMs = 6000): Promise<S
  * to a person. Docked beside the page from 1280px, a full-screen dialog below. It is always
  * mounted while the shell is, so its state and the conversation survive page changes.
  */
-export function HelpColumn({ docked }: { docked: boolean }) {
+export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile?: boolean }) {
     const { shell, t, help: store, toggleHelp, navigate, preferences } = useShell();
     const formatDate = useShortDate(preferences.regionalFormat ?? preferences.locale, preferences.timeZone);
     const open = useHelpState(store, state => helpVisible(state, docked));
@@ -86,6 +99,9 @@ export function HelpColumn({ docked }: { docked: boolean }) {
     const [results, setResults] = useState<{ q: string; items: HelpArticle[]; status: 'loading' | 'ready' | 'unavailable' } | null>(null);
     const [question, setQuestion] = useState('');
     const [chatProblem, setChatProblem] = useState(false);
+    // The phone's sheet: a question was sent to Ask Cbox, so "Talk to a person" is offered.
+    const [asked, setAsked] = useState(false);
+    const [followUp, setFollowUp] = useState('');
     const column = useRef<HTMLDivElement>(null);
     const body = useRef<HTMLDivElement>(null);
     const chatHost = useRef<HTMLDivElement>(null);
@@ -128,7 +144,7 @@ export function HelpColumn({ docked }: { docked: boolean }) {
         const controller = new AbortController();
         setArticles({ topic: help.topic, items: [], status: 'loading' });
         requestJson(help.articlesUrl.split('{topic}').join(encodeURIComponent(help.topic)), { signal: controller.signal })
-            .then(answer => setArticles({ topic: help.topic, items: parseArticles(answer).slice(0, 3), status: 'ready' }))
+            .then(answer => setArticles({ topic: help.topic, items: parseArticles(answer).slice(0, 4), status: 'ready' }))
             .catch((error: unknown) => {
                 if ((error as { name?: string })?.name !== 'AbortError') setArticles({ topic: help.topic, items: [], status: 'unavailable' });
             });
@@ -214,7 +230,7 @@ export function HelpColumn({ docked }: { docked: boolean }) {
         if (closed) {
             const active = document.activeElement;
             if (active === null || active === document.body || column.current?.contains(active)) {
-                const back = opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>('.cbx-tools [aria-controls="cbx-help"]');
+                const back = opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>('[aria-controls="cbx-help"]');
                 back?.focus();
             }
             opener.current = null;
@@ -248,7 +264,148 @@ export function HelpColumn({ docked }: { docked: boolean }) {
     const submit = (event: FormEvent) => {
         event.preventDefault();
         void openChat(question.trim());
+        if (question.trim() !== '') setAsked(true);
     };
+
+    // Articles for this page: loaded from `articlesUrl`, else the ones sent with the page.
+    const pageArticles: HelpArticle[] = help.articlesUrl !== undefined ? articles.items : (help.articles ?? []).slice(0, 4);
+
+    if (mobile) {
+        const topic = helpTopicName(shell);
+        const environment = environmentLevel(shell.context.levels)?.current;
+        const where = shell.context.levels.map(level => level.current.name).join(' · ');
+        const chatReady = help.enabled && help.sessionUrl !== undefined;
+        const close = () => toggleHelp(false);
+        return (
+            <div className="cbx-overlay cbx-sheet-backdrop" hidden={!open} onPointerDown={event => { if (event.target === event.currentTarget) close(); }}>
+                <div
+                    ref={column}
+                    id="cbx-help"
+                    className="cbx-sheet cbx-sheet-bottom is-tall cbx-help-sheet"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={t('Help with {page}', { page: topic })}
+                    tabIndex={-1}
+                    onKeyDown={event => {
+                        if (event.key === 'Escape' && !event.defaultPrevented) {
+                            event.preventDefault();
+                            close();
+                        }
+                        trapTab(event, column.current);
+                    }}
+                >
+                    <div className="cbx-sheet-handle" aria-hidden="true" />
+                    <div className={`cbx-sheet-head ${article !== null ? 'has-back' : ''}`}>
+                        {article !== null && (
+                            <button type="button" className="cbx-sheet-back" onClick={() => store.set({ article: null })} aria-label={t('Back to Help')}>
+                                <ChevronLeft size={20} strokeWidth={1.8} aria-hidden />
+                            </button>
+                        )}
+                        <strong className="cbx-sheet-title cbx-truncate">{article !== null ? t('Article') : t('Help with {page}', { page: topic })}</strong>
+                        <button type="button" className="cbx-icon-button" onClick={close} aria-label={t('Close Help')}>
+                            <X size={18} strokeWidth={1.8} aria-hidden />
+                        </button>
+                    </div>
+                    <div ref={body} className="cbx-sheet-body" onScroll={event => store.set({ scrollTop: event.currentTarget.scrollTop })}>
+                        {article !== null ? (
+                            <article className="cbx-help-article">
+                                <h2 className="cbx-help-article-title">{article.title}</h2>
+                                {(article.body ?? article.excerpt ?? '').split(/\n{2,}/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+                                {article.url !== undefined && (
+                                    <a className="cbx-link" href={article.url} target="_blank" rel="noopener">
+                                        {t('Open the full article')} <ArrowUpRight size={14} strokeWidth={1.8} aria-hidden />
+                                    </a>
+                                )}
+                                <p className="cbx-eyebrow">{t('Still stuck?')}</p>
+                                <form
+                                    className="cbx-askbar"
+                                    onSubmit={event => {
+                                        event.preventDefault();
+                                        const text = followUp.trim();
+                                        if (text === '') return;
+                                        store.set({ article: null });
+                                        setQuestion(text);
+                                        setAsked(true);
+                                        void openChat(text);
+                                    }}
+                                >
+                                    <input type="text" value={followUp} onChange={event => setFollowUp(event.target.value)} placeholder={t('Ask a follow-up…')} aria-label={t('Ask a follow-up')} disabled={!chatReady} />
+                                    <button type="submit" className="cbx-askbar-send" aria-label={t('Ask')} disabled={!chatReady}><ArrowUp size={16} strokeWidth={2.2} aria-hidden /></button>
+                                </form>
+                            </article>
+                        ) : (
+                            <>
+                                {unavailable && (
+                                    <div className="cbx-help-notice" role="status">
+                                        <CircleAlert size={16} strokeWidth={1.8} aria-hidden />
+                                        <span>{help.enabled ? t('Help is not available right now. The rest of the app works as usual.') : t('Help is not available here yet.')}</span>
+                                    </div>
+                                )}
+                                <form className="cbx-askbar" onSubmit={submit}>
+                                    <input ref={searchField} type="text" value={question} onChange={event => setQuestion(event.target.value)} placeholder={t('Ask about {page}…', { page: topic })} aria-label={t('Ask Cbox')} disabled={!chatReady} />
+                                    <button type="submit" className="cbx-askbar-send" aria-label={t('Ask')} disabled={!chatReady}><ArrowUp size={16} strokeWidth={2.2} aria-hidden /></button>
+                                </form>
+                                <p className="cbx-ctxnote">
+                                    {environment !== undefined && <span className={`cbx-tone cbx-tone-${environment.tone ?? 'neutral'}`} aria-hidden="true" />}
+                                    {t('Cbox sees this page: {page} in {where}', { page: topic, where })}
+                                </p>
+                                {chatProblem && <p className="cbx-create-error" role="alert">{t('The chat could not be opened. Try again, or use the support portal.')}</p>}
+                                {asked && chatReady && (
+                                    <button type="button" className="cbx-pbtn" onClick={() => void openChat(t('I would like to talk to a person.'), true)}>
+                                        <UserRound size={16} strokeWidth={1.8} aria-hidden /> {t('Talk to a person')}
+                                    </button>
+                                )}
+                                {updates.length > 0 && (
+                                    <section aria-labelledby="cbx-help-threads">
+                                        <h2 id="cbx-help-threads" className="cbx-eyebrow">{t('Your conversations')}</h2>
+                                        <div className="cbx-group">
+                                            {updates.map(update => (
+                                                <button key={update.id} type="button" className={`cbx-grow is-tall ${update.unread ? 'is-unread' : ''}`} onClick={() => openUpdate(update)}>
+                                                    <span className="cbx-tile is-plain" aria-hidden="true">{update.kind === 'chat' ? <MessageSquare size={16} strokeWidth={1.8} /> : <Ticket size={16} strokeWidth={1.8} />}</span>
+                                                    <span className="cbx-grow-text">
+                                                        <span className="cbx-grow-strong cbx-truncate">{update.title}</span>
+                                                        {update.excerpt !== undefined && <span className="cbx-grow-sub cbx-truncate">{update.excerpt}</span>}
+                                                    </span>
+                                                    {update.unread && <span className="cbx-badge">{t('{count} new', { count: 1 })}</span>}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </section>
+                                )}
+                                {pageArticles.length > 0 && (
+                                    <section aria-labelledby="cbx-help-for">
+                                        <h2 id="cbx-help-for" className="cbx-eyebrow">{t('For {page}', { page: topic })}</h2>
+                                        <div className="cbx-group">
+                                            {pageArticles.map(item => (
+                                                <button key={item.id} type="button" className="cbx-grow" onClick={() => store.set({ article: item })}>
+                                                    <FileText className="cbx-grow-icon" size={18} strokeWidth={1.7} aria-hidden />
+                                                    <span className="cbx-grow-label">{item.title}</span>
+                                                    <ChevronRight className="cbx-grow-trail" size={16} strokeWidth={1.8} aria-hidden />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </section>
+                                )}
+                                <div className="cbx-pbtns">
+                                    <button type="button" className="cbx-pbtn" onClick={() => void openChat(t('I would like to talk to a person.'), true)} disabled={!chatReady}>{t('Chat with support')}</button>
+                                    {portal !== undefined && (
+                                        <a className="cbx-pbtn" href={portal} target="_blank" rel="noopener">
+                                            {t('Help center')} <ArrowUpRight size={14} strokeWidth={1.8} aria-hidden />
+                                        </a>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                        {help.enabled && help.sessionUrl !== undefined && (
+                            <div ref={chatHost} className="cbx-chat-host" data-view={article !== null ? 'article' : 'home'}>
+                                {createElement(SUPPORT_TAG, { 'session-url': help.sessionUrl, intent: intentJson })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div
@@ -363,11 +520,11 @@ export function HelpColumn({ docked }: { docked: boolean }) {
                                 </ul>
                             )}
                         </section>
-                        {help.topic !== undefined && articles.items.length > 0 && (
+                        {help.topic !== undefined && pageArticles.length > 0 && (
                             <section className="cbx-help-section" aria-labelledby="cbx-help-topic">
                                 <div className="cbx-pane-heading"><span id="cbx-help-topic">{t('For this page')}</span></div>
                                 <ul className="cbx-list" role="list">
-                                    {articles.items.map(item => <li key={item.id}><ArticleRow article={item} /></li>)}
+                                    {pageArticles.slice(0, 3).map(item => <li key={item.id}><ArticleRow article={item} /></li>)}
                                 </ul>
                             </section>
                         )}

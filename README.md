@@ -277,11 +277,12 @@ produces. Abridged:
 type Shell = {
     app: { key; name; homeUrl };
     person: { id; name; initials; avatarUrl? };
-    page?: { title; route? };                       // "On this page" and the chat's page intent
-    nav: { areas: NavArea[]; activeArea; activePage? };
+    page?: { title; route?; create?; actions?: PaletteAction[] }; // the page's create target and its palette actions
+    nav: { areas: NavArea[]; activeArea; activePage?; tabs?: string[] };  // tabs: the phone's tab bar, up to 4
     context: { levels: ContextLevel[]; switchUrl };  // 1–3 levels, organization first
-    palette: { searchUrl?; gotoUrl?; actions: PaletteAction[]; placeholder? };
-    help: { enabled; topic?; sessionUrl?; scriptUrl?; portalUrl?; updatesUrl?; searchUrl?; articlesUrl? };
+    palette: { searchUrl?; gotoUrl?; actions: PaletteAction[]; placeholder?; recent?: PaletteRecord[] };
+    create?: { items: ShellCreatable[]; default? };  // what "+" and the palette can create
+    help: { enabled; topic?; sessionUrl?; scriptUrl?; portalUrl?; updatesUrl?; searchUrl?; articlesUrl?; articles?; unread? };
     notifications: { enabled: false } | { enabled: true; unread; url };
     apps: { catalogUrl; productsUrl? };
     account?: { profileUrl?; switchAccountUrl?; signOutUrl?; signOutMethod?; languages?; formats?; signedInWith? };
@@ -405,9 +406,60 @@ whole page. A page that needs its own scroller (a wide table) brings one.
 
 ### Phone (< 768px)
 
-The header holds ☰ (areas, pages, Switch app, notifications, the account), one context button
-(`Cbox / Webshop / Production`) that opens every level stacked, Search and Help (full screen).
-Nothing is hidden without a replacement.
+The phone has its own chrome (the approved V6 design):
+
+- **Top bar:** the context pill (the organization chip; a small line with the levels above the
+  deepest, `Org · Project`; the deepest level large, with the environment's colour), then Help
+  (a dot while support has replied), Search and the page's "+". "+" shows only when the app
+  passes `renderCreate` and has `shell.create`; its name is "New {thing}" on a page with
+  `page.create`, else "Create". A dead button is never rendered.
+- **Under it:** the area's name, large; the "not production" banner while the current
+  environment is not live; the area's pages as chips (only with more than one page).
+- **Tab bar:** the areas in `nav.tabs` (up to four; default the first four), then More.
+- **More:** a full screen with push navigation: search all pages; the app's areas (each opens
+  its grouped pages); "Where you work" (each level opens the context sheet at that step);
+  Help with the page; Notifications when the app has a source; Switch app; and the profile
+  last (the account screen: profile and security, language, regional format, time zone,
+  theme, switch account, sign out). Tapping More again goes back to its top.
+- **Context sheet:** Organization and Project rows (each opens its searchable list), the
+  environment quick picks (the current one, a live one, a test one) and "All N environments",
+  a searchable list under the app's environment `group`s with "New environment".
+- **Help sheet:** "Help with {page}": ask (the page and where you work are shared), your
+  conversations (`help.updatesUrl`), articles for the page, Chat with support and the Help
+  centre. After a question, "Talk to a person" is always offered. The conversation itself is
+  the Assistant SDK's element, as on a desktop.
+- **Palette:** a near full-screen sheet with Cancel (see the palette below).
+
+Environments say whether they are live: `ContextItem.live` (else `testData` true is not live,
+else `tone: 'production'` is live; with neither the banner never shows). The shell never guesses
+from the name. `group` and `description` list them under headings with a second line; `tone`
+also takes `staging`, `preview` and `development`. On a desktop the same banner shows under the
+header when no sandbox strip does; on the phone it replaces the sandbox strip.
+
+### Palette groups
+
+Before anything is typed: "On {page}" (the page's create target and `page.actions`, else the
+app's `palette.actions`), Recent (`palette.recent`, else the pages last visited on this device)
+and Switch (other environments, the organization). With a query: Actions (page and app
+actions, every creatable as "New …", switches), Go to, Records, Pages, Help and Ask Cbox last.
+Scope chips (All, Actions, Records, Pages, Help) keep one kind. Records come from `searchUrl`,
+or from `CboxShell`'s `searchRecords(query, signal)` when the app passes it. A `PaletteAction`
+may carry `hint` (a second line) and `create` (a creatable key it opens instead of `url`).
+
+### Create (V7)
+
+`shell.create.items` lists what the person can create (`{ key, label, area, keywords?,
+submitLabel? }`) and `create.default` the target of "+" on a page without its own
+(`page.create`). "+" never navigates away: it opens the create sheet (a bottom sheet on the
+phone, a panel from the right on a desktop) on that form, with "‹ Create" up to a searchable
+tree of everything, grouped by area. The forms are the app's: `CboxShell`'s
+`renderCreate(form)` returns the fields for `form.creatable.key`. A reference field calls
+`form.createRef('customer', created => …)`, which stacks the customer form; its submit reads
+"Create and use in invoice", and `form.done(created)` goes back and hands it over, with the
+invoice form's state kept. The bottom form's `done()` closes the sheet. While the environment
+is not live the sheet says "Creating in {environment}, not production". `CreateForm`,
+`CreateField`, `CreateRefField`, `CreateSubmit` and the `cbx-cinput` class lay a form out like
+the rest of the sheet. A page's own "New …" button calls `useShellCreate()?.openCreate(key)`.
 
 ### Tests and snapshots
 

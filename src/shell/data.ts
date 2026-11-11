@@ -7,7 +7,7 @@ import type { ContextItem, ContextLevel, ContextTone, ShellNavigate } from './ty
 
 export type ListPage = { items: ContextItem[]; hasMore: boolean; nextCursor: string | null };
 
-const TONES: readonly ContextTone[] = ['production', 'sandbox', 'neutral'];
+const TONES: readonly ContextTone[] = ['production', 'sandbox', 'neutral', 'staging', 'preview', 'development'];
 
 /** First letters of the first two words, for a chip. */
 export function initialsOf(name: string): string {
@@ -27,6 +27,9 @@ function toItem(value: unknown): ContextItem | null {
     if (typeof row.label === 'string' && row.label !== '') item.label = row.label;
     const test = row.testData ?? row.test_data;
     if (typeof test === 'boolean') item.testData = test;
+    if (typeof row.live === 'boolean') item.live = row.live;
+    if (typeof row.group === 'string' && row.group !== '') item.group = row.group;
+    if (typeof row.description === 'string' && row.description !== '') item.description = row.description;
     return item;
 }
 
@@ -241,4 +244,45 @@ export function formFields(data: Record<string, unknown>, prefix?: string): Arra
 export function currentLocation(): string {
     if (typeof window === 'undefined') return '/';
     return window.location.pathname + window.location.search + window.location.hash;
+}
+
+/**
+ * Whether an environment is live, as the app declared it: `live`, else `testData` (true is not
+ * live), else `tone` (`production` is live). Undefined when the app said nothing: no banner.
+ */
+export function isLive(item: Pick<ContextItem, 'live' | 'testData' | 'tone'>): boolean | undefined {
+    if (item.live !== undefined) return item.live;
+    if (item.testData === true) return false;
+    if (item.tone !== undefined) return item.tone === 'production';
+    return undefined;
+}
+
+/** The environment level: the one keyed `environment`, else none. */
+export function environmentLevel<T extends { key: string }>(levels: readonly T[]): T | undefined {
+    return levels.find(level => level.key === 'environment');
+}
+
+/**
+ * The environment quick picks (V6): the current one, the first live one and the first one
+ * that is not live, at most three, in that order, never twice.
+ */
+export function quickEnvironments(items: readonly ContextItem[], current: ContextItem): ContextItem[] {
+    const picks: ContextItem[] = [current];
+    const live = items.find(item => item.id !== current.id && isLive(item) === true);
+    if (live !== undefined) picks.push(live);
+    const test = items.find(item => item.id !== current.id && item.id !== live?.id && isLive(item) !== true);
+    if (test !== undefined) picks.push(test);
+    return picks.slice(0, 3);
+}
+
+/** Items under their `group` heading, in the order each group first appears. */
+export function groupItems(items: readonly ContextItem[]): Array<{ group: string | undefined; items: ContextItem[] }> {
+    const runs = new Map<string, { group: string | undefined; items: ContextItem[] }>();
+    for (const item of items) {
+        const key = item.group ?? '';
+        const run = runs.get(key) ?? { group: item.group, items: [] };
+        run.items.push(item);
+        runs.set(key, run);
+    }
+    return Array.from(runs.values());
 }

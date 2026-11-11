@@ -1,18 +1,20 @@
-import { Bell, ChevronsUpDown, CircleHelp, LayoutGrid, Lock, Menu, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Search } from 'lucide-react';
+import { Bell, ChevronsUpDown, CircleHelp, LayoutGrid, Lock, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type AnchorHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { useCboxLocalization } from '../context/localization';
 import { useKnownAppCatalog } from '../components/app-icon';
 import { AccountMenu, Avatar } from './account-menu';
 import { AppGrid, forgetShellCatalog, hueFor } from './app-grid';
-import { CascadeLabel, Chip, CascadeMenu, OrganizationMenu } from './context-menus';
-import { ShellContext, useShell, type ShellApi, type ShellLinkComponent, type ShellOverlay } from './context';
+import { CascadeLabel, Chip, CascadeMenu, OrganizationMenu, ToneSquare } from './context-menus';
+import { ShellContext, useShell, type ContextStep, type ShellApi, type ShellLinkComponent, type ShellOverlay, type ShellRecordSearch } from './context';
+import { CreateSheet, pageCreateKey, type ShellRenderCreate } from './create';
+import { rememberPage } from './recent';
 import { initials } from '../app-switcher/catalog';
 import { currentLocation, defaultNavigate, switchBody } from './data';
-import { HelpColumn, useHelpState } from './help';
+import { HelpColumn, useHelpState, useUnreadCount } from './help';
 import { helpVisible, sharedHelpStore, type HelpStore } from './help-store';
 import { resolveIcon, type ShellIcon } from './icons';
 import { HELP_DOCKED, MOBILE, matches, useMedia } from './media';
-import { ContextSheet, NavSheet } from './mobile';
+import { AppsSheet, ContextSheet, MobileAreaHead, MobileTopBar, MoreScreen, notLiveEnvironment, TabBar, useMoreView } from './mobile';
 import { areaLocked, NavPageList, NavPageMarks, navUrl, shellBanners } from './nav-pages';
 import { CommandPalette } from './palette';
 import { Popover } from './popover';
@@ -42,6 +44,16 @@ export type CboxShellProps = {
     brandAssetBase?: string;
     /** `id` of the `<main>` landmark, which the shell's "Skip to content" link targets. Default `main-content`. */
     mainId?: string;
+    /**
+     * The app's create forms, one per `shell.create` key (V7). The shell renders the sheet, the
+     * stack and the words; the app renders the fields. Without it there is no "+".
+     */
+    renderCreate?: ShellRenderCreate;
+    /**
+     * The app's own records search for the palette's Records group, instead of
+     * `palette.searchUrl`'s records. Called with the query and an abort signal.
+     */
+    searchRecords?: ShellRecordSearch;
 };
 
 const PlainLink: ShellLinkComponent = ({ href, children, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string; children?: ReactNode }) => <a href={href} {...props}>{children}</a>;
@@ -92,11 +104,15 @@ function useIsMac(): boolean {
  * Render it in the host's persistent layout (Inertia `Page.layout`), so the rail, Help and the
  * chat survive page visits; only `shell` and `children` change.
  */
-export function CboxShell({ shell, children, navigate = defaultNavigate, LinkComponent = PlainLink, icons = {}, onPreferenceChange, helpStore, brandAssetBase = '/brand', mainId = 'main-content' }: CboxShellProps) {
+export function CboxShell({ shell, children, navigate = defaultNavigate, LinkComponent = PlainLink, icons = {}, onPreferenceChange, helpStore, brandAssetBase = '/brand', mainId = 'main-content', renderCreate, searchRecords }: CboxShellProps) {
     const { t } = useCboxLocalization();
     const [store] = useState(() => helpStore ?? sharedHelpStore());
     const [preferences, setPreferences] = useState<ShellPreferences>(shell.preferences);
     const [overlay, setOverlay] = useState<ShellOverlay>(null);
+    const [contextStep, setContextStep] = useState<ContextStep>({ step: 'root', direct: false });
+    const [createKey, setCreateKey] = useState<string | null>(null);
+    const mobile = useMedia(MOBILE, false);
+    const [moreView, setMoreView] = useMoreView();
 
     // Help starts as the person left it, once per page; later visits keep the live state. Left
     // open, it shows docked from 1280px; below that it waits for the person (see `restored`).
@@ -133,6 +149,7 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
     // Lists and the app catalog kept from another context are never shown in this one.
     const scope = levels.map(level => `${level.key}:${level.current.id}`).join('|');
     if (scopeLists(scope)) forgetShellCatalog();
+    const canCreate = renderCreate !== undefined && (shell.create?.items.length ?? 0) > 0;
     const api = useMemo<ShellApi>(
         () => ({
             shell,
@@ -158,8 +175,27 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
                 setOverlay(null);
                 navigate(switchUrl, { method: 'post', data: switchBody(levels, chosen, currentLocation()) });
             },
+            mobile,
+            contextStep,
+            openContext: (step = 'root', direct = false) => {
+                if (mobile) {
+                    setContextStep({ step, direct, underMore: overlay === 'more' });
+                    setOverlay('context-sheet');
+                    return;
+                }
+                setOverlay(step === 'root' || step === levels[0]?.key || levels.length < 2 ? 'org' : 'context');
+            },
+            createKey,
+            canCreate,
+            openCreate: key => {
+                if (!canCreate) return;
+                setCreateKey(key ?? pageCreateKey(shell));
+                setOverlay('create');
+            },
+            renderCreate,
+            searchRecords,
         }),
-        [shell, t, navigate, LinkComponent, icons, preferences, setPreference, overlay, store, toggleHelp, levels, switchUrl],
+        [shell, t, navigate, LinkComponent, icons, preferences, setPreference, overlay, store, toggleHelp, levels, switchUrl, mobile, contextStep, createKey, canCreate, renderCreate, searchRecords],
     );
 
     const preferencesRef = useRef(preferences);
@@ -185,48 +221,105 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
     const page = `${shell.nav.activeArea}|${shell.nav.activePage ?? ''}|${shell.page?.title ?? ''}`;
     useEffect(() => {
         setOverlay(current => (current === 'palette' ? current : null));
+        setMoreView({ kind: 'root' });
+        if (shell.page?.title !== undefined) {
+            const area = shell.nav.areas.find(item => item.key === shell.nav.activeArea);
+            rememberPage(shell.app.key, { title: shell.page.title, area: area?.label, url: currentLocation() });
+        }
     }, [page]);
 
     const docked = useMedia(HELP_DOCKED, true);
-    const mobile = useMedia(MOBILE, false);
     const testData = levels.some(level => level.current.testData === true);
     const helpOpen = useHelpState(store, state => helpVisible(state, docked));
-    const banners = shellBanners(shell, testData);
+    const notLive = notLiveEnvironment(levels);
+    // On the phone the environment banner under the title says what the sandbox strip says, so
+    // the strip is not shown twice. On a desktop the banner shows only when there is no strip.
+    const banners = shellBanners(shell, testData).filter(banner => !(mobile && notLive !== null && banner.kind === 'sandbox'));
+    const envBanner = !mobile && notLive !== null && !banners.some(banner => banner.kind === 'sandbox') ? notLive : null;
+
+    const strips = banners.map((banner, index) => (
+        <div key={`${banner.kind}-${index}`} className={`cbx-banner cbx-banner-${banner.kind}`} role="status">
+            <span className="cbx-banner-text">{banner.text}</span>
+            {banner.action !== undefined && <LinkComponent href={navUrl(banner.action)} className="cbx-banner-action">{banner.action.label}</LinkComponent>}
+        </div>
+    ));
+    const skip = (
+        <a
+            className="cbx-skip-link"
+            href={`#${mainId}`}
+            onClick={event => {
+                const main = document.getElementById(mainId);
+                if (main === null) return;
+                event.preventDefault();
+                main.focus();
+                main.scrollIntoView?.({ block: 'start' });
+            }}
+        >
+            {t('Skip to content')}
+        </a>
+    );
+    const overlays = (
+        <>
+            {overlay === 'palette' && <CommandPalette onClose={() => setOverlay(null)} />}
+            {overlay === 'context-sheet' && <ContextSheet key={`${contextStep.step}:${String(contextStep.direct)}`} onClose={() => setOverlay(contextStep.underMore === true ? 'more' : null)} />}
+            {overlay === 'apps-sheet' && <AppsSheet onClose={() => setOverlay('more')} />}
+            {overlay === 'create' && <CreateSheet key={createKey ?? 'tree'} onClose={() => setOverlay(null)} />}
+        </>
+    );
+
+    if (mobile) {
+        // More stays on screen under the sheets it opens (Switch app, a context step).
+        const moreOpen = overlay === 'more' || overlay === 'apps-sheet' || (overlay === 'context-sheet' && contextStep.underMore === true);
+        return (
+            <ShellContext.Provider value={api}>
+                <div className="cbx-shell is-mobile" data-help-open={helpOpen}>
+                    {skip}
+                    <div className="cbx-shell-column">
+                        <header className="cbx-m-chrome" hidden={moreOpen}>
+                            <MobileTopBar />
+                            <MobileAreaHead />
+                            {strips}
+                        </header>
+                        <main id={mainId} tabIndex={-1} className="cbx-shell-main canvas-gradient">
+                            {moreOpen && <MoreScreen view={moreView} setView={setMoreView} />}
+                            {/* The page stays mounted under More, so its state survives. */}
+                            <div className="cbx-m-page" hidden={moreOpen}>{children}</div>
+                        </main>
+                    </div>
+                    <TabBar
+                        onMore={() => {
+                            setMoreView({ kind: 'root' });
+                            setOverlay('more');
+                        }}
+                    />
+                    <HelpColumn docked={false} mobile />
+                    {overlays}
+                </div>
+            </ShellContext.Provider>
+        );
+    }
 
     return (
         <ShellContext.Provider value={api}>
             <div className="cbx-shell" data-help-open={helpOpen}>
-                <a
-                    className="cbx-skip-link"
-                    href={`#${mainId}`}
-                    onClick={event => {
-                        const main = document.getElementById(mainId);
-                        if (main === null) return;
-                        event.preventDefault();
-                        main.focus();
-                        main.scrollIntoView?.({ block: 'start' });
-                    }}
-                >
-                    {t('Skip to content')}
-                </a>
+                {skip}
                 <Rail brandAssetBase={brandAssetBase} />
                 <div className="cbx-shell-column">
-                    <Header mobile={mobile} />
-                    {banners.map((banner, index) => (
-                        <div key={`${banner.kind}-${index}`} className={`cbx-banner cbx-banner-${banner.kind}`} role="status">
-                            <span className="cbx-banner-text">{banner.text}</span>
-                            {banner.action !== undefined && <LinkComponent href={navUrl(banner.action)} className="cbx-banner-action">{banner.action.label}</LinkComponent>}
+                    <Header />
+                    {envBanner !== null && (
+                        <div className={`cbx-banner cbx-banner-env cbx-env-${envBanner.tone ?? 'neutral'}`} role="status">
+                            <ToneSquare tone={envBanner.tone} />
+                            <span className="cbx-banner-text">{t('{environment}. Not production, nothing here touches live customers.', { environment: envBanner.name })}</span>
                         </div>
-                    ))}
+                    )}
+                    {strips}
                     <div className="cbx-shell-body">
                         <Subnav />
                         <main id={mainId} tabIndex={-1} className="cbx-shell-main canvas-gradient">{children}</main>
                     </div>
                 </div>
                 <HelpColumn docked={docked} />
-                {overlay === 'palette' && <CommandPalette onClose={() => setOverlay(null)} />}
-                {overlay === 'nav-sheet' && <NavSheet onClose={() => setOverlay(null)} />}
-                {overlay === 'context-sheet' && <ContextSheet onClose={() => setOverlay(null)} />}
+                {overlays}
             </div>
         </ShellContext.Provider>
     );
@@ -370,7 +463,7 @@ function Subnav() {
     );
 }
 
-function Header({ mobile }: { mobile: boolean }) {
+function Header() {
     const { shell, t, overlay, setOverlay, help, toggleHelp, Link } = useShell();
     const mac = useIsMac();
     const org = useRef<HTMLButtonElement>(null);
@@ -378,9 +471,8 @@ function Header({ mobile }: { mobile: boolean }) {
     const apps = useRef<HTMLButtonElement>(null);
     const docked = useMedia(HELP_DOCKED, true);
     const helpOpen = useHelpState(help, state => helpVisible(state, docked));
-    const unread = useHelpState(help, state => state.updates.filter(update => update.unread).length);
+    const unread = useUnreadCount(help, shell.help.unread);
     const [organization, ...rest] = shell.context.levels;
-    const trail = shell.context.levels.map(level => level.current.name).join(' / ');
     const close = useCallback(() => setOverlay(null), [setOverlay]);
     /** ↓ (or ↑) on a context trigger opens its menu, or moves into it when open; Esc closes it. */
     const triggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, menu: 'org' | 'context') => {
@@ -396,9 +488,6 @@ function Header({ mobile }: { mobile: boolean }) {
 
     return (
         <header className="cbx-header">
-            <button type="button" className="cbx-icon-button cbx-only-mobile" onClick={() => setOverlay('nav-sheet')} aria-label={t('Open navigation')} aria-haspopup="dialog">
-                <Menu size={20} strokeWidth={1.8} aria-hidden />
-            </button>
             {organization !== undefined && (
                 <div className="cbx-context cbx-only-desktop">
                     <button ref={org} type="button" className={`cbx-trigger ${overlay === 'org' ? 'is-open' : ''}`} aria-haspopup="dialog" aria-expanded={overlay === 'org'} aria-label={t('{level}: {name}', { level: organization.label, name: organization.current.name })} onClick={() => setOverlay(overlay === 'org' ? null : 'org')} onKeyDown={event => triggerKeyDown(event, 'org')}>
@@ -406,7 +495,7 @@ function Header({ mobile }: { mobile: boolean }) {
                         <span className="cbx-trigger-text" title={organization.current.name}>{organization.current.name}</span>
                         <ChevronsUpDown className="cbx-trigger-chevron" size={14} strokeWidth={1.8} aria-hidden />
                     </button>
-                    {!mobile && (
+                    {(
                         <Popover open={overlay === 'org'} anchor={org} label={organization.label} onClose={close}>
                             <OrganizationMenu level={organization} />
                         </Popover>
@@ -418,7 +507,7 @@ function Header({ mobile }: { mobile: boolean }) {
                                 <CascadeLabel levels={rest} />
                                 <ChevronsUpDown className="cbx-trigger-chevron" size={14} strokeWidth={1.8} aria-hidden />
                             </button>
-                            {!mobile && (
+                            {(
                                 <Popover open={overlay === 'context'} anchor={second} label={rest.map(level => level.label).join(' / ')} onClose={close}>
                                     <CascadeMenu levels={rest} parent={organization.current.id} />
                                 </Popover>
@@ -426,13 +515,6 @@ function Header({ mobile }: { mobile: boolean }) {
                         </>
                     )}
                 </div>
-            )}
-            {organization !== undefined && (
-                <button type="button" className="cbx-trigger cbx-context-mobile cbx-only-mobile" onClick={() => setOverlay('context-sheet')} aria-haspopup="dialog" aria-label={t('Where you are: {trail}', { trail })}>
-                    <Chip item={organization.current} tone="solid" />
-                    <span className="cbx-trigger-text">{trail}</span>
-                    <ChevronsUpDown className="cbx-trigger-chevron" size={14} strokeWidth={1.8} aria-hidden />
-                </button>
             )}
             <div className="cbx-tools">
                 <button type="button" className="cbx-search-button" onClick={() => setOverlay('palette')} aria-label={t('Search or ask…')} aria-keyshortcuts={mac ? 'Meta+K' : 'Control+K'}>
@@ -454,7 +536,7 @@ function Header({ mobile }: { mobile: boolean }) {
                 <button ref={apps} type="button" className={`cbx-tool cbx-tool-icon cbx-only-desktop ${overlay === 'apps' ? 'is-on' : ''}`} onClick={() => setOverlay(overlay === 'apps' ? null : 'apps')} aria-haspopup="dialog" aria-expanded={overlay === 'apps'} aria-label={t('Switch app')} title={t('Switch app')}>
                     <LayoutGrid size={16} strokeWidth={1.8} aria-hidden />
                 </button>
-                {!mobile && (
+                {(
                     <Popover open={overlay === 'apps'} anchor={apps} placement="bottom-end" label={t('Switch app')} onClose={close}>
                         <AppGrid />
                     </Popover>

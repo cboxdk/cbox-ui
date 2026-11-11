@@ -2,7 +2,7 @@ import { cleanup, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import type { ReactNode } from 'react';
-import { CboxShell } from '../shell';
+import { CboxShell, type CboxShellProps } from '../shell';
 import { createHelpStore, type HelpStore } from '../help-store';
 import { forgetLists } from '../use-list';
 import { forgetShellCatalog } from '../app-grid';
@@ -86,7 +86,7 @@ export function stubFetch({ delays = {}, fail = [] }: { delays?: Record<string, 
     return calls;
 }
 
-export function renderShell({ shell = makeShell(), environment = {}, store = createHelpStore(), fetch: fetchOptions = {}, onPreferenceChange, page }: { shell?: Shell; environment?: Environment; store?: HelpStore; fetch?: Parameters<typeof stubFetch>[0]; onPreferenceChange?: Parameters<typeof CboxShell>[0]['onPreferenceChange']; page?: ReactNode } = {}) {
+export function renderShell({ shell = makeShell(), environment = {}, store = createHelpStore(), fetch: fetchOptions = {}, onPreferenceChange, page, renderCreate, searchRecords }: { shell?: Shell; environment?: Environment; store?: HelpStore; fetch?: Parameters<typeof stubFetch>[0]; onPreferenceChange?: Parameters<typeof CboxShell>[0]['onPreferenceChange']; page?: ReactNode; renderCreate?: CboxShellProps['renderCreate']; searchRecords?: CboxShellProps['searchRecords'] } = {}) {
     stubMedia(environment);
     defineFakeSupport();
     const calls = stubFetch(fetchOptions);
@@ -94,13 +94,13 @@ export function renderShell({ shell = makeShell(), environment = {}, store = cre
     const preference = onPreferenceChange ?? vi.fn();
     const user = userEvent.setup();
     const view = render(
-        <CboxShell shell={shell} navigate={navigate} helpStore={store} onPreferenceChange={preference}>
+        <CboxShell shell={shell} navigate={navigate} helpStore={store} onPreferenceChange={preference} renderCreate={renderCreate} searchRecords={searchRecords}>
             {page ?? <h1>Deployments</h1>}
         </CboxShell>,
     );
     const rerender = (next: Shell, page = 'Deployments') =>
         view.rerender(
-            <CboxShell shell={next} navigate={navigate} helpStore={store} onPreferenceChange={preference}>
+            <CboxShell shell={next} navigate={navigate} helpStore={store} onPreferenceChange={preference} renderCreate={renderCreate} searchRecords={searchRecords}>
                 <h1>{page}</h1>
             </CboxShell>,
         );
