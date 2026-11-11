@@ -378,6 +378,7 @@ export function Combobox(props: ComboboxProps) {
                     <div className="border-b border-border/60 px-2 py-2">
                         <div className="relative">
                             <SearchIcon />
+                            {/* 16px below 768px: iOS zooms into a smaller field when it takes focus. */}
                             <input
                                 ref={inputRef}
                                 type="text"
@@ -385,7 +386,7 @@ export function Combobox(props: ComboboxProps) {
                                 onChange={(e) => setQuery(e.target.value)}
                                 onKeyDown={onKeyDown}
                                 placeholder={searchPlaceholder}
-                                className="h-8 w-full rounded-sm border-0 bg-transparent pl-7 pr-2 text-[13px] outline-none placeholder:text-muted-foreground/70"
+                                className="h-8 w-full rounded-sm border-0 bg-transparent pl-7 pr-2 text-base outline-none placeholder:text-muted-foreground/70 md:text-[13px]"
                                 aria-controls={listId}
                                 aria-autocomplete="list"
                                 aria-activedescendant={
