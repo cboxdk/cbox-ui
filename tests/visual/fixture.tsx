@@ -5,7 +5,8 @@
  * left open), `page=releases` (another page of the Deploy area), `nav=settings` (the Settings
  * area with group headings, a count and a locked page), `banners=1` (an app banner beside the
  * sandbox strip), `locked=1` (an Analytics area whose pages are all locked), `charts=1` (the page
- * shows the bar, stacked-bar and waterfall charts instead of the deployments).
+ * shows the bar, stacked-bar and waterfall charts instead of the deployments), `long=1` (40
+ * deployments: a page several screens tall).
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -70,12 +71,16 @@ if (params.get('locked') === '1') {
 // `<cbox-support>` stands in for the Assistant SDK: the snapshots never load a real chat.
 shell.help.scriptUrl = '/support-stub.js';
 
-const rows = [
+const recent = [
     ['main · 3f9c21a', 'Fix the checkout total on a coupon', 'Live', '2 min ago'],
     ['main · a81be04', 'Upgrade the payment client', 'Superseded', '1 h ago'],
     ['main · 77d0c3e', 'Cache product images at the edge', 'Superseded', 'Yesterday'],
     ['main · 52e9a11', 'Add the order export', 'Failed', '2 days ago'],
 ];
+// `long=1`: a page several screens tall, for the document scroll.
+const rows = params.get('long') === '1'
+    ? Array.from({ length: 40 }, (_, index) => [`main · ${(0x10000 + index * 7919).toString(16)}`, `Deployment number ${40 - index}`, index === 0 ? 'Live' : 'Superseded', `${index + 1} days ago`])
+    : recent;
 
 const MONTHS = ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'];
 const money = (value: number) => (value >= 1000 || value <= -1000 ? `${value / 1000}k` : String(value));

@@ -41,6 +41,13 @@
     --info: oklch(0.62 0.16 230);
     --info-soft: oklch(0.62 0.16 230 / 0.12);
 
+    /* Tone text: words and icons in a tone on its soft tint, a card or the canvas. The fills
+     * above are too light for small text; these reach 4.5:1 (WCAG AA) on all three. */
+    --success-text: oklch(0.48 0.13 145);
+    --info-text: oklch(0.48 0.13 230);
+    --warning-text: oklch(0.48 0.11 65);
+    --destructive-text: oklch(0.50 0.19 25);
+
     --destructive: oklch(0.58 0.21 25);
     --destructive-foreground: oklch(0.99 0.003 247);
     --destructive-soft: oklch(0.58 0.21 25 / 0.12);
@@ -107,6 +114,11 @@
 
     --info: oklch(0.7 0.16 230);
     --info-soft: oklch(0.7 0.16 230 / 0.16);
+
+    --success-text: oklch(0.74 0.16 145);
+    --info-text: oklch(0.7 0.16 230);
+    --warning-text: oklch(0.78 0.16 70);
+    --destructive-text: oklch(0.76 0.15 25);
 
     --destructive: oklch(0.68 0.21 25);
     --destructive-foreground: oklch(0.16 0.01 250);
@@ -189,6 +201,11 @@
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
     --color-destructive-soft: var(--destructive-soft);
+
+    --color-success-text: var(--success-text);
+    --color-info-text: var(--info-text);
+    --color-warning-text: var(--warning-text);
+    --color-destructive-text: var(--destructive-text);
 
     --color-border: var(--border);
     --color-border-strong: var(--border-strong);

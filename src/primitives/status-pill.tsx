@@ -10,10 +10,10 @@ type Tone =
 
 const toneStyles: Record<Tone, string> = {
     neutral: 'border-border bg-secondary text-secondary-foreground',
-    info: 'border-info/20 bg-info-soft text-info',
-    success: 'border-success/20 bg-success-soft text-success',
-    warning: 'border-warning/20 bg-warning-soft text-warning',
-    destructive: 'border-destructive/20 bg-destructive-soft text-destructive',
+    info: 'border-info/20 bg-info-soft text-info-text',
+    success: 'border-success/20 bg-success-soft text-success-text',
+    warning: 'border-warning/20 bg-warning-soft text-warning-text',
+    destructive: 'border-destructive/20 bg-destructive-soft text-destructive-text',
     muted: 'border-border bg-card text-muted-foreground',
 };
 

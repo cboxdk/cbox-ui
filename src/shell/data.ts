@@ -87,21 +87,35 @@ export function environmentFor(environments: readonly ContextItem[], currentName
     return environments[0];
 }
 
+/** The body `CboxShell` posts to `context.switchUrl`: laravel-console-kit's `select` and `from`. */
+export type SwitchBody = { select: Record<string, string>; from: string };
+
 /**
- * The switch payload (§5.6): every level above the chosen one keeps its current id, the chosen
- * levels get theirs, and levels below are left to the server (it lands on the last used one).
- * `return_to` is where the person is, so the server can stay on the same page.
+ * The switch body (§5.6): every level above the chosen one keeps its current id, the chosen
+ * levels get theirs, and levels below are left to the server (it keeps the item with the same
+ * name, else the first). `from` is where the person is, so the server can stay on the same page.
+ * This is the shape `POST /shell/switch` reads in laravel-console-kit, and the same one its
+ * palette links use as a query (`?select[project]=…&from=…`).
  */
-export function switchPayload(levels: readonly ContextLevel[], chosen: Record<string, string>, returnTo: string): Record<string, string> {
-    const payload: Record<string, string> = {};
+export function switchBody(levels: readonly ContextLevel[], chosen: Record<string, string>, from: string): SwitchBody {
+    const select: Record<string, string> = {};
     const deepest = Math.max(-1, ...levels.map((level, index) => (chosen[level.key] !== undefined ? index : -1)));
     levels.forEach((level, index) => {
         const id = chosen[level.key];
-        if (id !== undefined) payload[level.key] = id;
-        else if (index < deepest) payload[level.key] = level.current.id;
+        if (id !== undefined) select[level.key] = id;
+        else if (index < deepest) select[level.key] = level.current.id;
     });
-    payload.return_to = returnTo;
-    return payload;
+    return { select, from };
+}
+
+/**
+ * @deprecated The flat body 0.10.3 and older posted, `{ <level key>: id, …, return_to }`, which
+ * laravel-console-kit 0.2.4 and older answered with a 404. `CboxShell` posts `switchBody()` now.
+ * Kept for one minor; removed in 0.11.
+ */
+export function switchPayload(levels: readonly ContextLevel[], chosen: Record<string, string>, returnTo: string): Record<string, string> {
+    const { select } = switchBody(levels, chosen, returnTo);
+    return { ...select, return_to: returnTo };
 }
 
 function cookie(name: string): string | null {
@@ -196,16 +210,32 @@ export const defaultNavigate: ShellNavigate = (url, options = {}) => {
     const fields: Record<string, unknown> = { ...(options.data ?? {}) };
     const token = csrfToken();
     if (token !== null) fields._token = token;
-    for (const [name, value] of Object.entries(fields)) {
+    for (const [name, value] of formFields(fields)) {
         const input = document.createElement('input');
         input.type = 'hidden';
         input.name = name;
-        input.value = String(value);
+        input.value = value;
         form.append(input);
     }
     document.body.append(form);
     form.submit();
 };
+
+/**
+ * Form field names for a POST body, nested objects as PHP reads them: `{ select: { project: 'p' } }`
+ * is `select[project]=p`. `undefined` and `null` are left out.
+ */
+export function formFields(data: Record<string, unknown>, prefix?: string): Array<[string, string]> {
+    const out: Array<[string, string]> = [];
+    for (const [key, value] of Object.entries(data)) {
+        const name = prefix === undefined ? key : `${prefix}[${key}]`;
+        if (value === undefined || value === null) continue;
+        if (typeof value === 'object' && !Array.isArray(value)) out.push(...formFields(value as Record<string, unknown>, name));
+        else if (Array.isArray(value)) value.forEach((item, index) => out.push([`${name}[${index}]`, String(item)]));
+        else out.push([name, String(value)]);
+    }
+    return out;
+}
 
 /** Where the person is: path, query and hash. */
 export function currentLocation(): string {

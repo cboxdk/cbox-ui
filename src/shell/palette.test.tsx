@@ -107,7 +107,7 @@ describe('command palette (§6)', () => {
         await user.click(screen.getByRole('button', { name: 'Search or ask…' }));
         await user.type(screen.getByRole('combobox'), 'acme');
         await user.click(await screen.findByRole('option', { name: /Acme ApS/ }));
-        expect(navigate).toHaveBeenCalledWith('/shell/switch', expect.objectContaining({ method: 'post', data: expect.objectContaining({ organization: 'org_acme' }) }));
+        expect(navigate).toHaveBeenCalledWith('/shell/switch', expect.objectContaining({ method: 'post', data: expect.objectContaining({ select: { organization: 'org_acme' } }) }));
     });
 
     it('reads records and Go to from console-kit\'s grouped search answer', async () => {

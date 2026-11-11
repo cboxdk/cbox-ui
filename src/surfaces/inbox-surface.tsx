@@ -179,7 +179,7 @@ export function InboxSurface({ open, onClose }: Props) {
         >
             {error !== null ? (
                 <div className="px-5 py-8 text-center">
-                    <p className="text-sm font-medium text-destructive">
+                    <p className="text-sm font-medium text-destructive-text">
                         {t("Couldn't load inbox")}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                         {error}

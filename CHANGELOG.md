@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased (suggested v0.10.4)
+
+Backward compatible: no `shell` prop or component prop changes.
+
+### Fixed
+
+- **Switching organization, project or environment did nothing.** `CboxShell` posted `{ <level key>: id, …, return_to }`, while laravel-console-kit's `/shell/switch` reads `select[<level key>]` and `from` (its documented contract, also used by its palette links), so it answered 404 "Nothing to switch to.". The shell now posts `{ select: {…}, from }` (`switchBody()`, new), and the default `navigate` sends nested objects as `select[project]=…` form fields. Works with every console-kit 0.2.x; console-kit 0.2.5 also accepts the old body.
+- **The document scrolls, not `<main>`.** `.cbx-shell` was `height: 100svh; overflow: hidden` with `<main>` as a smooth-scrolling inner scroller, so Inertia neither reset the scroll on a new page nor restored it on back and forward, and full-page screenshots were blank below the fold. The shell now has `min-height: 100svh`; the rail, the header, the subnav and docked Help are `position: sticky`. `<main>` is no longer a scroller and has no `scroll-behavior: smooth`.
+- **Tone text contrast.** `StatusPill` (11px) wrote success, info and warning at 2.2–3.0:1 in light, and destructive under 4.5:1 in both themes. New text tokens `--success-text`, `--info-text`, `--warning-text`, `--destructive-text` (Tailwind `text-*-text`, also in the v3 preset) reach 4.5:1 on the soft tint over card, canvas and background, light and dark. `StatusPill`, `StatTile`'s icon, the combobox's info row and the inbox error use them. The fills are unchanged.
+- **StatTile caption** was `text-muted-foreground/80` (3.8:1); it is full `text-muted-foreground` (6:1 light, 6.2:1 dark).
+- **SectionHeader** stacked its actions under the title below `sm`, leaving a lone "View all" on its own line. The actions now stay beside the title while there is room and wrap under it, left aligned, when there is not; several actions wrap among themselves.
+- **Context switcher keyboard.** Focus did not move into a menu when it opened: it was placed before it was shown (`visibility: hidden`), and a hidden element cannot take focus. It now moves into the search field with a fine pointer, else into the list. ↓ (or ↑) on a context trigger opens its menu (or moves into it when open), and Esc on the trigger of an open menu closes it; Esc inside a menu still returns focus to the trigger.
+
+### Deprecated
+
+- `switchPayload()` (the flat body). Use `switchBody()`. Removed in 0.11.
+
+### Tests
+
+- Playwright: the context switcher from the keyboard, the document scroll with the sticky chrome (scrolled and full-page snapshots, light and dark, 1440 and 390). The mobile charts snapshot now shows all four charts (the inner scroller cut off the last).
+- Unit: the tone and muted contrast on the published tokens, the switch body and its form fields, focus on a touch screen, ↓ and Esc on the trigger, the primitives' classes.
+
 ## v0.10.3 — 2026-11-11
 
 All additions are optional; a 0.10.2 `shell` prop renders as before.

@@ -1,5 +1,5 @@
 import { Bell, ChevronsUpDown, CircleHelp, LayoutGrid, Lock, Menu, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Search } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type AnchorHTMLAttributes, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type AnchorHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { useCboxLocalization } from '../context/localization';
 import { useKnownAppCatalog } from '../components/app-icon';
 import { AccountMenu, Avatar } from './account-menu';
@@ -7,7 +7,7 @@ import { AppGrid, forgetShellCatalog, hueFor } from './app-grid';
 import { CascadeLabel, Chip, CascadeMenu, OrganizationMenu } from './context-menus';
 import { ShellContext, useShell, type ShellApi, type ShellLinkComponent, type ShellOverlay } from './context';
 import { initials } from '../app-switcher/catalog';
-import { currentLocation, defaultNavigate, switchPayload } from './data';
+import { currentLocation, defaultNavigate, switchBody } from './data';
 import { HelpColumn, useHelpState } from './help';
 import { helpVisible, sharedHelpStore, type HelpStore } from './help-store';
 import { resolveIcon, type ShellIcon } from './icons';
@@ -156,7 +156,7 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
             },
             switchTo: chosen => {
                 setOverlay(null);
-                navigate(switchUrl, { method: 'post', data: switchPayload(levels, chosen, currentLocation()) });
+                navigate(switchUrl, { method: 'post', data: switchBody(levels, chosen, currentLocation()) });
             },
         }),
         [shell, t, navigate, LinkComponent, icons, preferences, setPreference, overlay, store, toggleHelp, levels, switchUrl],
@@ -382,6 +382,17 @@ function Header({ mobile }: { mobile: boolean }) {
     const [organization, ...rest] = shell.context.levels;
     const trail = shell.context.levels.map(level => level.current.name).join(' / ');
     const close = useCallback(() => setOverlay(null), [setOverlay]);
+    /** ↓ (or ↑) on a context trigger opens its menu, or moves into it when open; Esc closes it. */
+    const triggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, menu: 'org' | 'context') => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (overlay !== menu) setOverlay(menu);
+            else document.querySelector<HTMLElement>('.cbx-popover .cbx-pane-search input, .cbx-popover [role="listbox"]')?.focus();
+        } else if (event.key === 'Escape' && overlay === menu) {
+            event.preventDefault();
+            setOverlay(null);
+        }
+    };
 
     return (
         <header className="cbx-header">
@@ -390,7 +401,7 @@ function Header({ mobile }: { mobile: boolean }) {
             </button>
             {organization !== undefined && (
                 <div className="cbx-context cbx-only-desktop">
-                    <button ref={org} type="button" className={`cbx-trigger ${overlay === 'org' ? 'is-open' : ''}`} aria-haspopup="dialog" aria-expanded={overlay === 'org'} aria-label={t('{level}: {name}', { level: organization.label, name: organization.current.name })} onClick={() => setOverlay(overlay === 'org' ? null : 'org')}>
+                    <button ref={org} type="button" className={`cbx-trigger ${overlay === 'org' ? 'is-open' : ''}`} aria-haspopup="dialog" aria-expanded={overlay === 'org'} aria-label={t('{level}: {name}', { level: organization.label, name: organization.current.name })} onClick={() => setOverlay(overlay === 'org' ? null : 'org')} onKeyDown={event => triggerKeyDown(event, 'org')}>
                         <Chip item={organization.current} tone="solid" />
                         <span className="cbx-trigger-text" title={organization.current.name}>{organization.current.name}</span>
                         <ChevronsUpDown className="cbx-trigger-chevron" size={14} strokeWidth={1.8} aria-hidden />
@@ -403,7 +414,7 @@ function Header({ mobile }: { mobile: boolean }) {
                     {rest.length > 0 && (
                         <>
                             <span className="cbx-separator" aria-hidden="true">/</span>
-                            <button ref={second} type="button" className={`cbx-trigger ${overlay === 'context' ? 'is-open' : ''}`} aria-haspopup="dialog" aria-expanded={overlay === 'context'} aria-label={rest.map(level => t('{level}: {name}', { level: level.label, name: level.current.name })).join(', ')} onClick={() => setOverlay(overlay === 'context' ? null : 'context')}>
+                            <button ref={second} type="button" className={`cbx-trigger ${overlay === 'context' ? 'is-open' : ''}`} aria-haspopup="dialog" aria-expanded={overlay === 'context'} aria-label={rest.map(level => t('{level}: {name}', { level: level.label, name: level.current.name })).join(', ')} onClick={() => setOverlay(overlay === 'context' ? null : 'context')} onKeyDown={event => triggerKeyDown(event, 'context')}>
                                 <CascadeLabel levels={rest} />
                                 <ChevronsUpDown className="cbx-trigger-chevron" size={14} strokeWidth={1.8} aria-hidden />
                             </button>

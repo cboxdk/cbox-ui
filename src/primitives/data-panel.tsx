@@ -32,7 +32,9 @@ type SectionHeaderProps = {
 
 /**
  * Section header that sits inside a DataPanel. Title in semibold sans,
- * optional muted lead, right-aligned actions slot.
+ * optional muted lead, right-aligned actions slot. The actions stay beside
+ * the title while there is room (also on a phone) and wrap under it, left
+ * aligned, when there is not; several actions wrap among themselves.
  */
 export function SectionHeader({
     title,
@@ -43,11 +45,11 @@ export function SectionHeader({
     return (
         <header
             className={cn(
-                'flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between',
+                'flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-border px-5 py-4',
                 className,
             )}
         >
-            <div className="space-y-1">
+            <div className="min-w-0 flex-[1_1_12rem] space-y-1">
                 <h2 className="text-[15px] leading-none font-semibold text-foreground">
                     {title}
                 </h2>
@@ -58,7 +60,7 @@ export function SectionHeader({
                 ) : null}
             </div>
             {actions ? (
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex max-w-full flex-wrap items-center gap-2">
                     {actions}
                 </div>
             ) : null}

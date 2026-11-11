@@ -95,8 +95,12 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
         });
     }, [list.status, list.items, q, currentId]);
 
+    // Focus moves into the menu when it opens: the search field on a desktop, else the list
+    // itself, so a touch keyboard never pops up and the arrow keys still work.
     useEffect(() => {
-        if (autoFocus && searchable && canAutofocus()) input.current?.focus();
+        if (!autoFocus) return;
+        if (searchable && canAutofocus()) input.current?.focus();
+        else box.current?.focus({ preventScroll: true });
     }, [autoFocus, searchable]);
 
     const focusSelf = useCallback(() => {
@@ -150,6 +154,11 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
 
     const onKeyDown = (event: KeyboardEvent) => {
         if (event.target instanceof HTMLElement && event.target.closest('.cbx-create')) return;
+        // Typing on the focused list goes on in the search field.
+        if (searchable && event.target === box.current && event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
+            input.current?.focus();
+            return;
+        }
         if (event.target instanceof HTMLElement && event.target.closest('[data-pane-action]')) return;
         const last = options.length - 1;
         switch (event.key) {
@@ -267,7 +276,7 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
                     role="listbox"
                     aria-label={heading}
                     tabIndex={searchable ? -1 : 0}
-                    aria-activedescendant={searchable ? undefined : activeId}
+                    aria-activedescendant={activeId}
                     className="cbx-listbox"
                 >
                 {options.map((option, index) => {

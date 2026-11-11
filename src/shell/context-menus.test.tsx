@@ -4,7 +4,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { renderShell, reset } from './testing/harness';
 import { makeShell } from './testing/fixture';
-import { environmentFor, parseListPage, safeUrl, settingsHref, switchPayload, withQuery } from './data';
+import { environmentFor, formFields, parseListPage, safeUrl, settingsHref, switchBody, switchPayload, withQuery } from './data';
 import { parseUpdates } from './help-store';
 
 afterEach(reset);
@@ -23,7 +23,7 @@ describe('switching semantics (§5.6)', () => {
         const { user, navigate } = renderShell();
         await user.click(orgTrigger());
         await user.click(await screen.findByRole('option', { name: /Acme ApS/ }));
-        expect(navigate).toHaveBeenCalledWith('/shell/switch', { method: 'post', data: { organization: 'org_acme', return_to: RETURN_TO } });
+        expect(navigate).toHaveBeenCalledWith('/shell/switch', { method: 'post', data: { select: { organization: 'org_acme' }, from: RETURN_TO } });
     });
 
     it('switches project and environment in one step when an environment is clicked', async () => {
@@ -33,7 +33,7 @@ describe('switching semantics (§5.6)', () => {
         await user.click(await screen.findByRole('option', { name: /Staging/ }));
         expect(navigate).toHaveBeenCalledWith('/shell/switch', {
             method: 'post',
-            data: { organization: 'org_cbox', project: 'prj_status', environment: 'env_status_staging', return_to: RETURN_TO },
+            data: { select: { organization: 'org_cbox', project: 'prj_status', environment: 'env_status_staging' }, from: RETURN_TO },
         });
     });
 
@@ -42,7 +42,7 @@ describe('switching semantics (§5.6)', () => {
         await user.click(cascadeTrigger());
         await user.click(await screen.findByRole('option', { name: /Status page/ }));
         await waitFor(() => expect(navigate).toHaveBeenCalled());
-        expect(navigate.mock.calls[0]![1].data).toMatchObject({ project: 'prj_status', environment: 'env_status_prod' });
+        expect(navigate.mock.calls[0]![1].data).toMatchObject({ select: { project: 'prj_status', environment: 'env_status_prod' } });
     });
 
     it("falls back to the project's first environment when the name is not there", async () => {
@@ -50,13 +50,26 @@ describe('switching semantics (§5.6)', () => {
         await user.click(cascadeTrigger());
         await user.click(await screen.findByRole('option', { name: /Billing API/ }));
         await waitFor(() => expect(navigate).toHaveBeenCalled());
-        expect(navigate.mock.calls[0]![1].data).toMatchObject({ project: 'prj_billing', environment: 'env_billing_dev' });
+        expect(navigate.mock.calls[0]![1].data).toMatchObject({ select: { project: 'prj_billing', environment: 'env_billing_dev' } });
+    });
+
+    it('posts the body as form fields PHP reads as select[] and from', () => {
+        const { context } = makeShell();
+        expect(formFields({ ...switchBody(context.levels, { project: 'prj_x' }, '/orgs/cbox?tab=a'), _token: 't' })).toEqual([
+            ['select[organization]', 'org_cbox'],
+            ['select[project]', 'prj_x'],
+            ['from', '/orgs/cbox?tab=a'],
+            ['_token', 't'],
+        ]);
+        expect(formFields({ a: undefined, b: null, c: ['x', 'y'] })).toEqual([['c[0]', 'x'], ['c[1]', 'y']]);
     });
 
     it('keeps the levels above the chosen one and leaves the ones below to the server', () => {
         const { context } = makeShell();
+        expect(switchBody(context.levels, { project: 'prj_x' }, '/here')).toEqual({ select: { organization: 'org_cbox', project: 'prj_x' }, from: '/here' });
+        expect(switchBody(context.levels, { organization: 'org_y' }, '/here')).toEqual({ select: { organization: 'org_y' }, from: '/here' });
+        // Deprecated flat shape, kept for one minor.
         expect(switchPayload(context.levels, { project: 'prj_x' }, '/here')).toEqual({ organization: 'org_cbox', project: 'prj_x', return_to: '/here' });
-        expect(switchPayload(context.levels, { organization: 'org_y' }, '/here')).toEqual({ organization: 'org_y', return_to: '/here' });
         expect(environmentFor([{ id: 'a', name: 'Staging' }, { id: 'b', name: ' production ' }], 'Production')?.id).toBe('b');
         expect(environmentFor([], 'Production')).toBeUndefined();
     });
@@ -90,7 +103,7 @@ describe('cascade (§5.4)', () => {
         const environments = screen.getByRole('listbox', { name: 'Environments in Status page' });
         expect(document.activeElement).toBe(environments);
         await user.keyboard('{ArrowDown}{Enter}');
-        expect(navigate.mock.calls[0]![1].data).toMatchObject({ project: 'prj_status', environment: 'env_status_prod' });
+        expect(navigate.mock.calls[0]![1].data).toMatchObject({ select: { project: 'prj_status', environment: 'env_status_prod' } });
     });
 
     it('marks tone, label and the current environment, in the order the app sent', async () => {
@@ -153,6 +166,31 @@ describe('organization menu (§5.3) and lazy lists (§11.2)', () => {
         expect(document.activeElement).toBe(orgTrigger());
     });
 
+    it('opens on ↓ from the trigger with focus in the search, and Esc on the trigger closes it', async () => {
+        const { user } = renderShell();
+        orgTrigger().focus();
+        await user.keyboard('{ArrowDown}');
+        expect(screen.getByRole('dialog', { name: 'Organization' })).toBeTruthy();
+        await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Search organizations' })));
+
+        orgTrigger().focus();
+        expect(orgTrigger().getAttribute('aria-expanded')).toBe('true');
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('dialog', { name: 'Organization' })).toBeNull();
+        expect(document.activeElement).toBe(orgTrigger());
+    });
+
+    it('moves focus to the list, not the search, on a touch screen', async () => {
+        const { user } = renderShell({ environment: { pointer: 'coarse', width: 1024 } });
+        await user.click(orgTrigger());
+        const list = await screen.findByRole('listbox', { name: 'Organizations' });
+        await waitFor(() => expect(document.activeElement).toBe(list));
+        await screen.findByRole('option', { name: /Acme/ });
+        await waitFor(() => expect(list.getAttribute('aria-activedescendant')).toBeTruthy());
+        await user.keyboard('{Escape}');
+        expect(document.activeElement).toBe(orgTrigger());
+    });
+
     it('moves with ↑↓ Home End and picks with Enter', async () => {
         const { user, navigate } = renderShell();
         await user.click(orgTrigger());
@@ -160,7 +198,7 @@ describe('organization menu (§5.3) and lazy lists (§11.2)', () => {
         await user.keyboard('{End}');
         expect(screen.getByRole('option', { name: /Nordic/ }).getAttribute('aria-selected')).toBe('true');
         await user.keyboard('{Home}{ArrowDown}{Enter}');
-        expect(navigate.mock.calls[0]![1].data).toMatchObject({ organization: 'org_acme' });
+        expect(navigate.mock.calls[0]![1].data).toMatchObject({ select: { organization: 'org_acme' } });
     });
 
     it('makes the gear the active option with →, goes back with ←, and opens settings with Enter', async () => {
