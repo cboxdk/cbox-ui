@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.10.2 — 2026-11-11
+
+### Fixed
+
+- ⌘K no longer makes "Ask Cbox" the active row while results load. Pasting an id and pressing Enter opened Ask instead of the record. The highlight now goes to the first result of the current query; while results are on their way no row is active and Enter does nothing. Ask takes the highlight only once every group has answered with nothing, and Ask chosen with the keyboard or mouse stays chosen.
+
 ## v0.10.1 — 2026-11-11
 
 All additions are optional fields; a 0.10.0 `shell` prop renders as before.
