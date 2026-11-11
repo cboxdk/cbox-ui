@@ -87,6 +87,9 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     const [input, setInput] = useState('');
     const [query, setQuery] = useState('');
     const [groups, setGroups] = useState<Partial<Record<PaletteGroupKey, GroupState>>>({});
+    // The query the server groups were last started for: until it matches, they are not this
+    // query's answer yet, even where they read idle or ready.
+    const [groupsFor, setGroupsFor] = useState('');
     const [expanded, setExpanded] = useState<PaletteGroupKey | null>(null);
     // The active row is held by its id, not its place: a slow group arriving above it must not
     // move the highlight onto another result under a fast Enter (§12.1, nothing jumps).
@@ -131,6 +134,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                 });
         };
         const signal = controller.signal;
+        setGroupsFor(q);
         if (q === '') {
             setGroups({});
             return () => controller.abort();
@@ -265,8 +269,20 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     });
 
     const keyOf = (option: Option): string => (option.kind === 'item' ? `${option.group}:${option.item.id}` : `all:${option.group}`);
-    const found = activeKey === null ? -1 : options.findIndex(option => keyOf(option) === activeKey);
-    const active = found >= 0 ? found : 0;
+    // Until the person moves the highlight, it goes to the first result. Ask Cbox is never picked
+    // for them while results are still on their way (the debounce or a loading group): a pasted
+    // id and a fast Enter must open the record, not send the id to the chat. Once every group has
+    // answered with nothing, Ask is the only thing left and takes the highlight. A server group's
+    // rows count as results only once it has answered this query: until then it may still show
+    // the last query's rows.
+    const debounced = q === query.trim() && groupsFor === q;
+    const current = (group: PaletteGroupKey) => group === 'pages' || group === 'actions' || (debounced && sections.find(section => section.key === group)?.state.status === 'ready');
+    const busy = !debounced || sections.some(section => section.state.status === 'loading');
+    const firstResult = options.find(option => option.group !== 'ask' && current(option.group));
+    const autoKey = firstResult !== undefined ? keyOf(firstResult) : !busy && options[0] !== undefined ? keyOf(options[0]) : null;
+    const indexOf = (key: string | null) => (key === null ? -1 : options.findIndex(option => keyOf(option) === key));
+    const found = indexOf(activeKey);
+    const active = found >= 0 ? found : indexOf(autoKey);
     const setActive = (next: number | ((index: number) => number)) => {
         const index = typeof next === 'function' ? next(active) : next;
         const option = options[index];
@@ -277,10 +293,9 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         setActiveKey(null);
     }, [q]);
     // Pin the first result once there is one, so a group arriving above does not take its place.
-    const firstKey = options[0] === undefined ? null : keyOf(options[0]);
     useEffect(() => {
-        if (activeKey === null && firstKey !== null) setActiveKey(firstKey);
-    }, [activeKey, firstKey]);
+        if (activeKey === null && autoKey !== null) setActiveKey(autoKey);
+    }, [activeKey, autoKey]);
     useEffect(() => {
         revealInList(`${id}-${active}`);
     }, [active, id]);

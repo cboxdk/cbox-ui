@@ -2,7 +2,7 @@
 // @vitest-environment-options {"url":"https://app.test/orgs/cbox/projects/webshop/environments/production/deployments"}
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { renderShell, reset } from './testing/harness';
+import { renderShell, reset, supportCalls } from './testing/harness';
 import { makeShell } from './testing/fixture';
 import { matchScore } from './palette';
 
@@ -140,6 +140,49 @@ describe('palette keeps its place (§12.1)', () => {
         expect(screen.getByRole('option', { name: /New deployment/ }).getAttribute('aria-selected')).toBe('true');
         await user.keyboard('{Enter}');
         expect(navigate).toHaveBeenCalledWith('/orgs/cbox/deployments/create', { method: 'get', newTab: false });
+    });
+
+    it('does not make Ask Cbox the active row while results load: a pasted id opens its record', async () => {
+        const { user, navigate } = renderShell({ fetch: { delays: { '/orgs/cbox/shell/search': 400 } } });
+        await user.click(screen.getByRole('button', { name: 'Search or ask…' }));
+        await user.type(screen.getByRole('combobox'), '3f9c21a');
+        const ask = await screen.findByRole('option', { name: /Ask Cbox: “3f9c21a”/ });
+        await screen.findAllByText('Searching…');
+        expect(ask.getAttribute('aria-selected')).toBe('false');
+        // Enter while it loads does not send the id to the chat.
+        await user.keyboard('{Enter}');
+        expect(supportCalls).toHaveLength(0);
+        expect(screen.getByRole('dialog', { name: 'Search' })).toBeTruthy();
+        const record = await screen.findByRole('option', { name: /Deployment 3f9c21a/ }, { timeout: 2000 });
+        expect(record.getAttribute('aria-selected')).toBe('true');
+        expect(screen.getByRole('option', { name: /Ask Cbox/ }).getAttribute('aria-selected')).toBe('false');
+        await user.keyboard('{Enter}');
+        expect(navigate).toHaveBeenCalledWith('/orgs/cbox/deployments/dep_1', { newTab: false });
+        expect(supportCalls).toHaveLength(0);
+    });
+
+    it('keeps Ask Cbox when the person chose it while results load', async () => {
+        const { user, navigate } = renderShell({ fetch: { delays: { '/orgs/cbox/shell/search': 400 } } });
+        await user.click(screen.getByRole('button', { name: 'Search or ask…' }));
+        await user.type(screen.getByRole('combobox'), '3f9c21a');
+        const ask = await screen.findByRole('option', { name: /Ask Cbox: “3f9c21a”/ });
+        await user.keyboard('{ArrowUp}');
+        expect(ask.getAttribute('aria-selected')).toBe('true');
+        await screen.findByRole('option', { name: /Deployment 3f9c21a/ }, { timeout: 2000 });
+        expect(screen.getByRole('option', { name: /Ask Cbox/ }).getAttribute('aria-selected')).toBe('true');
+        await user.keyboard('{Enter}');
+        await waitFor(() => expect(supportCalls[0]).toMatchObject({ method: 'ask', question: '3f9c21a' }));
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('makes Ask Cbox the active row once every group has answered with nothing', async () => {
+        const { user } = renderShell();
+        await user.click(screen.getByRole('button', { name: 'Search or ask…' }));
+        await user.type(screen.getByRole('combobox'), 'zzqx nothing');
+        await waitFor(() => expect(screen.queryByText('Searching…')).toBeNull());
+        await waitFor(() => expect(screen.getByRole('option', { name: /Ask Cbox/ }).getAttribute('aria-selected')).toBe('true'));
+        await user.keyboard('{Enter}');
+        await waitFor(() => expect(supportCalls[0]).toMatchObject({ method: 'ask', question: 'zzqx nothing' }));
     });
 
     it('drops a server link that is not http(s) or a path', async () => {
