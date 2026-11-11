@@ -91,6 +91,11 @@ const EASE = 'cubic-bezier(.2, .9, .25, 1)';
 const DURATION = 280;
 /** Not dragged from here: fields keep their own touch behaviour (select text, move the caret). */
 const NO_DRAG = 'input, textarea, select, [contenteditable], [data-no-drag]';
+/**
+ * Except a one-line field in the header (the palette's search fills most of it): a vertical
+ * drag there moves the sheet, a tap still focuses it, a sideways drag still moves the caret.
+ */
+const GRAB_FIELD = '.cbx-sheet-grab :is(input[type="search"], input[type="text"], input:not([type]))';
 
 function reducedMotion(): boolean {
     return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -177,7 +182,7 @@ export function useSheetDrag({ panel, scrim, size, onClose, enabled = true }: { 
             if (closing) return;
             if (event.pointerType === 'mouse' && event.button !== 0) return;
             const target = event.target instanceof Element ? event.target : null;
-            if (target === null || target.closest(NO_DRAG) !== null) return;
+            if (target === null || (target.closest(NO_DRAG) !== null && !target.matches(GRAB_FIELD))) return;
             const zone = target.closest('.cbx-sheet-grab') !== null ? 'grab' : 'content';
             gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, zone, scroller: scrollerOf(target), mode: undefined, last: event.clientY, start: 0, detents: [], tracker: new VelocityTracker() };
             gesture.tracker.add(event.timeStamp, event.clientY);

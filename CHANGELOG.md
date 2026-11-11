@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.11.2 — 2026-11-12
+
+### Fixed
+
+- **The palette sheet did not drag from its search bar.** The search field fills most of the
+  palette's header, and fields never started a drag. A one-line field in a sheet's header now
+  drags the sheet on a vertical move; a tap still focuses it and a sideways drag still moves
+  the caret.
+- **The Combobox search field was 13px on a phone,** so iOS zoomed into it. It is 16px below
+  768px (`text-base md:text-[13px]`) and 13px as before from 768px. Apps that set it to 16px in
+  their own CSS can drop that.
+- Every field inside the shell is 16px below 768px, whatever the pointer.
+
 ## 0.11.1 — 2026-11-11
 
 The phone shell feels like an app: sheets drag and resize, the page behind holds still, nothing

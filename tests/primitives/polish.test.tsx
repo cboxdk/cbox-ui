@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { Activity } from 'lucide-react';
 import { afterEach, describe, expect, it } from 'vitest';
+import { Combobox } from '../../src/primitives/combobox';
 import { SectionHeader } from '../../src/primitives/data-panel';
 import { StatTile } from '../../src/primitives/stat-tile';
 import { StatusPill } from '../../src/primitives/status-pill';
@@ -31,5 +32,15 @@ describe('SectionHeader', () => {
         const actions = screen.getByRole('link', { name: 'View all' }).parentElement!;
         expect(actions.className).toContain('flex-wrap');
         expect(screen.getByRole('heading', { name: 'Invoices' }).parentElement!.className).toContain('min-w-0');
+    });
+});
+
+describe('Combobox on a phone', () => {
+    it('renders its search field at 16px below 768px, so iOS does not zoom into it', () => {
+        render(<Combobox items={[{ value: 'a', label: 'Alpha' }]} value={null} onChange={() => undefined} ariaLabel="Customer" />);
+        fireEvent.click(screen.getByRole('combobox', { name: 'Customer' }));
+        const field = document.querySelector('input')!;
+        expect(field.className.split(' ')).toEqual(expect.arrayContaining(['text-base', 'md:text-[13px]']));
+        expect(field.className).not.toMatch(/(^|\s)text-\[13px\]/);
     });
 });

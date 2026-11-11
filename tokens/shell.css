@@ -588,6 +588,9 @@ textarea.cbx-input { height: auto; padding: 10px 12px; resize: vertical; min-hei
 @media (max-width: 767px), (pointer: coarse) {
     :is(.cbx-overlay, .cbx-popover, .cbx-m-chrome, .cbx-more, .cbx-help) :is(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea) { font-size: 16px; }
 }
+@media (max-width: 767px) {
+    .cbx-shell :is(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea) { font-size: 16px; }
+}
 .cbx-shell.is-mobile .cbx-m-page :is(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea) { font-size: 16px; }
 /* A page heading that repeats the top bar's large title (PageHeader's own, or one marked
  * `data-cbx-page-title`) stays for screen readers only; a `?` beside it goes (the top bar has Help). */
