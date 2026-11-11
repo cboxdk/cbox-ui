@@ -6,13 +6,16 @@
  * area with group headings, a count and a locked page), `banners=1` (an app banner beside the
  * sandbox strip), `locked=1` (an Analytics area whose pages are all locked), `charts=1` (the page
  * shows the bar, stacked-bar and waterfall charts instead of the deployments), `long=1` (40
- * deployments: a page several screens tall).
+ * deployments: a page several screens tall). `fixture=billing` renders the Billing-shaped shell
+ * of the V6 mockup instead, with `area=`, `pg=` (a page label) and `env=` (an environment id).
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BarChart, WaterfallChart } from '../../src/charts';
 import { CboxShell, applyTheme } from '../../src/shell';
 import { ENVIRONMENTS, makeShell } from '../../src/shell/testing/fixture';
+import { makeBillingShell } from '../../src/shell/testing/billing';
+import { renderBillingCreate } from '../../src/shell/testing/billing-forms';
 
 const params = new URLSearchParams(window.location.search);
 const theme = params.get('theme') === 'dark' ? 'dark' : 'light';
@@ -163,10 +166,51 @@ function Page() {
     );
 }
 
-createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-        <CboxShell shell={shell} navigate={(url, options) => console.info('navigate', url, JSON.stringify(options ?? {}))} onPreferenceChange={() => undefined}>
-            <Page />
-        </CboxShell>
-    </StrictMode>,
-);
+const INVOICES = [
+    ['INV-2026-0142', 'Hubhus ApS', '12.500 DKK', 'Overdue'],
+    ['INV-2026-0141', 'Fjord Studio', '4.900 DKK', 'Open'],
+    ['INV-2026-0140', 'Nordic Logistics', '28.000 DKK', 'Paid'],
+    ['INV-2026-0139', 'Staldplan ApS', '3.200 DKK', 'Paid'],
+    ['INV-2026-0138', 'Hverdag', '1.250 DKK', 'Paid'],
+];
+
+function BillingPage({ title }: { title: string }) {
+    return (
+        <div className="fixture-page">
+            <h1 className="fixture-eyebrow">{title}</h1>
+            <div className="fixture-card">
+                {INVOICES.map(([number, customer, amount, status]) => (
+                    <div key={number} className="fixture-row">
+                        <span className="fixture-mono">{number}</span>
+                        <span>{customer}</span>
+                        <span className={`fixture-pill is-${status!.toLowerCase() === 'paid' ? 'live' : status!.toLowerCase() === 'overdue' ? 'failed' : 'open'}`}>{status}</span>
+                        <span className="fixture-when">{amount}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+const navigateLog = (url: string, options?: unknown) => console.info('navigate', url, JSON.stringify(options ?? {}));
+
+if (params.get('fixture') === 'billing') {
+    const billing = makeBillingShell({ area: params.get('area') ?? 'billing', page: params.get('pg') ?? 'Invoices', environment: params.get('env') ?? 'env_production' });
+    billing.preferences.theme = theme;
+    billing.help.scriptUrl = '/support-stub.js';
+    createRoot(document.getElementById('root')!).render(
+        <StrictMode>
+            <CboxShell shell={billing} navigate={navigateLog} onPreferenceChange={() => undefined} renderCreate={renderBillingCreate}>
+                <BillingPage title={billing.page!.title} />
+            </CboxShell>
+        </StrictMode>,
+    );
+} else {
+    createRoot(document.getElementById('root')!).render(
+        <StrictMode>
+            <CboxShell shell={shell} navigate={navigateLog} onPreferenceChange={() => undefined}>
+                <Page />
+            </CboxShell>
+        </StrictMode>,
+    );
+}

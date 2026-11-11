@@ -2,7 +2,8 @@ import { createContext, useContext, type AnchorHTMLAttributes, type ComponentTyp
 import type { CboxTranslator } from '../context/localization';
 import type { HelpArticle, HelpStore } from './help-store';
 import type { ShellIcon } from './icons';
-import type { Shell, ShellNavigate, ShellPreferenceChange, ShellPreferences } from './types';
+import type { PaletteRecord, Shell, ShellNavigate, ShellPreferenceChange, ShellPreferences } from './types';
+import type { ShellRenderCreate } from './create';
 
 /** A client-side link (Inertia's `Link`). Receives `href`, `className`, `children` and ARIA props. */
 export type ShellLinkComponent = ComponentType<AnchorHTMLAttributes<HTMLAnchorElement> & { href: string; children?: ReactNode }>;
@@ -14,9 +15,20 @@ export type ShellOverlay =
     | 'apps'
     | 'account'
     | 'palette'
-    | 'nav-sheet'
+    | 'more'
     | 'context-sheet'
+    | 'apps-sheet'
+    | 'create'
     | null;
+
+/**
+ * Where the phone's context sheet opens: its root, a level's list (by key), or every environment.
+ * `direct`: opened at that step from More or the palette, so Back closes the sheet.
+ */
+export type ContextStep = { step: 'root' | 'environments' | (string & {}); direct: boolean; underMore?: boolean };
+
+/** The app's own records search, for the palette's Records group. */
+export type ShellRecordSearch = (query: string, signal: AbortSignal) => Promise<PaletteRecord[]>;
 
 export type ShellApi = {
     shell: Shell;
@@ -37,6 +49,19 @@ export type ShellApi = {
     ask: (question: string) => void;
     /** Switch context: `chosen` maps level keys to ids. */
     switchTo: (chosen: Record<string, string>) => void;
+    /** The phone layout is on (below 768px). */
+    mobile: boolean;
+    /** Open the context switcher: the phone's sheet at a step, or the desktop's menu. */
+    openContext: (step?: ContextStep['step'], direct?: boolean) => void;
+    contextStep: ContextStep;
+    /** Open the create sheet on a creatable, or on the page's own create target. */
+    openCreate: (key?: string) => void;
+    /** The creatable the create sheet opened on, or null for the tree. */
+    createKey: string | null;
+    /** True when "+" has something to open: a create target and the app's forms. */
+    canCreate: boolean;
+    renderCreate?: ShellRenderCreate;
+    searchRecords?: ShellRecordSearch;
 };
 
 export const ShellContext = createContext<ShellApi | null>(null);
@@ -45,6 +70,12 @@ export function useShell(): ShellApi {
     const api = useContext(ShellContext);
     if (api === null) throw new Error('[cbox-ui] Shell parts must be rendered inside <CboxShell>.');
     return api;
+}
+
+/** The create sheet, for a page's own "New …" button, or `null` outside the shell. */
+export function useShellCreate(): { openCreate: (key?: string) => void } | null {
+    const api = useContext(ShellContext);
+    return api === null || api.renderCreate === undefined ? null : { openCreate: api.openCreate };
 }
 
 /** Help for a page's own `?` button, or `null` outside the shell. */

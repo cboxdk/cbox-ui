@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.11.0 — 2026-11-11
+
+The phone layout is the approved V6 design, plus V7's create sheet. Every addition to the
+`shell` prop and `CboxShell` is optional: a 0.10 prop renders, on a desktop as before.
+
+### Changed
+
+- **Phone (< 768px): new chrome.** A top bar with the context pill (organization chip, the
+  levels above the deepest small, the deepest large with its environment colour), Help with an
+  unread dot, Search and the page's "+"; the area's name large, a "not production" banner, the
+  area's pages as chips; a bottom tab bar with up to four areas and More. More is a full screen
+  with push navigation (search all pages, areas with their grouped pages, "Where you work",
+  Help, Switch app, the profile last and an account screen). The ☰ navigation sheet and the
+  breadcrumb context button are gone.
+- **Phone context sheet:** Organization and Project rows that open their own searchable lists,
+  environment quick picks and "All N environments" grouped by the app's groups. From More it
+  opens at the chosen level.
+- **Phone Help** is a bottom sheet, "Help with {page}": ask, the shared context, your
+  conversations, articles for the page, Chat with support and the Help centre; "Talk to a
+  person" after every question.
+- **Palette (both layouts):** scope chips (All, Actions, Records, Pages, Help). Empty, it shows
+  "On {page}", Recent and Switch; with a query the order is Actions, Go to, Records, Pages,
+  Help, Ask Cbox. "Docs and help" is now "Help". On the phone it is a sheet with Cancel.
+- **Desktop:** unchanged, except the palette above, the create panel, and a "not production"
+  banner under the header when the environment is not live and no sandbox strip shows.
+
+### Added
+
+- `ContextItem.live`, `group`, `description`; `ContextTone` also `staging`, `preview`, `development`.
+- `nav.tabs` (the phone's tab bar).
+- `page.create` and `page.actions`; `PaletteAction.hint` and `PaletteAction.create`.
+- `palette.recent` (`PaletteRecord[]`); without it, Recent lists the pages last visited on the device.
+- `create` (`ShellCreate`: `items: ShellCreatable[]`, `default`) and `CboxShell`'s
+  `renderCreate(form)`: the create sheet with a navigation stack (V7). `CreateForm`,
+  `CreateField`, `CreateRefField`, `CreateSubmit`, `useShellCreate()` and the types
+  `ShellCreateForm`, `ShellCreated`, `ShellRenderCreate`.
+- `CboxShell`'s `searchRecords(query, signal)`: the app's own records search for the palette.
+- `help.articles` (articles sent with the page) and `help.unread` (the count before
+  `updatesUrl` answers).
+- Helpers `isLive`, `quickEnvironments`, `groupItems`.
+
+### Tests
+
+- Unit: the phone top bar, chips, banner, tab bar, More and its screens, the context sheet,
+  Help sheet, palette groups and scopes, the create stack, a Billing-shaped fixture.
+- Playwright: phone and desktop states of the Billing fixture (`?fixture=billing`), light and
+  dark, with axe on every phone sheet. Old phone baselines for the ☰ sheet were removed.
+
 ## v0.10.4 — 2026-11-11
 
 Backward compatible: no `shell` prop or component prop changes.

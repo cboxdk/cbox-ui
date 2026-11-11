@@ -21,7 +21,7 @@ for (const theme of ['light', 'dark'] as const) {
 
         await page.evaluate(() => window.scrollTo(0, 900));
         await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(900);
-        expect((await page.locator('.cbx-header').boundingBox())!.y).toBe(0);
+        expect((await page.locator(isMobile ? '.cbx-m-chrome > .cbx-m-bar' : '.cbx-header').boundingBox())!.y).toBe(0);
         if (!isMobile) {
             expect((await page.locator('.cbx-rail').boundingBox())!.y).toBe(6);
             expect((await page.locator('.cbx-subnav').boundingBox())!.y).toBe(56);

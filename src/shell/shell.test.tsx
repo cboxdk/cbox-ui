@@ -277,16 +277,17 @@ describe('keyboard (§12.2)', () => {
 
     it('keeps Tab inside a modal sheet', async () => {
         const { user } = renderShell({ environment: { width: 390, pointer: 'coarse' } });
-        await user.click(screen.getByRole('button', { name: /Where you are/ }));
-        const sheet = screen.getByRole('dialog', { name: 'Where you are' });
-        await within(sheet).findByRole('option', { name: /Acme/ });
+        const pill = screen.getByRole('button', { name: /Where you work/ });
+        await user.click(pill);
+        const sheet = screen.getByRole('dialog', { name: 'Where you work' });
+        await within(sheet).findByRole('button', { name: /Sandbox/ });
         for (let i = 0; i < 25; i++) {
             await user.tab();
             expect(sheet.contains(document.activeElement)).toBe(true);
         }
         await user.keyboard('{Escape}');
-        expect(screen.queryByRole('dialog', { name: 'Where you are' })).toBeNull();
-        expect(document.activeElement).toBe(screen.getByRole('button', { name: /Where you are/ }));
+        expect(screen.queryByRole('dialog', { name: 'Where you work' })).toBeNull();
+        expect(document.activeElement).toBe(pill);
     });
 });
 
@@ -315,30 +316,6 @@ describe('sandbox strip and banner (§5.1a)', () => {
         // Without test data the strip stays hidden; the app's banners show.
         renderShell({ shell: makeShell({ banners: [strip, hold] }) });
         expect(screen.getAllByRole('status').map(element => element.textContent)).toEqual(['Invoices are on hold.See what is held']);
-    });
-});
-
-describe('phone layout (§4.5)', () => {
-    it('opens the navigation sheet with areas, pages, Switch app and the account', async () => {
-        const { user } = renderShell({ environment: { width: 390, pointer: 'coarse' } });
-        await user.click(screen.getByRole('button', { name: 'Open navigation' }));
-        const sheet = screen.getByRole('dialog', { name: 'Cbox · Infra' });
-        expect(within(sheet).getByRole('link', { name: 'Releases' })).toBeTruthy();
-        expect(within(sheet).getByRole('menuitem', { name: 'Sign out' })).toBeTruthy();
-        await user.click(within(sheet).getByRole('button', { name: 'Switch app' }));
-        expect(await screen.findByRole('region', { name: 'In Cbox' })).toBeTruthy();
-    });
-
-    it('stacks every level in the context sheet and never focuses its search fields', async () => {
-        const { user, navigate } = renderShell({ environment: { width: 390, pointer: 'coarse' } });
-        await user.click(screen.getByRole('button', { name: /Where you are/ }));
-        const sheet = screen.getByRole('dialog', { name: 'Where you are' });
-        expect(await within(sheet).findByRole('option', { name: /Acme/ })).toBeTruthy();
-        expect(await within(sheet).findByRole('option', { name: /Status page/ })).toBeTruthy();
-        expect(await within(sheet).findByRole('option', { name: /Sandbox/ })).toBeTruthy();
-        expect(within(sheet).getAllByRole('combobox').includes(document.activeElement as HTMLElement)).toBe(false);
-        await user.click(within(sheet).getByRole('option', { name: /Sandbox/ }));
-        expect(navigate.mock.calls[0]![1].data).toMatchObject({ select: { project: 'prj_webshop', environment: 'env_web_sandbox' } });
     });
 });
 

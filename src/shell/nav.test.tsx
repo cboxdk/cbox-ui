@@ -76,11 +76,11 @@ describe('rail lock', () => {
         expect(within(rail).queryByRole('link', { name: 'Analytics (locked)' })).toBeNull();
     });
 
-    it('shows the lock on the area in the phone nav too', async () => {
+    it('shows the lock on the area in the phone’s More too', async () => {
         const { user } = renderShell({ shell: lockedShell(allLocked), environment: { width: 390, pointer: 'coarse' } });
-        await user.click(screen.getByRole('button', { name: 'Open navigation' }));
-        const sheet = screen.getByRole('dialog', { name: 'Cbox · Infra' });
-        expect(within(sheet).getByRole('link', { name: 'Analytics (locked)' })).toBeTruthy();
+        await user.click(screen.getByRole('button', { name: 'More' }));
+        const more = screen.getByRole('region', { name: 'More' });
+        expect(within(more).getByRole('button', { name: /Analytics \(locked\)/ })).toBeTruthy();
     });
 });
 
@@ -111,10 +111,11 @@ describe('nav pages: locked, counts and groups', () => {
         expect(within(groups[0]!).getAllByRole('link').map(link => link.textContent)).toEqual(['General', 'Members4', 'Single sign-on(locked)']);
     });
 
-    it('renders the same marks and groups in the phone nav', async () => {
+    it('renders the same marks and groups in the phone’s More', async () => {
         const { user } = renderShell({ shell: settingsShell(PAGES, 'settings.general'), environment: { width: 390, pointer: 'coarse' } });
-        await user.click(screen.getByRole('button', { name: 'Open navigation' }));
-        const sheet = screen.getByRole('dialog');
+        await user.click(screen.getByRole('button', { name: 'More' }));
+        await user.click(screen.getByRole('button', { name: /^Settings/ }));
+        const sheet = screen.getByRole('region', { name: 'More' });
         expect(within(sheet).getByRole('link', { name: 'Single sign-on (locked)' }).getAttribute('href')).toBe('/orgs/cbox/upgrade?feature=sso');
         expect(within(sheet).getByRole('link', { name: 'Members 4' })).toBeTruthy();
         expect(within(sheet).getByRole('group', { name: 'Project' })).toBeTruthy();

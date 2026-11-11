@@ -1,4 +1,5 @@
 import type { ContextItem, Shell } from '../types';
+import { billingAnswer } from './billing';
 
 /**
  * A complete `shell` prop and the answers its URLs give, for the unit tests and the visual
@@ -144,6 +145,7 @@ export function fixtureAnswer(method: string, href: string, body?: unknown): { s
         return { status: 200, body: { object: 'list', data: slice, has_more: more, next_cursor: more ? String(cursor + limit) : null } };
     };
     const path = url.pathname;
+    if (path.startsWith('/billing/')) return billingAnswer(method, href);
     if (method === 'POST') {
         const name = typeof (body as { name?: unknown })?.name === 'string' ? (body as { name: string }).name : '';
         if (name.trim() === 'Taken') return { status: 422, body: { errors: { name: ['That name is taken.'] } } };

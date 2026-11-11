@@ -1,18 +1,29 @@
-import { ArrowRight, BookOpen, Building2, CornerDownLeft, FileText, Search, Sparkles, Zap } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, BookOpen, Building2, Clock, CornerDownLeft, FileText, Plus, Search, Sparkles, Zap } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { initialsOf, requestJson, safeUrl, withQuery } from './data';
+import { environmentLevel, initialsOf, requestJson, safeUrl, withQuery } from './data';
+import { findCreatable } from './create';
+import { helpTopicName } from './help';
+import { recentPages } from './recent';
+import { ToneSquare } from './context-menus';
+import { DEBOUNCE_MS, useContextList } from './use-list';
 import { parseArticles, type HelpArticle } from './help-store';
 import { resolveIcon } from './icons';
 import { navUrl } from './nav-pages';
 import { canAutofocus } from './media';
 import { revealInList, trapTab } from './popover';
 import { useShell } from './context';
-import { DEBOUNCE_MS } from './use-list';
-import type { Shell } from './types';
+import type { PaletteAction, Shell } from './types';
 
 export const GROUP_LIMIT = 5;
 
-export type PaletteGroupKey = 'pages' | 'records' | 'actions' | 'goto' | 'docs' | 'ask';
+export type PaletteGroupKey = 'page' | 'recent' | 'switch' | 'actions' | 'goto' | 'records' | 'pages' | 'docs' | 'ask';
+
+/** The scope chips (V6): every group, or one kind of result. */
+export type PaletteScope = 'all' | 'actions' | 'records' | 'pages' | 'help';
+type Kind = Exclude<PaletteScope, 'all'>;
+
+/** Which scope a group's results belong to. Recent mixes records and pages, by item. */
+const GROUP_KIND: Record<Exclude<PaletteGroupKey, 'recent' | 'ask'>, Kind> = { page: 'actions', switch: 'actions', actions: 'actions', goto: 'actions', records: 'records', pages: 'pages', docs: 'help' };
 
 /** One result. `run` does what Enter does; `href` is what ⌘Enter opens in a new tab. */
 export type PaletteItem = {
@@ -21,6 +32,7 @@ export type PaletteItem = {
     subtitle?: string;
     icon?: ReactNode;
     href?: string;
+    kind?: Kind;
     run: (newTab: boolean) => void;
 };
 
@@ -59,7 +71,7 @@ function localPages(shell: Shell, query: string, open: (url: string, newTab: boo
         .sort((a, b) => b.score - a.score)
         .map(({ entry }) => {
             const Icon = resolveIcon(entry.icon);
-            return { id: entry.id, title: entry.title, subtitle: entry.subtitle, href: entry.url, icon: <Icon size={16} strokeWidth={1.8} aria-hidden />, run: (newTab: boolean) => open(entry.url, newTab) };
+            return { id: entry.id, title: entry.title, subtitle: entry.subtitle, href: entry.url, kind: 'pages' as const, icon: <Icon size={16} strokeWidth={1.8} aria-hidden />, run: (newTab: boolean) => open(entry.url, newTab) };
         });
 }
 
@@ -78,12 +90,16 @@ function rows(body: unknown, group?: string): Array<Record<string, unknown>> {
 }
 
 /**
- * ⌘K (§6): Pages, Records, Actions, Go to, Docs and Ask Cbox, in that order. Typing is
- * debounced 120 ms; the server groups load in parallel, each on its own, so a slow group never
- * holds up the others. ↑↓ move, Enter opens, ⌘Enter opens in a new tab, Esc closes.
+ * ⌘K (§6, V6). Before anything is typed: what can be done on this page ("On {page}"), Recent,
+ * and Switch (other environments, the organization). With a query: Actions, Go to, Records,
+ * Pages, Help and, last, Ask Cbox. Scope chips narrow it to one kind. Typing is debounced
+ * 120 ms; the server groups load in parallel, each on its own, so a slow group never holds up
+ * the others. ↑↓ move, Enter opens, ⌘Enter opens in a new tab, Esc closes. On the phone it is a
+ * near-full-screen sheet with Cancel.
  */
 export function CommandPalette({ onClose }: { onClose: () => void }) {
-    const { shell, t, navigate, switchTo, openArticle, ask } = useShell();
+    const { shell, t, navigate, switchTo, openArticle, ask, mobile, openContext, openCreate, canCreate, searchRecords } = useShell();
+    const [scope, setScope] = useState<PaletteScope>('all');
     const [input, setInput] = useState('');
     const [query, setQuery] = useState('');
     const [groups, setGroups] = useState<Partial<Record<PaletteGroupKey, GroupState>>>({});
@@ -139,12 +155,20 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             setGroups({});
             return () => controller.abort();
         }
-        if (shell.palette.searchUrl !== undefined) {
+        if (searchRecords !== undefined) {
+            run('records', async () =>
+                (await searchRecords(q, signal)).flatMap(row => {
+                    const url = safeUrl(row.url);
+                    if (url === undefined) return [];
+                    return [{ id: `record:${row.id}`, title: row.title, subtitle: row.subtitle, href: url, kind: 'records' as const, icon: <FileText size={16} strokeWidth={1.8} aria-hidden />, run: (newTab: boolean) => open(url, newTab) }];
+                }),
+            );
+        } else if (shell.palette.searchUrl !== undefined) {
             run('records', async () =>
                 rows(await requestJson(withQuery(shell.palette.searchUrl!, { q, group: 'records' }), { signal }), 'records').flatMap(row => {
                     const url = safeUrl(row.url);
                     if (typeof row.title !== 'string' || url === undefined) return [];
-                    return [{ id: `record:${String(row.id ?? url)}`, title: row.title, subtitle: typeof row.subtitle === 'string' ? row.subtitle : undefined, href: url, icon: <FileText size={16} strokeWidth={1.8} aria-hidden />, run: (newTab: boolean) => open(url, newTab) }];
+                    return [{ id: `record:${String(row.id ?? url)}`, title: row.title, subtitle: typeof row.subtitle === 'string' ? row.subtitle : undefined, href: url, kind: 'records' as const, icon: <FileText size={16} strokeWidth={1.8} aria-hidden />, run: (newTab: boolean) => open(url, newTab) }];
                 }),
             );
         }
@@ -200,6 +224,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                     title: article.title,
                     subtitle: article.excerpt,
                     href: article.url,
+                    kind: 'help' as const,
                     icon: <BookOpen size={16} strokeWidth={1.8} aria-hidden />,
                     run: (newTab: boolean) => {
                         if (newTab && article.url !== undefined) {
@@ -213,44 +238,138 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             );
         }
         return () => controller.abort();
-    }, [query, shell]);
+    }, [query, shell, searchRecords]);
 
     const q = input.trim();
-    const pages = useMemo(() => localPages(shell, q, open, t('Locked')), [shell, q, t]);
-    const actions = useMemo<PaletteItem[]>(
-        () =>
-            shell.palette.actions
-                .filter(action => matchScore(`${action.label} ${(action.keywords ?? []).join(' ')}`, q) > 0)
-                .map(action => {
-                    const Icon = action.icon !== undefined ? resolveIcon(action.icon) : Zap;
-                    return {
-                        id: `action:${action.id}`,
-                        title: action.label,
-                        href: action.method === 'post' ? undefined : action.url,
-                        icon: <Icon size={16} strokeWidth={1.8} aria-hidden />,
-                        run: (newTab: boolean) => {
-                            if (!newTab) onClose();
-                            navigate(action.url, { method: action.method ?? 'get', newTab: newTab && action.method !== 'post' });
-                        },
-                    };
-                }),
-        [shell, q],
-    );
+    const topic = helpTopicName(shell);
+    const organization = shell.context.levels[0];
+    const environment = environmentLevel(shell.context.levels);
+    const envIndex = environment !== undefined ? shell.context.levels.indexOf(environment) : -1;
+    const envParent = envIndex > 0 ? shell.context.levels[envIndex - 1] : undefined;
+    const environments = useContextList(environment?.listUrl, { parent: envParent?.current.id, enabled: environment !== undefined });
 
-    const sections: Array<{ key: PaletteGroupKey; label: string; state: GroupState }> = [
-        { key: 'pages' as const, label: t('Pages'), state: { status: 'ready' as const, items: pages } },
-        { key: 'records' as const, label: t('Records'), state: groups.records ?? { status: 'idle' as const, items: [] } },
-        { key: 'actions' as const, label: t('Actions'), state: { status: 'ready' as const, items: actions } },
-        { key: 'goto' as const, label: t('Go to'), state: groups.goto ?? { status: 'idle' as const, items: [] } },
-        { key: 'docs' as const, label: t('Docs and help'), state: groups.docs ?? { status: 'idle' as const, items: [] } },
-    ];
+    const pages = useMemo(() => localPages(shell, q, open, t('Locked')), [shell, q, t]);
+    const toItem = (action: PaletteAction, prefix: string): PaletteItem => {
+        const Icon = action.icon !== undefined ? resolveIcon(action.icon) : Zap;
+        return {
+            id: `${prefix}:${action.id}`,
+            title: action.label,
+            subtitle: action.hint,
+            href: action.method === 'post' ? undefined : action.url,
+            kind: 'actions',
+            icon: <Icon size={16} strokeWidth={1.8} aria-hidden />,
+            run: (newTab: boolean) => {
+                if (!newTab) onClose();
+                if (!newTab && action.create !== undefined && canCreate && findCreatable(shell, action.create) !== undefined) {
+                    openCreate(action.create);
+                    return;
+                }
+                navigate(action.url, { method: action.method ?? 'get', newTab: newTab && action.method !== 'post' });
+            },
+        };
+    };
+    const matches = (item: { title: string; subtitle?: string }, words: string[] = []) => matchScore(`${item.title} ${item.subtitle ?? ''} ${words.join(' ')}`, q) > 0;
+    const createItem = (key: string): PaletteItem | null => {
+        const creatable = findCreatable(shell, key);
+        if (creatable === undefined || !canCreate) return null;
+        return { id: `create:${key}`, title: t('New {thing}', { thing: creatable.label.toLowerCase() }), kind: 'actions', icon: <Plus size={16} strokeWidth={1.8} aria-hidden />, run: () => { onClose(); openCreate(key); } };
+    };
+    const pageCreate = shell.page?.create !== undefined ? createItem(shell.page.create) : null;
+    const pageActions = [...(pageCreate !== null ? [pageCreate] : []), ...(shell.page?.actions ?? []).map(action => toItem(action, 'page'))];
+    const globalActions = shell.palette.actions.map(action => toItem(action, 'action'));
+    const switchItems: PaletteItem[] = [];
+    if (environment !== undefined) {
+        environments.items
+            .filter(item => item.id !== environment.current.id)
+            .slice(0, 3)
+            .forEach(item =>
+                switchItems.push({
+                    id: `switch:${item.id}`,
+                    title: t('Switch to {name}', { name: item.name }),
+                    subtitle: environment.label,
+                    kind: 'actions',
+                    icon: <ToneSquare tone={item.tone} />,
+                    run: () => {
+                        onClose();
+                        switchTo(envParent !== undefined ? { [envParent.key]: envParent.current.id, [environment.key]: item.id } : { [environment.key]: item.id });
+                    },
+                }),
+            );
+    }
+    if (organization !== undefined) {
+        switchItems.push({
+            id: 'switch:organization',
+            title: t('Switch {thing}', { thing: organization.label.toLowerCase() }),
+            subtitle: t('Now {name}', { name: organization.current.name }),
+            kind: 'actions',
+            icon: <ArrowLeftRight size={16} strokeWidth={1.8} aria-hidden />,
+            run: () => {
+                onClose();
+                openContext(organization.key, true);
+            },
+        });
+    }
+    const recent: PaletteItem[] = useMemo(() => {
+        if (shell.palette.recent !== undefined) {
+            return shell.palette.recent.flatMap(row => {
+                const url = safeUrl(row.url);
+                return url === undefined ? [] : [{ id: `recent:${row.id}`, title: row.title, subtitle: row.subtitle, href: url, kind: 'records' as const, icon: <Clock size={16} strokeWidth={1.8} aria-hidden />, run: (newTab: boolean) => open(url, newTab) }];
+            });
+        }
+        const here = typeof window !== 'undefined' ? window.location.pathname + window.location.search + window.location.hash : '';
+        return recentPages(shell.app.key)
+            .filter(row => row.url !== here)
+            .slice(0, 4)
+            .map(row => ({ id: `recent:${row.url}`, title: row.title, subtitle: row.area, href: row.url, kind: 'pages' as const, icon: <Clock size={16} strokeWidth={1.8} aria-hidden />, run: (newTab: boolean) => open(row.url, newTab) }));
+    }, [shell]);
+
+    const ready = (items: PaletteItem[]): GroupState => ({ status: 'ready', items });
+    const sections: Array<{ key: PaletteGroupKey; label: string; state: GroupState }> =
+        q === ''
+            ? [
+                  pageActions.length > 0 ? { key: 'page' as const, label: t('On {page}', { page: topic }), state: ready(pageActions) } : { key: 'actions' as const, label: t('Actions'), state: ready(globalActions) },
+                  { key: 'recent' as const, label: t('Recent'), state: ready(recent) },
+                  { key: 'switch' as const, label: t('Switch'), state: ready(switchItems) },
+              ]
+            : [
+                  {
+                      key: 'actions' as const,
+                      label: t('Actions'),
+                      state: ready(
+                          [
+                              ...pageActions.filter(item => matches(item, (shell.page?.actions ?? []).find(action => `page:${action.id}` === item.id)?.keywords)),
+                              ...globalActions.filter(item => matches(item, shell.palette.actions.find(action => `action:${action.id}` === item.id)?.keywords)),
+                              ...(shell.create?.items ?? [])
+                                  .filter(creatable => creatable.key !== shell.page?.create)
+                                  .map(creatable => createItem(creatable.key))
+                                  .filter((item): item is PaletteItem => item !== null && matches(item, findCreatable(shell, item.id.slice('create:'.length))?.keywords)),
+                              ...switchItems.filter(item => matches(item)),
+                          ],
+                      ),
+                  },
+                  { key: 'goto' as const, label: t('Go to'), state: groups.goto ?? { status: 'idle' as const, items: [] } },
+                  { key: 'records' as const, label: t('Records'), state: groups.records ?? { status: 'idle' as const, items: [] } },
+                  { key: 'pages' as const, label: t('Pages'), state: ready(pages) },
+                  { key: 'docs' as const, label: t('Help'), state: groups.docs ?? { status: 'idle' as const, items: [] } },
+              ];
+    // The scope keeps the items of its kind, and the groups that hold them.
+    const scoped = sections
+        .map(section => {
+            if (scope === 'all') return section;
+            const kind = section.key === 'recent' || section.key === 'ask' ? null : GROUP_KIND[section.key];
+            if (kind !== null && kind !== scope) return null;
+            return { ...section, state: { ...section.state, items: section.state.items.filter(item => item.kind === undefined || item.kind === scope) } };
+        })
+        .filter((section): section is (typeof sections)[number] => section !== null);
+    sections.length = 0;
+    sections.push(...scoped);
     if (q !== '') {
         sections.push({
             key: 'ask',
             label: t('Ask Cbox'),
             state: {
                 status: 'ready',
-                items: [{ id: 'ask', title: t('Ask Cbox: “{query}”', { query: q }), subtitle: t('About this page'), icon: <Sparkles size={16} strokeWidth={1.8} aria-hidden />, run: () => { onClose(); ask(q); } }],
+                items: [{ id: 'ask', title: t('Ask Cbox: “{query}”', { query: q }), subtitle: t('Answers with what you see on {page}', { page: topic }), icon: <Sparkles size={16} strokeWidth={1.8} aria-hidden />, run: () => { onClose(); ask(q); } }],
             },
         });
     }
@@ -276,7 +395,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     // rows count as results only once it has answered this query: until then it may still show
     // the last query's rows.
     const debounced = q === query.trim() && groupsFor === q;
-    const current = (group: PaletteGroupKey) => group === 'pages' || group === 'actions' || (debounced && sections.find(section => section.key === group)?.state.status === 'ready');
+    const current = (group: PaletteGroupKey) => group === 'pages' || group === 'actions' || group === 'page' || group === 'recent' || group === 'switch' || (debounced && sections.find(section => section.key === group)?.state.status === 'ready');
     const busy = !debounced || sections.some(section => section.state.status === 'loading');
     const firstResult = options.find(option => option.group !== 'ask' && current(option.group));
     const autoKey = firstResult !== undefined ? keyOf(firstResult) : !busy && options[0] !== undefined ? keyOf(options[0]) : null;
@@ -331,10 +450,19 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     };
 
     const activeOption = options[active];
+    const scopes: Array<{ value: PaletteScope; label: string }> = [
+        { value: 'all', label: t('All') },
+        { value: 'actions', label: t('Actions') },
+        { value: 'records', label: t('Records') },
+        { value: 'pages', label: t('Pages') },
+        { value: 'help', label: t('Help') },
+    ];
     return (
-        <div className="cbx-overlay cbx-palette-backdrop" onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-            <div ref={dialog} className="cbx-palette" role="dialog" aria-modal="true" aria-label={t('Search')} tabIndex={-1} onKeyDown={onKeyDown}>
+        <div className={`cbx-overlay cbx-palette-backdrop ${mobile ? 'is-sheet' : ''}`} onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+            <div ref={dialog} className={`cbx-palette ${mobile ? 'is-sheet' : ''}`} role="dialog" aria-modal="true" aria-label={t('Search')} tabIndex={-1} onKeyDown={onKeyDown}>
+                {mobile && <div className="cbx-sheet-handle" aria-hidden="true" />}
                 <div className="cbx-palette-search">
+                    <label className="cbx-palette-field">
                     <Search size={18} strokeWidth={1.8} aria-hidden />
                     <input
                         ref={field}
@@ -345,13 +473,25 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                         aria-activedescendant={activeOption !== undefined ? `${id}-${active}` : undefined}
                         aria-autocomplete="list"
                         aria-label={shell.palette.placeholder ?? t('Search or ask…')}
-                        placeholder={shell.palette.placeholder ?? t('Search or ask…')}
+                        placeholder={shell.palette.placeholder ?? (mobile ? t('Search, act or ask…') : t('Search or ask…'))}
                         value={input}
                         onChange={event => setInput(event.target.value)}
                         autoComplete="off"
                         spellCheck={false}
                     />
-                    <kbd className="cbx-kbd">Esc</kbd>
+                    </label>
+                    {mobile ? (
+                        <button type="button" className="cbx-palette-cancel" onClick={onClose}>{t('Cancel')}</button>
+                    ) : (
+                        <kbd className="cbx-kbd">Esc</kbd>
+                    )}
+                </div>
+                <div className="cbx-scopes" role="radiogroup" aria-label={t('Scope')}>
+                    {scopes.map(item => (
+                        <button key={item.value} type="button" role="radio" aria-checked={scope === item.value} className={`cbx-scope ${scope === item.value ? 'is-on' : ''}`} onClick={() => setScope(item.value)}>
+                            {item.label}
+                        </button>
+                    ))}
                 </div>
                 <div id={`${id}-list`} role="listbox" aria-label={t('Results')} className="cbx-palette-list">
                     {rendered.map(section => {
@@ -364,6 +504,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                                     {section.state.status === 'loading' && <span className="cbx-palette-busy" aria-hidden="true" />}
                                 </div>
                                 {loading && <div className="cbx-list-note" aria-live="polite">{t('Searching…')}</div>}
+                                {section.count > 0 && <div className="cbx-palette-rows" role="presentation">
                                 {options.slice(section.start, section.start + section.count).map((option, offset) => {
                                     const index = section.start + offset;
                                     const on = index === active;
@@ -380,8 +521,10 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                                             {option.kind === 'item' ? (
                                                 <>
                                                     <span className="cbx-row-icon">{option.item.icon}</span>
-                                                    <span className="cbx-row-name" title={option.item.title}>{option.item.title}</span>
-                                                    {option.item.subtitle !== undefined && <span className="cbx-row-label cbx-truncate">{option.item.subtitle}</span>}
+                                                    <span className="cbx-row-text">
+                                                        <span className="cbx-row-name" title={option.item.title}>{option.item.title}</span>
+                                                        {option.item.subtitle !== undefined && <span className="cbx-row-label cbx-truncate">{option.item.subtitle}</span>}
+                                                    </span>
                                                     {on && <CornerDownLeft className="cbx-row-trail" size={14} strokeWidth={1.8} aria-hidden />}
                                                 </>
                                             ) : (
@@ -393,6 +536,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                                         </div>
                                     );
                                 })}
+                                </div>}
                             </div>
                         );
                     })}
