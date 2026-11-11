@@ -194,7 +194,10 @@ export type Shell = {
         /** `GET ?q=` → level 2/3 combinations across organizations (§6.1.4). */
         gotoUrl?: string;
         actions: PaletteAction[];
-        /** The palette search field's placeholder, e.g. "Search customers, invoices… or pages". Default "Search or ask…". */
+        /**
+         * The palette search field's placeholder, e.g. "Search customers, invoices… or pages". Default
+         * "Search or ask…". The header's Search button keeps "Search or ask…" in every app (spec §4.3).
+         */
         placeholder?: string;
     };
     help: ShellHelp;
@@ -207,7 +210,13 @@ export type Shell = {
     };
     /** The account menu's links. Absent (laravel-console-kit 0.2.2): the menu has only the preferences. */
     account?: ShellAccount;
+    /** The single strip of laravel-console-kit 0.2.3 and older. Shown only when `banners` is absent. */
     banner?: ShellBanner;
+    /**
+     * Every strip under the header, top to bottom: the sandbox strip first, then the app's banners
+     * (a tax hold, impersonation). An app banner never hides the sandbox strip. Wins over `banner`.
+     */
+    banners?: ShellBanner[];
     preferences: ShellPreferences;
 };
 

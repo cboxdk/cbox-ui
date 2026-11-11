@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, LayoutGrid, X } from 'lucide-react';
+import { ArrowLeft, Bell, LayoutGrid, Lock, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AccountMenu } from './account-menu';
 import { AppGrid } from './app-grid';
@@ -6,7 +6,7 @@ import { LevelPane, pickKeepingEnvironment } from './context-menus';
 import { useShell } from './context';
 import { pluralOf } from './data';
 import { resolveIcon } from './icons';
-import { NavPageList, NavPageMarks, navUrl } from './nav-pages';
+import { areaLocked, NavPageList, NavPageMarks, navUrl } from './nav-pages';
 import { trapTab } from './popover';
 
 /**
@@ -85,6 +85,12 @@ export function NavSheet({ onClose }: { onClose: () => void }) {
                             <Link href={navUrl(area)} className={`cbx-row cbx-row-action ${activeArea ? ((area.pages ?? []).length > 1 ? 'is-open' : 'is-current') : ''}`} aria-current={activeArea && (area.pages ?? []).length <= 1 ? 'page' : undefined} onClick={onClose}>
                                 <Icon size={16} strokeWidth={1.8} aria-hidden />
                                 <span className="cbx-row-name">{area.label}</span>
+                                {areaLocked(area) && (
+                                    <span className="cbx-nav-lock" title={t('Not in your plan')}>
+                                        <Lock size={13} strokeWidth={1.9} aria-hidden />
+                                        <span className="cbx-sr-only">{t('(locked)')}</span>
+                                    </span>
+                                )}
                             </Link>
                             {(area.pages ?? []).length > 1 && (
                                 <div className="cbx-sheet-pages">

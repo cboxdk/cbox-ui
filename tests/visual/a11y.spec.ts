@@ -37,6 +37,16 @@ for (const theme of ['light', 'dark'] as const) {
             await audit(page);
         });
 
+        test('banners beside the sandbox strip and a locked rail area', async ({ page, isMobile }) => {
+            await open(page, theme, '&sandbox=1&banners=1&locked=1');
+            await expect(page.getByRole('status')).toHaveCount(2);
+            await audit(page);
+            if (isMobile) await page.getByRole('button', { name: 'Open navigation' }).click();
+            else await page.getByRole('link', { name: 'Analytics (locked)' }).hover();
+            await expect(page.getByRole('link', { name: 'Analytics (locked)' })).toBeVisible();
+            await audit(page);
+        });
+
         test('palette', async ({ page }) => {
             await open(page, theme);
             await page.getByRole('button', { name: 'Search or ask…' }).click();

@@ -39,6 +39,9 @@ html, body { margin: 0; }
 .fixture-pill { justify-self: start; padding: 2px 8px; border-radius: 6px; font-size: 12px; background: var(--secondary); }
 .fixture-pill.is-live { background: var(--success-soft); }
 .fixture-pill.is-failed { background: var(--destructive-soft); }
+.fixture-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.fixture-chart { padding: 12px 14px; }
+@media (max-width: 767px) { .fixture-charts { grid-template-columns: 1fr; } }
 .fixture-when { text-align: right; font-size: 13px; color: var(--muted-foreground); }
 @media (max-width: 767px) { .fixture-page { padding: 20px 16px; } .fixture-row { grid-template-columns: 1fr auto; } .fixture-row > :nth-child(2), .fixture-row > :nth-child(4) { display: none; } }
 </style>

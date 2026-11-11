@@ -3,10 +3,13 @@
  * a stand-in Deployments page, and the tokens and shell CSS as published. Query parameters:
  * `theme=light|dark`, `sandbox=1` (the current environment has test data), `help=1` (Help was
  * left open), `page=releases` (another page of the Deploy area), `nav=settings` (the Settings
- * area with group headings, a count and a locked page).
+ * area with group headings, a count and a locked page), `banners=1` (an app banner beside the
+ * sandbox strip), `locked=1` (an Analytics area whose pages are all locked), `charts=1` (the page
+ * shows the bar, stacked-bar and waterfall charts instead of the deployments).
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { BarChart, WaterfallChart } from '../../src/charts';
 import { CboxShell, applyTheme } from '../../src/shell';
 import { ENVIRONMENTS, makeShell } from '../../src/shell/testing/fixture';
 
@@ -43,6 +46,27 @@ if (params.get('nav') === 'settings') {
     );
 }
 if (params.get('sandbox') === '1') shell.context.levels[2]!.current = ENVIRONMENTS.prj_webshop![1]!;
+if (params.get('banners') === '1') {
+    shell.banners = [
+        shell.banner!,
+        { kind: 'notice', text: 'Invoices are on hold. Cbox Tax is not answering, so tax cannot be calculated.', action: { label: 'See what is held', url: '#tax' } },
+    ];
+}
+if (params.get('locked') === '1') {
+    shell.nav.areas = [
+        ...shell.nav.areas,
+        {
+            key: 'analytics',
+            label: 'Analytics',
+            url: '/orgs/cbox/upgrade?feature=analytics',
+            icon: 'bar-chart',
+            pages: [
+                { key: 'analytics.mrr', label: 'MRR', url: '/orgs/cbox/upgrade?feature=analytics', locked: true },
+                { key: 'analytics.churn', label: 'Churn', url: '/orgs/cbox/upgrade?feature=analytics', locked: true },
+            ],
+        },
+    ];
+}
 // `<cbox-support>` stands in for the Assistant SDK: the snapshots never load a real chat.
 shell.help.scriptUrl = '/support-stub.js';
 
@@ -53,7 +77,68 @@ const rows = [
     ['main · 52e9a11', 'Add the order export', 'Failed', '2 days ago'],
 ];
 
+const MONTHS = ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'];
+const money = (value: number) => (value >= 1000 || value <= -1000 ? `${value / 1000}k` : String(value));
+
+function Charts() {
+    return (
+        <div className="fixture-page">
+            <h1 className="fixture-title">Analytics</h1>
+            <p className="fixture-desc">Bar, stacked bar and waterfall, in the chart tokens.</p>
+            <div className="fixture-charts">
+                <div className="fixture-card fixture-chart">
+                    <BarChart
+                        label="New and churned customers per month"
+                        categories={MONTHS}
+                        series={[
+                            { key: 'new', label: 'New', values: [42, 38, 51, 47, 63, 58], tone: 1 },
+                            { key: 'churned', label: 'Churned', values: [-12, -9, -15, -11, -8, null], tone: 3 },
+                        ]}
+                        formatValue={money}
+                        height={220}
+                    />
+                </div>
+                <div className="fixture-card fixture-chart">
+                    <BarChart
+                        label="Revenue by plan per month, in EUR"
+                        categories={MONTHS}
+                        stacked
+                        series={[
+                            { key: 'starter', label: 'Starter', values: [4200, 4600, 5100, 5400, 6000, 6300] },
+                            { key: 'pro', label: 'Pro', values: [8800, 9400, 9900, 11200, 12100, 12800] },
+                            { key: 'enterprise', label: 'Enterprise', values: [6000, 6000, 9000, 9000, 9000, 12000] },
+                        ]}
+                        formatValue={money}
+                        unit="EUR"
+                        height={220}
+                    />
+                </div>
+                <div className="fixture-card fixture-chart">
+                    <WaterfallChart
+                        label="MRR movement in November, in EUR"
+                        steps={[
+                            { key: 'start', label: 'Start', value: 27300, total: true },
+                            { key: 'new', label: 'New', value: 4100 },
+                            { key: 'expansion', label: 'Expansion', value: 2300 },
+                            { key: 'contraction', label: 'Contraction', value: -900 },
+                            { key: 'churn', label: 'Churn', value: -1700 },
+                            { key: 'end', label: 'End', value: 31100, total: true },
+                        ]}
+                        formatValue={money}
+                        unit="EUR"
+                        height={220}
+                    />
+                </div>
+                <div className="fixture-card fixture-chart">
+                    <BarChart label="Customers by country" categories={['Denmark', 'Germany', 'Sweden', 'Norway']} horizontal series={[{ key: 'customers', label: 'Customers', values: [412, 186, 97, 64] }]} formatValue={money} height={220} />
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function Page() {
+    if (params.get('charts') === '1') return <Charts />;
     return (
         <div className="fixture-page">
             <p className="fixture-eyebrow">Webshop · {shell.context.levels[2]!.current.name}</p>

@@ -1,4 +1,4 @@
-import { Bell, ChevronsUpDown, CircleHelp, LayoutGrid, Menu, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Search } from 'lucide-react';
+import { Bell, ChevronsUpDown, CircleHelp, LayoutGrid, Lock, Menu, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type AnchorHTMLAttributes, type ReactNode } from 'react';
 import { useCboxLocalization } from '../context/localization';
 import { useKnownAppCatalog } from '../components/app-icon';
@@ -13,7 +13,7 @@ import { helpVisible, sharedHelpStore, type HelpStore } from './help-store';
 import { resolveIcon, type ShellIcon } from './icons';
 import { HELP_DOCKED, MOBILE, matches, useMedia } from './media';
 import { ContextSheet, NavSheet } from './mobile';
-import { NavPageList, NavPageMarks, navUrl } from './nav-pages';
+import { areaLocked, NavPageList, NavPageMarks, navUrl, shellBanners } from './nav-pages';
 import { CommandPalette } from './palette';
 import { Popover } from './popover';
 import { scopeLists } from './use-list';
@@ -191,7 +191,7 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
     const mobile = useMedia(MOBILE, false);
     const testData = levels.some(level => level.current.testData === true);
     const helpOpen = useHelpState(store, state => helpVisible(state, docked));
-    const banner = shell.banner !== undefined && (shell.banner.kind !== 'sandbox' || testData) ? shell.banner : undefined;
+    const banners = shellBanners(shell, testData);
 
     return (
         <ShellContext.Provider value={api}>
@@ -212,12 +212,12 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
                 <Rail brandAssetBase={brandAssetBase} />
                 <div className="cbx-shell-column">
                     <Header mobile={mobile} />
-                    {banner !== undefined && (
-                        <div className={`cbx-banner cbx-banner-${banner.kind}`} role="status">
+                    {banners.map((banner, index) => (
+                        <div key={`${banner.kind}-${index}`} className={`cbx-banner cbx-banner-${banner.kind}`} role="status">
                             <span className="cbx-banner-text">{banner.text}</span>
                             {banner.action !== undefined && <LinkComponent href={navUrl(banner.action)} className="cbx-banner-action">{banner.action.label}</LinkComponent>}
                         </div>
-                    )}
+                    ))}
                     <div className="cbx-shell-body">
                         <Subnav />
                         <main id={mainId} tabIndex={-1} className="cbx-shell-main canvas-gradient">{children}</main>
@@ -285,10 +285,20 @@ function Rail({ brandAssetBase }: { brandAssetBase: string }) {
                     {shell.nav.areas.map(area => {
                         const Icon = resolveIcon(area.icon, icons);
                         const active = area.key === shell.nav.activeArea;
+                        const locked = areaLocked(area);
+                        const label = locked ? t('{area} (locked)', { area: area.label }) : area.label;
                         return (
-                            <Link key={area.key} href={navUrl(area)} className={`cbx-rail-link ${active ? 'is-active' : ''}`} aria-current={active ? 'page' : undefined} title={open ? undefined : area.label} aria-label={area.label}>
-                                <Icon size={18} strokeWidth={1.7} aria-hidden />
+                            <Link key={area.key} href={navUrl(area)} className={`cbx-rail-link ${active ? 'is-active' : ''} ${locked ? 'is-locked' : ''}`} aria-current={active ? 'page' : undefined} title={open ? undefined : label} aria-label={label} data-locked={locked ? 'true' : undefined}>
+                                <span className="cbx-rail-icon">
+                                    <Icon size={18} strokeWidth={1.7} aria-hidden />
+                                    {locked && (
+                                        <span className="cbx-rail-lock" aria-hidden="true">
+                                            <Lock size={9} strokeWidth={2.4} />
+                                        </span>
+                                    )}
+                                </span>
                                 <span className="cbx-rail-label">{area.label}</span>
+                                {locked && <Lock className="cbx-rail-lock-open" size={13} strokeWidth={1.9} aria-hidden />}
                             </Link>
                         );
                     })}

@@ -34,6 +34,14 @@ for (const theme of ['light', 'dark'] as const) {
             await expect(page).toHaveScreenshot(`${theme}-sandbox-strip.png`);
         });
 
+        test('banners and a locked area', async ({ page, isMobile }) => {
+            await open(page, theme, '&sandbox=1&banners=1&locked=1');
+            await expect(page.getByRole('status')).toHaveCount(2);
+            if (!isMobile) await expect(page.getByRole('link', { name: 'Analytics (locked)' })).toBeVisible();
+            await settle(page);
+            await expect(page).toHaveScreenshot(`${theme}-banners-locked-area.png`);
+        });
+
         test('palette', async ({ page }, info) => {
             await open(page, theme);
             await page.getByRole('button', { name: 'Search or ask…' }).click();
