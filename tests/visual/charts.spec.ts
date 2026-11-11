@@ -14,6 +14,9 @@ for (const theme of ['light', 'dark'] as const) {
         await page.evaluate(() => document.fonts.ready);
         await page.waitForLoadState('networkidle');
         await page.waitForTimeout(300);
+        // The charts are taller than a phone screen; the sticky header and the skip link would be
+        // drawn over them where the capture scrolls.
+        await page.addStyleTag({ content: '.cbx-header, .cbx-skip-link { visibility: hidden; }' });
         await expect(page.locator('.fixture-charts')).toHaveScreenshot(`${theme}-charts.png`);
     });
 }

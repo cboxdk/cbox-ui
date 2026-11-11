@@ -338,7 +338,7 @@ describe('phone layout (§4.5)', () => {
         expect(await within(sheet).findByRole('option', { name: /Sandbox/ })).toBeTruthy();
         expect(within(sheet).getAllByRole('combobox').includes(document.activeElement as HTMLElement)).toBe(false);
         await user.click(within(sheet).getByRole('option', { name: /Sandbox/ }));
-        expect(navigate.mock.calls[0]![1].data).toMatchObject({ project: 'prj_webshop', environment: 'env_web_sandbox' });
+        expect(navigate.mock.calls[0]![1].data).toMatchObject({ select: { project: 'prj_webshop', environment: 'env_web_sandbox' } });
     });
 });
 

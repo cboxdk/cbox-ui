@@ -567,7 +567,7 @@ function FooterLink({
     onAfterClick: () => void;
 }) {
     const className =
-        'flex items-center gap-2 border-t border-border/60 px-3 py-2.5 text-[13px] font-medium text-info transition-colors hover:bg-info-soft';
+        'flex items-center gap-2 border-t border-border/60 px-3 py-2.5 text-[13px] font-medium text-info-text transition-colors hover:bg-info-soft';
 
     if (LinkComponent !== undefined) {
         return (
@@ -623,7 +623,7 @@ function ComboboxAvatarChip({
             style={style}
             className={cn(
                 'flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-[9px] font-semibold tracking-tight',
-                avatar.accent === undefined && 'bg-info-soft text-info',
+                avatar.accent === undefined && 'bg-info-soft text-info-text',
             )}
         >
             {initials}

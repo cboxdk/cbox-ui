@@ -3,7 +3,7 @@ export { useShellHelp, type ShellLinkComponent } from './context';
 export { createHelpStore, type HelpArticle, type HelpState, type HelpStore, type SupportUpdate } from './help-store';
 export { contextTrail, pageIntent, type PageIntent } from './help';
 export { APP_HUES, hueFor, parseShellCatalog, type ShellApp, type ShellCatalogState } from './app-grid';
-export { environmentFor, initialsOf, parseListPage, settingsHref, switchPayload, withQuery, type ListPage } from './data';
+export { environmentFor, initialsOf, parseListPage, settingsHref, switchBody, switchPayload, withQuery, type ListPage, type SwitchBody } from './data';
 export { SHELL_ICONS, type ShellIcon } from './icons';
 export type {
     AppKey,

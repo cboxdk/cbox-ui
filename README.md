@@ -334,7 +334,7 @@ moves focus to `<main id={mainId}>` (default `main-content`).
 | `level.listUrl` | `GET ?q=&parent=&cursor=&limit=` | `{ object: "list", data: ContextItem[], has_more, next_cursor }`. Loaded when a menu opens; every level below the first gets `parent`, the level above's id (projects of an organization, environments of a project). Answers are kept for the page and dropped when the context changes. |
 | `level.createUrl` | `POST { name, parent? }` | `{ id, detailsUrl }` (or `details_url`). The person lands on `detailsUrl`. A 422 shows its first error under the field. |
 | `account.switchAccountUrl` | A plain link (full page load) | Usually a redirect to Cbox ID's account chooser. |
-| `context.switchUrl` | `POST { <level key>: id, …, return_to }` (a form post through `navigate`) | A redirect: the same page in the new context, or that area's list for an entity page (§5.6). |
+| `context.switchUrl` | `POST { select: { <level key>: id, … }, from }` (a form post through `navigate`; as a form, `select[project]=…&from=…`). laravel-console-kit's `/shell/switch` reads it. 0.10.3 and older posted the flat `{ <level key>: id, …, return_to }`, which console-kit 0.2.5 still accepts. | A redirect: the same page in the new context, or that area's list for an entity page (§5.6). |
 | `palette.searchUrl` | `GET ?q=` | `{ data: [{ id, title, subtitle?, url }] }`, in the current context. |
 | `palette.gotoUrl` | `GET ?q=` | `{ data: [{ title, subtitle?, levels?: { organization, project, … }, url? }] }` across organizations. |
 | `apps.catalogUrl` | `GET` | The catalog below, plus `in_organization`, `admission_url`, `purpose` and `hue` per app. |
@@ -389,10 +389,19 @@ a prop of the header: Help needs it on the first paint and on pages without a he
 ⌘K / Ctrl+K opens the palette anywhere (↑↓ move, Enter opens, ⌘Enter opens in a new tab, Esc
 closes). In the context menus ↑↓ Home End move, Enter picks, → makes a row's gear the active
 option (Enter opens its settings; in the cascade a second → crosses to the environments), ←
-goes back, Esc closes and Tab leaves; focus returns to the trigger. ↓ past the last row
+goes back, Esc closes and Tab leaves; focus returns to the trigger. ↓ on a context trigger
+opens its menu, and focus moves into the menu when it opens: the search field with a fine
+pointer, else the list itself (typing there goes on in the search). ↓ past the last row
 reaches "New …" and ↑ above the first reaches "View all", so both work without a mouse; in the
 app grid End and ↓ from the bottom row reach "All products". ⌘. collapses the subnav. Search fields focus themselves only with a fine pointer and
 hover, never on touch. Sheets and the Help overlay trap focus; the docked column does not.
+
+### Scrolling
+
+The document scrolls, not a box inside the shell. The rail, the header, the subnav and docked
+Help stay in view with `position: sticky`. So Inertia resets the scroll on a new page and
+restores it on back and forward with no `scroll-region`, and a full-page screenshot shows the
+whole page. A page that needs its own scroller (a wide table) brings one.
 
 ### Phone (< 768px)
 
@@ -416,3 +425,9 @@ Core tokens now match the warm cream/ink design-system colors. Body text uses
 the system stack; hosts self-host Plus Jakarta Sans for headings and JetBrains
 Mono for technical values. Card/control/badge radii are 12/8/6px. The main canvas
 uses the approved single radial wash at 30% 0 in both themes.
+
+Words and icons in a tone use the tone's text token, not its fill: `--success-text`,
+`--info-text`, `--warning-text` and `--destructive-text` (`text-success-text` and so on). They
+reach 4.5:1 on the tone's soft tint over a card, the canvas or the background, in light and
+dark; the fills (`--success` …) are for dots, squares and solid buttons. `StatusPill` and
+`StatTile` use them. `tests/tokens/contrast.test.ts` checks every pair.

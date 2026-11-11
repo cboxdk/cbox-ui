@@ -76,7 +76,9 @@ export function Popover({
     if (!open) return null;
 
     const style: CSSProperties = position === null
-        ? { position: 'fixed', top: 0, left: 0, visibility: 'hidden' }
+        // Not `visibility: hidden`: the menu's own effects move focus into it before it is
+        // placed, and a hidden element cannot take focus.
+        ? { position: 'fixed', top: 0, left: 0, opacity: 0, pointerEvents: 'none' }
         : { position: 'fixed', top: position.top, bottom: position.bottom, left: position.left, maxHeight: position.maxHeight };
 
     return (

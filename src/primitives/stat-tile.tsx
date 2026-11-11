@@ -5,10 +5,10 @@ import { cn } from '../utils/cn';
 type Tone = 'info' | 'success' | 'warning' | 'destructive' | 'neutral';
 
 const toneStyles: Record<Tone, { bg: string; fg: string }> = {
-    info: { bg: 'bg-info-soft', fg: 'text-info' },
-    success: { bg: 'bg-success-soft', fg: 'text-success' },
-    warning: { bg: 'bg-warning-soft', fg: 'text-warning' },
-    destructive: { bg: 'bg-destructive-soft', fg: 'text-destructive' },
+    info: { bg: 'bg-info-soft', fg: 'text-info-text' },
+    success: { bg: 'bg-success-soft', fg: 'text-success-text' },
+    warning: { bg: 'bg-warning-soft', fg: 'text-warning-text' },
+    destructive: { bg: 'bg-destructive-soft', fg: 'text-destructive-text' },
     neutral: { bg: 'bg-secondary', fg: 'text-foreground' },
 };
 
@@ -59,7 +59,7 @@ export function StatTile({
                     {label}
                 </p>
                 {suffix ? (
-                    <p className="text-mono truncate text-[10px] text-muted-foreground/80">
+                    <p className="text-mono truncate text-[10px] text-muted-foreground">
                         {suffix}
                     </p>
                 ) : null}
