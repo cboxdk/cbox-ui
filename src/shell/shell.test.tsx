@@ -301,6 +301,21 @@ describe('sandbox strip and banner (§5.1a)', () => {
         renderShell({ shell: sandbox });
         expect(screen.getByRole('status').textContent).toContain('Sandbox: test data only');
     });
+
+    it('shows every banner, the sandbox strip beside an app banner, and prefers `banners` to `banner`', () => {
+        const strip = { kind: 'sandbox' as const, text: 'Sandbox: test data only, nothing is charged.' };
+        const hold = { kind: 'notice' as const, text: 'Invoices are on hold.', action: { label: 'See what is held', url: '/orgs/cbox/tax' } };
+        const sandbox = makeShell({ banner: hold, banners: [strip, hold, { kind: 'impersonation', text: 'You are acting as Ada' }] });
+        sandbox.context.levels[2]!.current = ENVIRONMENTS.prj_webshop![1]!;
+        renderShell({ shell: sandbox });
+        const strips = screen.getAllByRole('status');
+        expect(strips.map(element => element.className)).toEqual(['cbx-banner cbx-banner-sandbox', 'cbx-banner cbx-banner-notice', 'cbx-banner cbx-banner-impersonation']);
+        expect(within(strips[1]!).getByRole('link', { name: 'See what is held' }).getAttribute('href')).toBe('/orgs/cbox/tax');
+        reset();
+        // Without test data the strip stays hidden; the app's banners show.
+        renderShell({ shell: makeShell({ banners: [strip, hold] }) });
+        expect(screen.getAllByRole('status').map(element => element.textContent)).toEqual(['Invoices are on hold.See what is held']);
+    });
 });
 
 describe('phone layout (§4.5)', () => {

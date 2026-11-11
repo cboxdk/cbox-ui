@@ -48,6 +48,42 @@ describe('skip link (§12.2)', () => {
     });
 });
 
+describe('rail lock', () => {
+    const allLocked: NonNullable<NavArea['pages']> = [
+        { key: 'analytics.mrr', label: 'MRR', url: '/orgs/cbox/upgrade?feature=analytics', locked: true },
+        { key: 'analytics.churn', label: 'Churn', url: '/orgs/cbox/upgrade?feature=analytics', locked: true },
+    ];
+
+    function lockedShell(pages: NonNullable<NavArea['pages']>): Shell {
+        const shell = makeShell();
+        shell.nav.areas = [...shell.nav.areas, { key: 'analytics', label: 'Analytics', url: pages[0]!.url, icon: 'chart', pages }];
+        return shell;
+    }
+
+    it('locks a rail area whose pages are all locked, with an accessible label', () => {
+        renderShell({ shell: lockedShell(allLocked) });
+        const rail = screen.getByRole('complementary', { name: 'Main navigation' });
+        const link = within(rail).getByRole('link', { name: 'Analytics (locked)' });
+        expect(link.getAttribute('data-locked')).toBe('true');
+        expect(link.querySelector('.cbx-rail-lock svg')).not.toBeNull();
+        expect(within(rail).getByRole('link', { name: 'Overview' }).getAttribute('data-locked')).toBeNull();
+    });
+
+    it('leaves the rail item unlocked while one page is open', () => {
+        renderShell({ shell: lockedShell([allLocked[0]!, { key: 'analytics.usage', label: 'Usage', url: '/orgs/cbox/usage' }]) });
+        const rail = screen.getByRole('complementary', { name: 'Main navigation' });
+        expect(within(rail).getByRole('link', { name: 'Analytics' }).getAttribute('data-locked')).toBeNull();
+        expect(within(rail).queryByRole('link', { name: 'Analytics (locked)' })).toBeNull();
+    });
+
+    it('shows the lock on the area in the phone nav too', async () => {
+        const { user } = renderShell({ shell: lockedShell(allLocked), environment: { width: 390, pointer: 'coarse' } });
+        await user.click(screen.getByRole('button', { name: 'Open navigation' }));
+        const sheet = screen.getByRole('dialog', { name: 'Cbox · Infra' });
+        expect(within(sheet).getByRole('link', { name: 'Analytics (locked)' })).toBeTruthy();
+    });
+});
+
 describe('nav pages: locked, counts and groups', () => {
     it('marks a locked page with a lock and an accessible "(locked)", leading to its upgrade url', () => {
         renderShell({ shell: settingsShell(PAGES, 'settings.general') });

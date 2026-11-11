@@ -111,14 +111,16 @@ Match id's existing patterns — see id/resources/js/pages/* for examples.
 
 ### Charts
 
-Time series use ECharts, from the `@cboxdk/cbox-ui/charts` entry so apps without charts never load it. Install `echarts` (^6) next to cbox-ui to use it; ECharts itself is fetched on the first chart's mount.
+Time series and bar charts use ECharts, from the `@cboxdk/cbox-ui/charts` entry so apps without charts never load it. Install `echarts` (^6) next to cbox-ui to use it; ECharts itself is fetched on the first chart's mount.
 
 | Export | What it does |
 |---|---|
 | `TimeChart` (`/charts`) | Lines over a time window drawn to scale from zero with round ticks, a faint area under the primary series, thin lines for the rest (one per pod, say), labelled vertical lines for `events` (deploys, scaling), gaps for missing samples, an axis tooltip, and zoom by slider, pinch or Ctrl/⌘ + scroll. Colours come from `--chart-1…5` and follow dark mode. Times are milliseconds. Keep a table of the same numbers beside it. |
+| `BarChart` (`/charts`) | Categories against values, to scale from zero with round ticks: side by side, `stacked` (the tooltip adds the total) or `horizontal`. Negative values hang below zero. One `values` entry per category, `null` for none; `tone` picks a chart token from 0. A legend shows with more than one series. Same tokens, fonts, grid and tooltip as `TimeChart`. |
+| `WaterfallChart` (`/charts`) | A bridge (MRR movement): `steps` with `total: true` drawn from zero, the rest as signed changes floating from where the step before ended. Totals in `--chart-1`, growth in `--chart-2`, loss in `--chart-4`. For running levels that stay at or above zero. |
 | `Chart` (`/charts`) | The ECharts wrapper under it: SVG renderer, token colours, theme and reduced-motion aware. Build other chart types on it. |
 | `Sparkline` | A small decorative SVG line for table rows. No ECharts. |
-| `niceTicks` / `timeTicks` / `seriesData` | The axis and gap arithmetic. |
+| `niceTicks` / `niceRange` / `timeTicks` / `seriesData` / `barExtent` / `waterfallBars` | The axis, gap, stack and waterfall arithmetic. |
 
 ## Versioning
 
@@ -283,7 +285,8 @@ type Shell = {
     notifications: { enabled: false } | { enabled: true; unread; url };
     apps: { catalogUrl; productsUrl? };
     account?: { profileUrl?; switchAccountUrl?; signOutUrl?; signOutMethod?; languages?; formats?; signedInWith? };
-    banner?: { kind: 'sandbox' | 'impersonation' | 'notice'; text; action? };
+    banner?: ShellBanner;      // one strip (laravel-console-kit 0.2.3 and older)
+    banners?: ShellBanner[];   // every strip, top to bottom; wins over `banner`
     preferences: { theme; locale; railPinned; helpOpen; subnavCollapsed?; regionalFormat?; timeZone? };
 };
 ```
@@ -301,8 +304,17 @@ type NavPage = {
 Pages of one `group` show together under its heading, in the order each group first appears.
 Locked pages still show in the palette's Pages, marked "Locked". Every nav link (and the
 banner action) also accepts `href` in place of `url`, the name laravel-console-kit 0.2.2 sends.
-`palette.placeholder` replaces "Search or ask…" in the palette's field (the header button keeps
-"Search or ask…").
+`palette.placeholder` replaces "Search or ask…" in the palette's field. The header's Search
+button keeps "Search or ask…" in every app: spec §4.3 fixes that label so the header reads the
+same across Cbox.
+
+An area whose pages are all locked shows a lock on its rail item too (a badge on the icon while
+the rail is collapsed, after the label when open) and is named "{area} (locked)"; the phone nav
+marks it the same way.
+
+`banners` stacks every strip under the header: the sandbox strip (shown only while the current
+context has test data), then the app's banners, such as a tax hold or impersonation. An app
+banner never hides the sandbox strip. Without `banners` the single `banner` shows as before.
 
 `account` and each of its URLs are optional: the account menu leaves out a row it has no URL
 for, and without `account` it holds only the preferences (laravel-console-kit's

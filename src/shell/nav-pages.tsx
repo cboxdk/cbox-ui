@@ -1,11 +1,26 @@
 import { Lock } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
 import { useShell } from './context';
-import type { NavPage } from './types';
+import type { NavArea, NavPage, Shell, ShellBanner } from './types';
 
 /** A nav entry's URL: `url`, or `href` as laravel-console-kit 0.2 sends it. */
 export function navUrl(entry: { url?: string; href?: string }): string {
     return entry.url ?? entry.href ?? '#';
+}
+
+/** An area whose pages are all locked: the rail item itself shows the lock. */
+export function areaLocked(area: NavArea): boolean {
+    const pages = area.pages ?? [];
+    return pages.length > 0 && pages.every(page => page.locked === true);
+}
+
+/**
+ * The strips under the header, top to bottom: `banners` (laravel-console-kit 0.2.4+), else the single
+ * `banner`. A sandbox strip shows only while the current context has test data.
+ */
+export function shellBanners(shell: Pick<Shell, 'banner' | 'banners'>, testData: boolean): ShellBanner[] {
+    const all = shell.banners ?? (shell.banner !== undefined ? [shell.banner] : []);
+    return all.filter(banner => banner.kind !== 'sandbox' || testData);
 }
 
 export type NavPageGroup = { group?: string; pages: NavPage[] };

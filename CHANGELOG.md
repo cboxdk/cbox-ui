@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+All additions are optional; a 0.10.1 `shell` prop renders as before.
+
+### Added
+
+- `shell.banners`: every strip under the header, top to bottom. laravel-console-kit sends the sandbox strip first, then the app's banners, so an app banner (a tax hold) no longer hides the sandbox strip. A `sandbox` strip still shows only while the current context has test data. Without `banners`, the single `banner` shows as before.
+- Rail lock: an area whose pages are all locked shows a lock on its rail item (a badge on the icon while collapsed, after the label when open), is named "{area} (locked)" for screen readers, and is marked the same in the phone nav.
+- `BarChart` and `WaterfallChart` in `@cboxdk/cbox-ui/charts`: side-by-side, stacked and horizontal bars, and a waterfall (bridge), in the chart tokens with `TimeChart`'s fonts, grid and tooltip. The chart engine now registers ECharts' bar chart and legend, so an app no longer registers them itself. `niceRange`, `barExtent` and `waterfallBars` hold the arithmetic.
+- Visual snapshots and axe for the banners with a locked rail area, and snapshots of the charts.
+
+### Unchanged on purpose
+
+- The header's Search button keeps "Search or ask…": spec §4.3 fixes that label in every app. `palette.placeholder` still changes the palette's search field only.
+
 ## v0.10.1 — 2026-11-11
 
 All additions are optional fields; a 0.10.0 `shell` prop renders as before.
