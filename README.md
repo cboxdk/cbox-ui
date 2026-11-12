@@ -78,6 +78,10 @@ import {
     EmptyState,
     StatTile,
     KeyValue,
+    Button,
+    Field,
+    Input,
+    Dialog,
 } from '@cboxdk/cbox-ui';
 ```
 
@@ -108,6 +112,26 @@ Match id's existing patterns — see id/resources/js/pages/* for examples.
 | `StatTile` | Big-number metric tile. |
 | `KeyValue` / `KeyValueList` | Definition-list style "label → value" for detail panels. |
 | `Heading` | Section heading without the panel chrome. |
+
+### Form controls and the dialog
+
+Plain CSS in `tokens/controls.css` (`cbx-ui-*` classes in `@layer components`), which the
+`@cboxdk/cbox-ui/tokens` import already brings; `@cboxdk/cbox-ui/controls.css` alone is there for
+an app without the tokens import. In a Tailwind v4 app a utility on `className` (`w-full`,
+`mt-2`) wins over the component's own rule. Light and dark come from the tokens; fields are 16px
+below 768px so iOS does not zoom. The few words the components say themselves ("Close",
+"(required)", "(optional)") go through `CboxLocalizationProvider`; everything else is a prop.
+
+| Export | What it does |
+|---|---|
+| `Button` | `variant` primary / secondary / ghost (default) / danger, `size` sm / md / lg, `icon` (a leading glyph, decorative), `loading` (disabled, `aria-busy`, a spinner, the label unchanged). `type` defaults to `button`. `asChild` styles its one child (a router `Link`, an `<a>`) instead, glyph inside; a disabled link stays focusable and goes nowhere. `buttonClassName()` gives the classes for an element Button cannot wrap. |
+| `Field` / `useFieldControl` | A labelled control, wired: the label points at the control, `hint` and `error` describe it, `error` marks it `aria-invalid` and is announced from a live region that is always there. `required` (a spoken "required"), `optional`, `labelAction` (a link on the label row), `id` when something outside refers to the control. `useFieldControl()` is the wiring for a control of your own. |
+| `Input` / `Textarea` | Text fields on the tokens, 36px (`scale="lg"`: 44px). Inside a `Field` they take its id and state; outside one they are bare (give them an `aria-label`). |
+| `Checkbox` | A native checkbox drawn on the tokens with its label (and an optional `hint`) beside it. `checked` may be `'indeterminate'`. 16px box, 24px target. |
+| `RadioGroup` | A labelled group of native radios: arrow keys move, Tab enters at the checked one. Options take a `hint` and `disabled`; `labelHidden` keeps the question for screen readers only. |
+| `Switch` | An immediate on/off (`role="switch"`). Named by its `Field`, or `aria-label`. A setting that waits for Save is a `Checkbox`. |
+| `Dialog` / `DialogClose` / `useDialogClose` | A modal portalled to `<body>`: `title`, `description`, `footer`, `size` sm / md / lg. Focus moves in (to `autoFocus` / `data-autofocus`, else the first field, else Close, never a footer action), Tab stays inside, the page behind is `inert` and does not scroll, Escape / Close / the scrim close it (`dismissible={false}` keeps the scrim from closing it), and focus goes back to the opener. `DialogClose` is a Button that closes the dialog it is in. |
+| `Spinner` | The indeterminate progress ring. Silent by default; `label` makes it a live status. |
 
 ### Charts
 
@@ -497,7 +521,8 @@ the rest of the sheet. A page's own "New …" button calls `useShellCreate()?.op
 `bun run test` runs the unit tests (vitest, Testing Library, happy-dom). `bun run test:visual`
 renders the fixture page in `tests/visual` (the real shell, the fixture `shell` prop and its
 answers) and compares every open state at 1440 and 390, light and dark, against
-`tests/visual/__screenshots__`, and runs axe on every open state. It runs in the pinned
+`tests/visual/__screenshots__`, and runs axe on every open state. `?controls=1` is the form
+controls in every state and `&dialog=1` the Dialog over them (`tests/visual/controls.spec.ts`). It runs in the pinned
 Playwright container (`scripts/visual.sh`, needs Docker), the same one CI's `visual` job uses,
 so the Linux baselines match pixel for pixel. After an intended change:
 `bun run test:visual:update`, then look at every changed image.
@@ -514,3 +539,7 @@ Words and icons in a tone use the tone's text token, not its fill: `--success-te
 reach 4.5:1 on the tone's soft tint over a card, the canvas or the background, in light and
 dark; the fills (`--success` …) are for dots, squares and solid buttons. `StatusPill` and
 `StatTile` use them. `tests/tokens/contrast.test.ts` checks every pair.
+
+`--control-border` (`border-control-border`) is the stroke of a control whose stroke is its only
+boundary (an input, a checkbox, the plain button). It reaches 3:1 on a card, a popover, the canvas
+and the background in both themes (WCAG 2.2 SC 1.4.11), and the same test checks it.

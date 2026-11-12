@@ -42,8 +42,12 @@ html, body { margin: 0; }
 .fixture-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .fixture-chart { padding: 12px 14px; }
 @media (max-width: 767px) { .fixture-charts { grid-template-columns: 1fr; } }
+.fixture-controls { max-width: 720px; padding: 28px 32px 48px; }
+.fixture-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 20px 0 0; }
+.fixture-form { display: grid; gap: 18px; margin: 24px 0 0; padding: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+.fixture-form a { color: var(--primary); font-size: 12.5px; }
 .fixture-when { text-align: right; font-size: 13px; color: var(--muted-foreground); }
-@media (max-width: 767px) { .fixture-page { padding: 20px 16px; } .fixture-row { grid-template-columns: 1fr auto; } .fixture-row > :nth-child(2), .fixture-row > :nth-child(4) { display: none; } }
+@media (max-width: 767px) { .fixture-controls { padding: 20px 16px; } .fixture-page { padding: 20px 16px; } .fixture-row { grid-template-columns: 1fr auto; } .fixture-row > :nth-child(2), .fixture-row > :nth-child(4) { display: none; } }
 </style>
 </head>
 <body>

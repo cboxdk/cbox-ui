@@ -68,4 +68,16 @@ describe.each([['light', light], ['dark', dark]] as const)('%s', (_, tokens) => 
         expect(contrast(solid('muted-foreground'), solid('card'))).toBeGreaterThanOrEqual(4.5);
         expect(contrast(solid('muted-foreground'), solid('canvas'))).toBeGreaterThanOrEqual(4.5);
     });
+
+    it('a control stroke reads at 3:1 on every surface a control sits on (SC 1.4.11)', () => {
+        for (const surface of ['card', 'popover', 'canvas', 'background']) {
+            expect(contrast(solid('control-border'), solid(surface)), `control-border on ${surface}`).toBeGreaterThanOrEqual(3);
+        }
+    });
+
+    it('a destructive button label reads at 4.5:1 on a card and the dialog', () => {
+        for (const surface of ['card', 'popover']) {
+            expect(contrast(solid('destructive-text'), solid(surface)), `destructive-text on ${surface}`).toBeGreaterThanOrEqual(4.5);
+        }
+    });
 });
