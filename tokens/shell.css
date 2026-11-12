@@ -245,7 +245,9 @@ textarea.cbx-input { height: auto; padding: 10px 12px; resize: vertical; min-hei
 .cbx-account-name { font-weight: 600; }
 .cbx-account-sub { font-size: 12.5px; color: var(--muted-foreground); }
 .cbx-menu-account > .cbx-list { margin: 0; overflow: visible; }
-.cbx-menu-account > .cbx-pane { padding-top: 8px; }
+/* A column of auto height: the pane sizes to its content (a 0 basis, right for the side-by-side
+   panes of the org and cascade menus, collapsed it to its padding here). */
+.cbx-menu-account > .cbx-pane { flex: 1 1 auto; padding-top: 8px; }
 .cbx-list-foot { border-top: 1px solid var(--border); }
 .cbx-theme { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 6px 40px; }
 .cbx-theme-label { font-size: 14px; }

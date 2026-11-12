@@ -121,10 +121,22 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
     // open, it shows docked from 1280px; below that it waits for the person (see `restored`).
     if (!store.get().seeded) store.set({ open: shell.preferences.helpOpen, restored: shell.preferences.helpOpen, seeded: true });
 
-    // A new `shell` prop from the server wins for the preferences it carries.
+    // A new `shell` prop from the server wins for the preferences that changed in it: those were
+    // chosen elsewhere (another tab or device, Cbox ID's shared preferences), so they repaint and
+    // move the controls, and are never handed to `onPreferenceChange`. A preference the prop still
+    // carries unchanged keeps what the person chose here since; replacing them all reset a fresh
+    // choice to the value the page was rendered with.
     const serverPreferences = JSON.stringify(shell.preferences);
+    const lastServer = useRef(serverPreferences);
     useEffect(() => {
-        setPreferences(JSON.parse(serverPreferences) as ShellPreferences);
+        if (lastServer.current === serverPreferences) return;
+        const before = JSON.parse(lastServer.current) as ShellPreferences;
+        const after = JSON.parse(serverPreferences) as ShellPreferences;
+        lastServer.current = serverPreferences;
+        const changed = (Object.keys({ ...before, ...after }) as Array<keyof ShellPreferences>).filter(key => JSON.stringify(before[key]) !== JSON.stringify(after[key]));
+        if (changed.length === 0) return;
+        setPreferences(current => ({ ...current, ...Object.fromEntries(changed.map(key => [key, after[key]])) }));
+        if (changed.includes('theme')) applyTheme(after.theme);
     }, [serverPreferences]);
 
     const setPreference = useCallback<ShellPreferenceChange>(
