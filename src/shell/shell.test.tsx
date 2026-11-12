@@ -219,6 +219,24 @@ describe('account menu (§10)', () => {
         expect(navigate).toHaveBeenCalledWith('/logout', { method: 'post' });
     });
 
+    it('follows a theme that changes on the server without saving it back, and keeps local choices', async () => {
+        const shell = makeShell();
+        const preference = vi.fn();
+        const { user, rerender } = renderShell({ shell, onPreferenceChange: preference });
+        // A choice made here that the server prop does not carry yet.
+        await user.click(screen.getByRole('button', { name: 'Pin navigation' }));
+        expect(preference).toHaveBeenCalledWith('railPinned', true);
+        preference.mockClear();
+        // The theme changed elsewhere (another device, Cbox ID's shared preferences): only it is new.
+        rerender({ ...shell, preferences: { ...shell.preferences, theme: 'dark' } });
+        expect(document.documentElement.dataset.theme).toBe('dark');
+        expect(document.documentElement.dataset.themePreference).toBe('dark');
+        await user.click(screen.getByRole('button', { name: 'Account and preferences' }));
+        expect(screen.getByRole('menuitemradio', { name: 'Dark' }).getAttribute('aria-checked')).toBe('true');
+        expect(screen.getByRole('button', { name: 'Unpin navigation' })).toBeTruthy();
+        expect(preference).not.toHaveBeenCalled();
+    });
+
     it('moves through items with the arrow keys', async () => {
         const { user } = renderShell();
         await user.click(screen.getByRole('button', { name: 'Account and preferences' }));

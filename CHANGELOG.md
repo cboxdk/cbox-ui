@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Account menu: Language, Regional format and Time zone open at full height.** The panel was
+  70px tall: the back row was cut off, the search showed with no options under it, and the time
+  zone list showed a sliver of two rows. Inside the account menu's column the panel's flex basis of
+  0 collapsed it to its padding; it now sizes to its content (`tokens/shell.css`).
+- **A theme that changes on the server repaints the page and moves the theme control**, without
+  calling `onPreferenceChange`. A new `shell` prop now applies only the preferences that changed in
+  it, so a choice made here since the page loaded (pinning the rail, say) is no longer reset to the
+  value the page was rendered with.
+
 ## 0.12.0 — 2026-11-12
 
 Form controls and a dialog, so apps stop vendoring their own. Additive: nothing existing changes
