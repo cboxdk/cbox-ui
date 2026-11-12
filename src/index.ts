@@ -66,6 +66,42 @@ export { RowLink, type RowLinkProps } from './primitives/row-link';
 export { StatTile } from './primitives/stat-tile';
 export { StatusPill } from './primitives/status-pill';
 
+// Form controls and the dialog. Styled by `tokens/controls.css`, which the tokens import brings.
+export {
+    Button,
+    buttonClassName,
+    type ButtonProps,
+    type ButtonSize,
+    type ButtonVariant,
+} from './primitives/button';
+export { Checkbox, type CheckboxProps } from './primitives/checkbox';
+export {
+    Dialog,
+    DialogClose,
+    useDialogClose,
+    type DialogProps,
+    type DialogSize,
+} from './primitives/dialog';
+export {
+    Field,
+    useFieldControl,
+    type FieldControlProps,
+    type FieldProps,
+} from './primitives/field';
+export {
+    Input,
+    Textarea,
+    type InputProps,
+    type TextareaProps,
+} from './primitives/input';
+export {
+    RadioGroup,
+    type RadioGroupProps,
+    type RadioOption,
+} from './primitives/radio-group';
+export { Spinner, type SpinnerProps } from './primitives/spinner';
+export { Switch, type SwitchProps } from './primitives/switch';
+
 // Cross-app surface runtime — single overlay layer (modal/drawer) that
 // every Cbox app mounts so chrome controls (bell, search trigger) can
 // open inbox/search/etc without route navigation. Surfaces are a closed

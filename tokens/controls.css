@@ -1,0 +1,289 @@
+/* Form controls and the dialog: Button, Field, Input, Textarea, Checkbox, RadioGroup, Switch,
+ * Spinner, Dialog. Plain CSS on the shared tokens, so it needs no Tailwind scan of the package.
+ *
+ * Everything sits in `@layer components`. In a Tailwind v4 app that layer is already ordered
+ * under `utilities`, so a `className="w-full"` on a Button wins over the rule here; without
+ * Tailwind the layer still sits under the app's own unlayered CSS.
+ *
+ * Classes are `cbx-ui-*` so they never meet an app's own `.btn`, `.input` or `.cbx-dialog`
+ * while it moves over. */
+
+@layer components {
+    .cbx-ui-btn,
+    .cbx-ui-input,
+    .cbx-ui-check,
+    .cbx-ui-radio,
+    .cbx-ui-switch,
+    .cbx-ui-dialog,
+    .cbx-ui-iconbtn {
+        --cbx-ui-ease: cubic-bezier(.4, 0, .2, 1);
+        box-sizing: border-box;
+    }
+
+    /* ── Button: 32px, 8px radius, 13px/500. sm 28px, lg 42px. */
+    .cbx-ui-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 12px;
+        border: 1px solid transparent;
+        border-radius: var(--radius-md, 8px);
+        background: transparent;
+        color: var(--foreground);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1;
+        text-decoration: none;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: background-color 150ms var(--cbx-ui-ease), border-color 150ms var(--cbx-ui-ease), box-shadow 150ms var(--cbx-ui-ease), color 150ms var(--cbx-ui-ease);
+    }
+    .cbx-ui-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+    .cbx-ui-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    /* Disabled but focusable (a link styled as a button): reachable, and a click is a no-op. */
+    .cbx-ui-btn[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
+    .cbx-ui-btn:active:not(:disabled):not([aria-disabled='true']) { transform: translateY(0.5px); }
+    .cbx-ui-btn-glyph { display: inline-flex; flex-shrink: 0; }
+    .cbx-ui-btn-glyph > svg { width: 16px; height: 16px; }
+
+    .cbx-ui-btn--primary {
+        background: var(--primary);
+        color: var(--primary-foreground);
+        box-shadow: inset 0 1px 0 color-mix(in oklch, #fff 22%, transparent), 0 1px 2px color-mix(in oklch, var(--primary) 42%, transparent);
+    }
+    .cbx-ui-btn--primary:hover:not(:disabled):not([aria-disabled='true']) {
+        background: var(--accent);
+        box-shadow: inset 0 1px 0 color-mix(in oklch, #fff 26%, transparent), 0 3px 10px color-mix(in oklch, var(--primary) 45%, transparent);
+    }
+    /* The plain button: a card with a control-strength stroke, which is its only boundary. */
+    .cbx-ui-btn--ghost { background: var(--card); color: var(--foreground); border-color: var(--control-border); }
+    .cbx-ui-btn--ghost:hover:not(:disabled):not([aria-disabled='true']) { border-color: var(--border-strong); background: var(--secondary); }
+    /* A step below primary: the accent wash, its text pulled towards the foreground so it reads
+     * at 4.5:1 on the wash in both themes. */
+    .cbx-ui-btn--secondary {
+        background: var(--accent-soft);
+        color: color-mix(in oklab, var(--accent) 72%, var(--foreground));
+        border-color: color-mix(in oklch, var(--accent) 80%, transparent);
+    }
+    .cbx-ui-btn--secondary:hover:not(:disabled):not([aria-disabled='true']) {
+        background: color-mix(in oklch, var(--accent) 18%, transparent);
+        border-color: var(--accent);
+    }
+    /* Resting in the readable tone text, not only on hover: a button cannot know what it sits on. */
+    .cbx-ui-btn--danger { color: var(--destructive-text); border-color: color-mix(in oklch, var(--destructive) 80%, transparent); }
+    .cbx-ui-btn--danger:hover:not(:disabled):not([aria-disabled='true']) { background: var(--destructive-soft); }
+    .cbx-ui-btn--sm { height: 28px; padding: 0 10px; font-size: 12px; }
+    .cbx-ui-btn--lg { height: 42px; padding: 0 18px; font-size: 14px; }
+
+    /* ── Spinner */
+    .cbx-ui-spinner {
+        display: inline-block;
+        flex-shrink: 0;
+        box-sizing: border-box;
+        width: 0.95rem;
+        height: 0.95rem;
+        border-radius: 9999px;
+        border: 2px solid color-mix(in oklch, currentColor 30%, transparent);
+        border-top-color: currentColor;
+        animation: cbx-ui-spin 0.6s linear infinite;
+    }
+    @keyframes cbx-ui-spin { to { transform: rotate(360deg); } }
+    /* Slower, never frozen: a still ring reads as a broken control. */
+    @media (prefers-reduced-motion: reduce) { .cbx-ui-spinner { animation-duration: 1.6s !important; } }
+
+    /* ── Field: label, control, hint, error */
+    .cbx-ui-field-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+    .cbx-ui-label { display: block; margin: 0 0 6px; font-size: 13px; font-weight: 500; line-height: 1.4; color: var(--foreground); }
+    .cbx-ui-field-head .cbx-ui-label { margin: 0; }
+    .cbx-ui-label-required { color: var(--destructive-text); }
+    .cbx-ui-label-optional { color: var(--muted-foreground); font-weight: 400; }
+    .cbx-ui-hint { margin: 5px 0 0; font-size: 12px; line-height: 1.4; color: var(--muted-foreground); }
+    .cbx-ui-error { margin: 5px 0 0; font-size: 12px; line-height: 1.4; color: var(--destructive-text); }
+    .cbx-ui-error[hidden] { display: none; }
+    .cbx-ui-sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    /* ── Input and Textarea: 36px, 13px; 16px below 768px so iOS does not zoom into it. */
+    .cbx-ui-input {
+        display: block;
+        width: 100%;
+        height: 36px;
+        padding: 0 10px;
+        border: 1px solid var(--control-border);
+        border-radius: var(--radius-md, 8px);
+        background: var(--card);
+        color: var(--foreground);
+        font: inherit;
+        font-size: 13px;
+        transition: border-color 150ms var(--cbx-ui-ease), box-shadow 150ms var(--cbx-ui-ease);
+    }
+    .cbx-ui-input::placeholder { color: var(--muted-foreground); opacity: 1; }
+    .cbx-ui-input:hover:not(:focus):not(:disabled) { border-color: var(--border-strong); }
+    .cbx-ui-input:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring); }
+    .cbx-ui-input:disabled { opacity: 0.6; cursor: not-allowed; }
+    .cbx-ui-input[aria-invalid='true'] { border-color: var(--destructive); }
+    .cbx-ui-input[aria-invalid='true']:focus { box-shadow: 0 0 0 1px var(--destructive); }
+    .cbx-ui-input--lg { height: 44px; padding: 0 14px; font-size: 14px; }
+    textarea.cbx-ui-input { height: auto; padding: 8px 10px; line-height: 1.5; resize: vertical; }
+    @media (max-width: 767px) { .cbx-ui-input, .cbx-ui-input--lg { font-size: 16px; } }
+
+    /* ── Checkbox and radio: a 16px native box drawn on the tokens, a 24px hit area. */
+    .cbx-ui-check,
+    .cbx-ui-radio { display: flex; align-items: flex-start; gap: 9px; }
+    .cbx-ui-radios { display: flex; flex-direction: column; gap: 10px; }
+    .cbx-ui-check-box,
+    .cbx-ui-radio-box { position: relative; display: grid; place-items: center; flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; }
+    .cbx-ui-check-input,
+    .cbx-ui-radio-input {
+        appearance: none;
+        -webkit-appearance: none;
+        position: absolute;
+        inset: 0;
+        width: 16px;
+        height: 16px;
+        margin: 0;
+        border: 1px solid var(--control-border);
+        background: var(--card);
+        cursor: pointer;
+        transition: background-color 150ms var(--cbx-ui-ease), border-color 150ms var(--cbx-ui-ease);
+    }
+    .cbx-ui-check-input { border-radius: 4px; }
+    .cbx-ui-radio-input { border-radius: 9999px; }
+    /* The drawing is 16px; the target is 24px (WCAG 2.2 SC 2.5.8). */
+    .cbx-ui-check-box::before,
+    .cbx-ui-radio-box::before { content: ''; position: absolute; inset: -4px; }
+    .cbx-ui-check-input:hover:not(:disabled),
+    .cbx-ui-radio-input:hover:not(:disabled) { border-color: var(--border-strong); }
+    .cbx-ui-check-input:focus-visible,
+    .cbx-ui-radio-input:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+    .cbx-ui-check-input:checked,
+    .cbx-ui-check-input:indeterminate { background: var(--primary); border-color: var(--primary); }
+    .cbx-ui-radio-input:checked { border-color: var(--primary); }
+    .cbx-ui-check-input:disabled,
+    .cbx-ui-radio-input:disabled { opacity: 0.5; cursor: not-allowed; }
+    .cbx-ui-check-mark { position: relative; display: none; width: 12px; height: 12px; color: var(--primary-foreground); pointer-events: none; }
+    .cbx-ui-check-input:checked ~ .cbx-ui-check-mark--check,
+    .cbx-ui-check-input:indeterminate ~ .cbx-ui-check-mark--minus { display: block; }
+    .cbx-ui-check-input:indeterminate ~ .cbx-ui-check-mark--check { display: none; }
+    .cbx-ui-radio-dot { position: relative; display: none; width: 8px; height: 8px; border-radius: 9999px; background: var(--primary); pointer-events: none; }
+    .cbx-ui-radio-input:checked ~ .cbx-ui-radio-dot { display: block; }
+    .cbx-ui-check-text,
+    .cbx-ui-radio-text { min-width: 0; }
+    .cbx-ui-check-label,
+    .cbx-ui-radio-label { display: block; font-size: 13px; line-height: 1.4; color: var(--foreground); cursor: pointer; }
+    .cbx-ui-check-hint,
+    .cbx-ui-radio-hint { display: block; margin: 2px 0 0; font-size: 12px; line-height: 1.4; color: var(--muted-foreground); }
+    .cbx-ui-radio.is-disabled .cbx-ui-radio-label,
+    .cbx-ui-check.is-disabled .cbx-ui-check-label { cursor: not-allowed; opacity: 0.6; }
+
+    /* ── Switch: 36×20, a 16px thumb. */
+    .cbx-ui-switch {
+        position: relative;
+        display: inline-block;
+        flex-shrink: 0;
+        width: 36px;
+        height: 20px;
+        margin: 0;
+        padding: 0;
+        border: 1px solid var(--control-border);
+        border-radius: 9999px;
+        background: var(--input);
+        cursor: pointer;
+        transition: background-color 150ms var(--cbx-ui-ease), border-color 150ms var(--cbx-ui-ease);
+    }
+    .cbx-ui-switch::before { content: ''; position: absolute; inset: -3px -1px; }
+    .cbx-ui-switch:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+    .cbx-ui-switch[aria-checked='true'] { background: var(--primary); border-color: var(--primary); }
+    .cbx-ui-switch:disabled { opacity: 0.5; cursor: not-allowed; }
+    .cbx-ui-switch-thumb {
+        position: absolute;
+        top: 1px;
+        left: 1px;
+        width: 16px;
+        height: 16px;
+        border-radius: 9999px;
+        background: var(--card);
+        box-shadow: 0 1px 2px oklch(0.2 0.02 75 / 0.25);
+        transition: transform 150ms var(--cbx-ui-ease);
+    }
+    .cbx-ui-switch[aria-checked='true'] .cbx-ui-switch-thumb { transform: translateX(16px); }
+
+    /* ── Icon button (the dialog's close): 28px, 40px under a coarse pointer. */
+    .cbx-ui-iconbtn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 28px;
+        height: 28px;
+        margin: 0;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm, 6px);
+        background: transparent;
+        color: var(--muted-foreground);
+        cursor: pointer;
+        transition: background-color 150ms var(--cbx-ui-ease), color 150ms var(--cbx-ui-ease);
+    }
+    .cbx-ui-iconbtn:hover { background: var(--secondary); color: var(--foreground); }
+    .cbx-ui-iconbtn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+    .cbx-ui-iconbtn > svg { width: 16px; height: 16px; }
+    @media (pointer: coarse) { .cbx-ui-iconbtn { width: 40px; height: 40px; } }
+
+    /* ── Dialog */
+    .cbx-ui-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        background: var(--overlay, oklch(0.2 0.015 75 / 0.45));
+        animation: cbx-ui-fade 200ms var(--cbx-ui-ease, ease);
+    }
+    .cbx-ui-dialog {
+        position: fixed;
+        z-index: 91;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        width: calc(100vw - 32px);
+        max-height: calc(100dvh - 64px);
+        background: var(--popover);
+        color: var(--popover-foreground);
+        border: 1px solid var(--border);
+        border-radius: var(--radius, 12px);
+        box-shadow: 0 1px 2px oklch(0.2 0.02 75 / 0.08), 0 16px 48px oklch(0.2 0.02 75 / 0.24);
+        /* Portalled to <body>, outside the shell: it states its own type. */
+        font-family: var(--font-sans, system-ui, -apple-system, 'Segoe UI', sans-serif);
+        font-size: 14px;
+        line-height: 1.45;
+        animation: cbx-ui-pop 200ms var(--cbx-ui-ease);
+    }
+    .cbx-ui-dialog:focus { outline: none; }
+    .cbx-ui-dialog--sm { max-width: 24rem; }
+    .cbx-ui-dialog--md { max-width: 32rem; }
+    .cbx-ui-dialog--lg { max-width: 48rem; }
+    .cbx-ui-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px 0; }
+    .cbx-ui-dialog-heading { min-width: 0; }
+    .cbx-ui-dialog-title { margin: 0; font-family: var(--font-display, system-ui, sans-serif); font-size: 16px; font-weight: 600; line-height: 1.3; color: var(--foreground); }
+    .cbx-ui-dialog-desc { margin: 6px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--muted-foreground); }
+    /* The body is the only part that scrolls, so the footer's actions stay in reach. */
+    .cbx-ui-dialog-body { flex: 1; min-height: 0; padding: 16px 20px; overflow-y: auto; overscroll-behavior: contain; }
+    .cbx-ui-dialog-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 0 20px 18px; }
+    .cbx-ui-dialog-head + .cbx-ui-dialog-foot { padding-top: 16px; }
+    @keyframes cbx-ui-fade { from { opacity: 0; } }
+    @keyframes cbx-ui-pop { from { opacity: 0; transform: translate(-50%, calc(-50% + 4px)) scale(0.98); } }
+    @media (prefers-reduced-motion: reduce) { .cbx-ui-overlay, .cbx-ui-dialog { animation: none; } }
+}

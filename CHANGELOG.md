@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.12.0 — 2026-11-12
+
+Form controls and a dialog, so apps stop vendoring their own. Additive: nothing existing changes
+its props.
+
+### Added
+
+- **`Button`**: primary, secondary, ghost (default) and danger; sm, md and lg; a leading `icon`;
+  `loading` (disabled, `aria-busy`, a spinner, the label unchanged); `asChild` to style a router
+  `Link` or an `<a>` as the button. `type` defaults to `button`. `buttonClassName()` for an
+  element Button cannot wrap.
+- **`Field`** and **`useFieldControl`**: label, `hint`, `error` (announced from a live region that
+  is always present), `required`, `optional` and a `labelAction`, wired to the control with
+  generated ids.
+- **`Input`** and **`Textarea`**: 36px (`scale="lg"` 44px), 13px, and 16px below 768px so iOS does
+  not zoom into them.
+- **`Checkbox`** (with `'indeterminate'`), **`RadioGroup`** and **`Switch`**: native inputs (a
+  `role="switch"` button for Switch) drawn on the tokens, 24px targets.
+- **`Dialog`**, **`DialogClose`** and **`useDialogClose`**: a modal with focus moved in and kept
+  inside, Escape, the scrim and Close to dismiss, the page behind inert and held still, and focus
+  returned to whatever opened it.
+- **`Spinner`**.
+- **`tokens/controls.css`** (also `@cboxdk/cbox-ui/controls.css`): their styles, `cbx-ui-*` classes
+  in `@layer components`, brought in by the tokens import. In a Tailwind v4 app a utility on
+  `className` wins over them.
+- **`--control-border`** (`border-control-border`): a control's stroke at 3:1 on every surface, in
+  light and dark.
+- "Close", "(required)" and "(optional)" go through the host's translator: add them to the app's
+  catalogs.
+
+### Changed
+
+- The shell's zero-specificity resets (`button`, `input`, `textarea`, `a`, headings and `p` inside
+  `.cbx-shell`, `.cbx-overlay` and `.cbx-popover`) skip the `cbx-ui-*` controls, so the controls
+  look the same inside the shell and out of it. Nothing else they touch changes.
+
+### For Cbox Dash and other apps vendoring these
+
+Swap `Button`, `Dialog`/`DialogClose`, `Field`/`useFieldControl`, `Input`/`Textarea`,
+`Checkbox`, `RadioGroup`, `Switch` and `Spinner` to the package. Differences: `icon` takes a
+node (`icon={<Plus />}`), not a name; `Dialog` has no Radix underneath, so a Radix `asChild`
+trigger is not needed (set `open` yourself, as before); `DialogClose` is a Button (pass
+`variant`), not a Radix slot.
+
 ## 0.11.2 — 2026-11-12
 
 ### Fixed

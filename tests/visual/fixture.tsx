@@ -8,14 +8,23 @@
  * shows the bar, stacked-bar and waterfall charts instead of the deployments), `long=1` (40
  * deployments: a page several screens tall). `fixture=billing` renders the Billing-shaped shell
  * of the V6 mockup instead, with `area=`, `pg=` (a page label) and `env=` (an environment id).
+ * `controls=1` shows the form controls (Button, Field, Input, Checkbox, RadioGroup, Switch) in
+ * every state; `dialog=1` opens the Dialog over them.
  */
-import { StrictMode } from 'react';
+import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BarChart, WaterfallChart } from '../../src/charts';
 import { CboxShell, applyTheme } from '../../src/shell';
 import { ENVIRONMENTS, makeShell } from '../../src/shell/testing/fixture';
 import { makeBillingShell } from '../../src/shell/testing/billing';
 import { renderBillingCreate } from '../../src/shell/testing/billing-forms';
+import { Button } from '../../src/primitives/button';
+import { Checkbox } from '../../src/primitives/checkbox';
+import { Dialog, DialogClose } from '../../src/primitives/dialog';
+import { Field } from '../../src/primitives/field';
+import { Input, Textarea } from '../../src/primitives/input';
+import { RadioGroup } from '../../src/primitives/radio-group';
+import { Switch } from '../../src/primitives/switch';
 
 const params = new URLSearchParams(window.location.search);
 const theme = params.get('theme') === 'dark' ? 'dark' : 'light';
@@ -145,8 +154,97 @@ function Charts() {
     );
 }
 
+const plus = (
+    <svg viewBox="0 0 16 16" fill="none">
+        <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+);
+
+function Controls() {
+    const [dialog, setDialog] = useState(params.get('dialog') === '1');
+    const [summary, setSummary] = useState(true);
+    const [region, setRegion] = useState<string>('hel1');
+    const [live, setLive] = useState(true);
+    return (
+        <div className="fixture-controls">
+            <h1 className="fixture-title">Controls</h1>
+            <div className="fixture-buttons">
+                <Button variant="primary" icon={plus} onClick={() => setDialog(true)}>
+                    New project
+                </Button>
+                <Button variant="secondary">Invite</Button>
+                <Button>Cancel</Button>
+                <Button variant="danger">Delete</Button>
+                <Button variant="primary" loading>
+                    Save
+                </Button>
+                <Button disabled>Disabled</Button>
+            </div>
+            <div className="fixture-buttons">
+                <Button variant="primary" size="sm">
+                    Small
+                </Button>
+                <Button size="sm">Small</Button>
+                <Button variant="primary" size="lg">
+                    Large
+                </Button>
+                <Button asChild variant="secondary" size="lg">
+                    <a href="#docs">A link</a>
+                </Button>
+            </div>
+            <div className="fixture-form">
+                <Field label="Project name" hint="Lower case, shown in URLs." required>
+                    <Input defaultValue="webshop" />
+                </Field>
+                <Field label="Email" error="Enter an email address.">
+                    <Input defaultValue="ada@" />
+                </Field>
+                <Field label="Description" optional>
+                    <Textarea placeholder="What runs here" rows={3} />
+                </Field>
+                <Field label="Password" labelAction={<a href="#forgot">Forgot password?</a>}>
+                    <Input type="password" scale="lg" defaultValue="secret" />
+                </Field>
+                <Checkbox checked={summary} onCheckedChange={setSummary} label="Send me the weekly summary" hint="Every Monday at 08:00." />
+                <Checkbox checked="indeterminate" onCheckedChange={() => undefined} label="Some environments" />
+                <Checkbox checked={false} onCheckedChange={() => undefined} label="Unavailable" disabled />
+                <RadioGroup
+                    label="Region"
+                    value={region}
+                    onValueChange={setRegion}
+                    options={[
+                        { value: 'hel1', label: 'Helsinki' },
+                        { value: 'fra1', label: 'Frankfurt', hint: 'Closest to most of Europe.' },
+                        { value: 'nyc1', label: 'New York', disabled: true },
+                    ]}
+                />
+                <Field label="Maintenance mode">
+                    <Switch checked={live} onCheckedChange={setLive} />
+                </Field>
+            </div>
+            <Dialog
+                open={dialog}
+                onOpenChange={setDialog}
+                title="Delete project"
+                description="This removes webshop and its three environments. It cannot be undone."
+                footer={
+                    <>
+                        <DialogClose>Cancel</DialogClose>
+                        <Button variant="danger">Delete project</Button>
+                    </>
+                }
+            >
+                <Field label="Type the project name to confirm" hint="webshop">
+                    <Input />
+                </Field>
+            </Dialog>
+        </div>
+    );
+}
+
 function Page() {
     if (params.get('charts') === '1') return <Charts />;
+    if (params.get('controls') === '1') return <Controls />;
     return (
         <div className="fixture-page">
             <p className="fixture-eyebrow">Webshop · {shell.context.levels[2]!.current.name}</p>
