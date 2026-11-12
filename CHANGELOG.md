@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.12.1 — 2026-11-13
+
 ### Fixed
 
 - **Account menu: Language, Regional format and Time zone open at full height.** The panel was
