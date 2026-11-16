@@ -218,10 +218,12 @@ matches the current URL — there is no `activeTab` prop, no
 
 ### Layout
 
-| Width | Layout                                                                                    |
-| ----- | ----------------------------------------------------------------------------------------- |
-| ≥ sm  | Horizontal underline strip + optional `actions` slot to the right. Sticky under the shell's header. |
-| < sm  | Dropdown (active tab + chevron). Opens to a panel with the full list. Actions stack below. |
+| Available component width | Layout |
+| --- | --- |
+| ≥ 56rem | Horizontal page links with the active item filled, plus actions. |
+| < 56rem | Current-page dropdown with the complete list. Actions stack below. |
+
+The container width, not the viewport, decides: an open subnav or help column consumes space. The navigation is not sticky. Links use `aria-current="page"`, not ARIA tab roles. Escape closes the dropdown and returns focus to its trigger.
 
 This is the **only** section-nav layout. No vertical rails, no chip
 groups, no segmented controls. One pattern, one set of muscle memory
@@ -533,3 +535,22 @@ cbox-ui follows semver:
 
 Every release lands with notes in the repo's CHANGELOG describing
 what changed and how to migrate.
+
+## 10. Responsive forms and safe exploration
+
+Size form grids by their available container width. Keep ordinary fields about 16rem wide before adding a column; long descriptions get a whole row until the enclosing form has room for the complete line. Test with the subnav open, not only the widest content layout. Warning text and its actions wrap independently rather than squeezing the message into a narrow column.
+
+The mobile shell keeps a compact current-page chooser above the page's own heading. The header exposes Switch app directly; More remains the complete area and account navigation. No business page is removed on smaller screens.
+
+`ShellCreateForm.setDirty` and `setBusy` report the app form's state to the shared create stack. Escape and Back affect only the top task; Close and backdrop dismissal affect the entire flow. Dirty work asks for Keep editing or Discard, and busy writes cannot be dismissed. Creating a reference returns its value to the parent; discarding a child preserves the parent's fields. Apps must report both states; the shell cannot infer unsaved work from arbitrary rendered fields.
+
+```tsx
+useEffect(() => {
+    form.setDirty?.(isDirty);
+    form.setBusy?.(saving);
+}, [form, isDirty, saving]);
+```
+
+These optional stack callbacks require 0.13.0 or later; they are not in 0.12.1. Verify the installed package before using them.
+
+Use the shared `Dialog` for read-only previews and final confirmations, retaining its scrollable body, visible footer and focus restoration. Keep long editing tasks on a page. Financial previews use the authoritative engine and label tax, discounts and customer-specific exclusions. Compare the same currency and interval; a missing price says Not offered rather than silently choosing another currency. Separate unsaved input, saved draft, scheduled publication and live terms. The final confirmation repeats timing (with the server's timezone), existing-customer consequences and the complete changed terms. A preview or confirmation never bypasses server validation.

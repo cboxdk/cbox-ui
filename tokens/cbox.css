@@ -2,6 +2,7 @@
 @import './shell.css';
 /* Form controls and the dialog (Button, Field, Input, Checkbox, RadioGroup, Switch, Dialog). */
 @import './controls.css';
+@import './page-tabs.css';
 
 /* Cbox colour tokens — cbox-ui structure, warmed toward cbox.dk's cream/ink palette
  * so the products share temperature with the brand site (and aren't a Linear clone).

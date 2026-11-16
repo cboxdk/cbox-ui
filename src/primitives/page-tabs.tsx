@@ -17,11 +17,11 @@ import { cn } from '../utils/cn';
  * panel renders, with no client-side coordination required.
  *
  * Layout:
- *   ≥ sm    horizontal underline strip + optional `actions` slot to
+ *   ≥ 56rem container width: horizontal underline strip + optional `actions` slot to
  *           the right; sticky just under the TopBar with a hairline
  *           border-bottom and a backdrop-blur for the scroll-into
  *           effect.
- *   < sm    dropdown showing the active tab + chevron; opens a panel
+ *   < 56rem container width: dropdown showing the active tab + chevron; opens a panel
  *           with the full list. Actions reflow below the trigger.
  *
  * The same primitive runs the section nav across every Cbox app. It
@@ -118,7 +118,7 @@ export function PageTabs({
                 // so the tab strip reads as a peer of the content panels
                 // beneath it instead of floating on the page background.
                 // Width matches PageShell content; no sticky positioning.
-                'rounded-lg border border-border bg-card',
+                'cbx-page-tabs @container/tabs min-w-0 rounded-lg border border-border bg-card',
                 className,
             )}
         >
@@ -127,7 +127,7 @@ export function PageTabs({
                 the actions slot is always rendered (even when empty) so
                 pages with and without actions stay byte-identical in
                 width and content alignment. */}
-            <div className="hidden items-end gap-3 px-3 sm:flex">
+            <div className="cbx-page-tabs-desktop hidden items-end gap-3 px-3 @min-[56rem]/tabs:flex">
                 <DesktopStrip
                     items={items}
                     activeHref={activeHref}
@@ -139,7 +139,7 @@ export function PageTabs({
             </div>
 
             {/* Mobile: dropdown + actions stacked underneath. */}
-            <div className="flex flex-col gap-2 p-3 sm:hidden">
+            <div className="cbx-page-tabs-mobile flex flex-col gap-2 p-2 @min-[56rem]/tabs:hidden">
                 <MobileDropdown
                     items={items}
                     activeHref={activeHref}
@@ -171,7 +171,6 @@ function DesktopStrip({ items, activeHref, LinkComponent }: StripProps) {
             // strip is centered vertically inside the row so the actions
             // slot on the right shares the same baseline.
             className="flex min-h-12 flex-1 items-center gap-1 overflow-x-auto overflow-y-hidden py-1.5"
-            role="tablist"
             aria-label={t("Section navigation")}
         >
             {items.map((item) => {
@@ -215,9 +214,12 @@ function MobileDropdown({ items, activeHref, LinkComponent }: StripProps) {
     const { t } = useCboxLocalization();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement | null>(null);
+    const trigger = useRef<HTMLButtonElement | null>(null);
     const listId = useId();
 
     const active = items.find((item) => item.href === activeHref) ?? items[0];
+
+    useEffect(() => setOpen(false), [activeHref]);
 
     // Click-outside + Escape close. Same popover contract every other
     // cbox-ui dropdown follows so it feels native to users navigating
@@ -235,7 +237,11 @@ function MobileDropdown({ items, activeHref, LinkComponent }: StripProps) {
         }
 
         function onKey(event: KeyboardEvent): void {
-            if (event.key === 'Escape') setOpen(false);
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                setOpen(false);
+                trigger.current?.focus();
+            }
         }
 
         window.addEventListener('pointerdown', onPointerDown);
@@ -254,15 +260,15 @@ function MobileDropdown({ items, activeHref, LinkComponent }: StripProps) {
     const ActiveIcon = active.icon;
 
     return (
-        <div ref={ref} className="relative">
+        <div ref={ref} className="cbx-page-tabs-dropdown relative">
             <button
+                ref={trigger}
                 type="button"
                 onClick={() => setOpen((v) => ! v)}
                 aria-expanded={open}
-                aria-haspopup="listbox"
                 aria-controls={listId}
                 className={cn(
-                    'flex w-full min-h-11 items-center justify-between gap-2 rounded-md border border-border bg-card px-3 text-left text-[13px] font-medium text-foreground transition-colors hover:border-border-strong',
+                    'cbx-ui-page-tab-trigger flex w-full min-h-11 items-center justify-between gap-2 rounded-md border border-border bg-card px-3 text-left text-[13px] font-medium text-foreground transition-colors hover:border-border-strong',
                     open && 'border-border-strong ring-2 ring-ring/30',
                 )}
             >
@@ -282,9 +288,9 @@ function MobileDropdown({ items, activeHref, LinkComponent }: StripProps) {
             {open ? (
                 <ul
                     id={listId}
-                    role="listbox"
                     aria-label={t("Section navigation")}
-                    className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-md border border-border bg-popover shadow-lg"
+                    onClick={event => { if ((event.target as Element).closest('a')) setOpen(false); }}
+                    className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[60dvh] overflow-y-auto rounded-md border border-border bg-popover shadow-lg"
                 >
                     {items.map((item) => {
                         const Icon = item.icon;
@@ -314,7 +320,7 @@ function MobileDropdown({ items, activeHref, LinkComponent }: StripProps) {
                                             strokeWidth={1.7}
                                         />
                                     ) : null}
-                                    <span className="flex-1 truncate">
+                                    <span className="min-w-0 flex-1 break-words">
                                         {item.label}
                                     </span>
                                     <ItemTrailing

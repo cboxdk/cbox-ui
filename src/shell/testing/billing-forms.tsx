@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { CreateField, CreateForm, CreateRefField, CreateSubmit, type ShellCreateForm } from '../create';
 
 /**
@@ -26,6 +26,7 @@ export function BillingCreateForm({ form }: { form: ShellCreateForm }) {
     const [refs, setRefs] = useState<Record<string, string>>({});
     const [values, setValues] = useState<Record<string, string>>({});
     const id = useId();
+    useEffect(() => { form.setDirty?.(Object.values(values).some(Boolean) || Object.keys(refs).length > 0); }, [form, values, refs]);
     return (
         <CreateForm onSubmit={() => form.done({ id: `${form.creatable.key}_new`, label: values.Name || SAMPLE[form.creatable.key] || `New ${form.creatable.label.toLowerCase()}` })}>
             {fields.map((field, index) =>

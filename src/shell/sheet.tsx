@@ -16,6 +16,7 @@ export function Sheet({
     label,
     side = 'bottom',
     onClose,
+    onEscape,
     children,
     title,
     back,
@@ -26,7 +27,10 @@ export function Sheet({
     /** The dialog's accessible name. */
     label: string;
     side?: 'bottom' | 'right';
-    onClose: () => void;
+    /** Return false when a guard keeps the sheet open, including after a drag. */
+    onClose: () => void | boolean;
+    /** Escape may leave only the top task; the close button still closes the whole sheet. */
+    onEscape?: () => void;
     children: ReactNode;
     /** The visible title. Default `label`. */
     title?: ReactNode;
@@ -61,7 +65,7 @@ export function Sheet({
                 onKeyDown={event => {
                     if (event.key === 'Escape' && !event.defaultPrevented) {
                         event.preventDefault();
-                        onClose();
+                        (onEscape ?? onClose)();
                     }
                     trapTab(event, panel.current);
                 }}

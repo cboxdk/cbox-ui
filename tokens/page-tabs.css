@@ -1,0 +1,26 @@
+/* PageTabs also serves the shell: it must work without a host Tailwind build. */
+@layer components {
+    .cbx-page-tabs { container: tabs / inline-size; min-width: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
+    .cbx-page-tabs-desktop { display: none; align-items: end; gap: 12px; padding: 0 12px; }
+    .cbx-page-tabs-desktop nav { display: flex; flex: 1; align-items: center; gap: 4px; min-height: 48px; overflow-x: auto; padding: 6px 0; }
+    .cbx-page-tabs-desktop nav a { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 6px 10px; border-radius: 6px; white-space: nowrap; }
+    .cbx-page-tabs-desktop > div { display: flex; align-items: center; gap: 8px; min-height: 48px; }
+    .cbx-page-tabs-mobile { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+    .cbx-page-tabs-dropdown { position: relative; }
+    .cbx-page-tabs-dropdown > button { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--foreground); text-align: left; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .cbx-page-tabs-dropdown > button > span { display: flex; min-width: 0; align-items: center; gap: 8px; }
+    .cbx-page-tabs-dropdown > button > span > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cbx-page-tabs-dropdown > ul { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; margin: 4px 0 0; padding: 0; max-height: 60dvh; overflow-y: auto; list-style: none; border: 1px solid var(--border); border-radius: 6px; background: var(--popover); box-shadow: 0 8px 24px oklch(0.2 0.02 75 / 0.18); }
+    .cbx-page-tabs-dropdown li a { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 12px; overflow-wrap: anywhere; }
+    .cbx-page-tabs a { color: var(--muted-foreground); text-decoration: none; font-size: 13px; }
+    .cbx-page-tabs a:hover { color: var(--foreground); background: var(--secondary); }
+    .cbx-page-tabs a[aria-current="page"] { color: var(--foreground); background: var(--accent-soft); font-weight: 600; }
+    .cbx-page-tabs :is(a, button):focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+    .cbx-page-tabs svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .cbx-page-tabs-dropdown > button[aria-expanded="true"] > svg { transform: rotate(180deg); }
+    .cbx-m-section-nav { padding: 8px 16px; }
+    @container tabs (min-width: 56rem) {
+        .cbx-page-tabs-desktop { display: flex; }
+        .cbx-page-tabs-mobile { display: none; }
+    }
+}

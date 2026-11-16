@@ -90,14 +90,7 @@ export function sameTitle(a: string, b: string): boolean {
     return norm(a) !== '' && norm(a) === norm(b);
 }
 
-/**
- * The title the phone's top bar shows large (the current area's name), or `null` on a desktop and
- * outside the shell. A page heading that says the same is hidden on the phone (shown to screen
- * readers), so the title is not there twice: `PageHeader` does this itself; any other heading
- * opts in with `data-cbx-page-title`.
- */
+/** The compact area navigator no longer replaces a page's heading. Kept for existing consumers. */
 export function useShellPageTitle(): string | null {
-    const api = useContext(ShellContext);
-    if (api === null || !api.mobile) return null;
-    return api.shell.nav.areas.find(area => area.key === api.shell.nav.activeArea)?.label ?? null;
+    return null;
 }

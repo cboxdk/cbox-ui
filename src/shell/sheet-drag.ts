@@ -123,7 +123,7 @@ type Gesture = {
  * it; the handle and header carry `.cbx-sheet-grab`. `onClose` runs once the sheet has slid away.
  * `enabled` false (a desktop panel, a closed sheet) does nothing and clears any size it was given.
  */
-export function useSheetDrag({ panel, scrim, size, onClose, enabled = true }: { panel: RefObject<HTMLElement | null>; scrim?: RefObject<HTMLElement | null>; size: SheetSize; onClose: () => void; enabled?: boolean }): void {
+export function useSheetDrag({ panel, scrim, size, onClose, enabled = true }: { panel: RefObject<HTMLElement | null>; scrim?: RefObject<HTMLElement | null>; size: SheetSize; onClose: () => void | boolean; enabled?: boolean }): void {
     const close = useRef(onClose);
     close.current = onClose;
 
@@ -252,7 +252,14 @@ export function useSheetDrag({ panel, scrim, size, onClose, enabled = true }: { 
                 closing = true;
                 sheet.style.transform = `translateY(${Math.round(sheet.getBoundingClientRect().height + 24)}px)`;
                 setScrim(0);
-                timer = setTimeout(() => close.current(), reducedMotion() ? 0 : DURATION - 40);
+                timer = setTimeout(() => {
+                    if (close.current() === false) {
+                        closing = false;
+                        sheet.style.height = `${done.start}px`;
+                        sheet.style.transform = '';
+                        setScrim(1);
+                    }
+                }, reducedMotion() ? 0 : DURATION - 40);
                 return;
             }
             if (natural !== null && result.height === natural) {

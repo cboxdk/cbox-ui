@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.13.0 — 2026-11-16
+
+### Changed
+
+- Mobile navigation keeps the page heading visible beneath a compact section chooser and exposes the app switcher in the header.
+- Page navigation adapts to its container width and uses links with `aria-current`, with focus restored when its menu closes.
+
+### Added
+
+- Optional `ShellCreateForm.setDirty` and `setBusy` callbacks. Forms report unsaved work and pending writes; Escape and Back leave only the top task, while Close and the backdrop leave the whole flow. Dirty tasks require confirmation and busy tasks cannot be dismissed.
+
+### Fixed
+
+- A bottom sheet returns to its previous position when a drag-to-dismiss is refused. Discarding a child form preserves the parent form.
+
 ## 0.12.1 — 2026-11-13
 
 ### Fixed

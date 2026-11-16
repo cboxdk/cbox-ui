@@ -12,6 +12,8 @@ import { areaLocked, groupPages, NavPageMarks, navUrl } from './nav-pages';
 import { OptionList } from './option-list';
 import { matchScore } from './palette';
 import { Sheet } from './sheet';
+import { Popover } from './popover';
+import { PageTabs } from '../primitives/page-tabs';
 import { useContextList } from './use-list';
 import type { ContextItem, ContextLevel, NavArea, ShellOption, ShellTheme } from './types';
 
@@ -44,7 +46,8 @@ function useUnread(): number {
 
 /** The phone's top bar (V6): the context pill, then Help, Search and the page's "+". */
 export function MobileTopBar() {
-    const { shell, t, openContext, toggleHelp, setOverlay, openCreate, canCreate } = useShell();
+    const { shell, t, openContext, toggleHelp, setOverlay, openCreate, canCreate, overlay } = useShell();
+    const apps = useRef<HTMLButtonElement>(null);
     const levels = shell.context.levels;
     const organization = levels[0];
     const { top, main } = pillLines(levels);
@@ -74,6 +77,10 @@ export function MobileTopBar() {
             <button type="button" className="cbx-m-icon" onClick={() => setOverlay('palette')} aria-label={t('Search and commands')} aria-haspopup="dialog">
                 <Search size={21} strokeWidth={1.8} aria-hidden />
             </button>
+            <button ref={apps} type="button" className="cbx-m-icon" onClick={() => setOverlay(overlay === 'apps' ? null : 'apps')} aria-label={t('Switch app')} aria-haspopup="dialog" aria-expanded={overlay === 'apps'}>
+                <LayoutGrid size={20} strokeWidth={1.8} aria-hidden />
+            </button>
+            <Popover open={overlay === 'apps'} anchor={apps} placement="bottom-end" label={t('Switch app')} onClose={() => setOverlay(null)}><AppGrid /></Popover>
             {canCreate && (
                 <button type="button" className="cbx-m-icon is-primary" onClick={() => openCreate()} aria-haspopup="dialog" aria-label={createLabel(shell, t)}>
                     <Plus size={22} strokeWidth={2} aria-hidden />
@@ -89,17 +96,8 @@ export function MobileAreaHead() {
     const area = shell.nav.areas.find(item => item.key === shell.nav.activeArea);
     const pages = area?.pages ?? [];
     const environment = notLiveEnvironment(shell.context.levels);
-    const strip = useRef<HTMLElement>(null);
-    useEffect(() => {
-        const list = strip.current;
-        const current = list?.querySelector<HTMLElement>('[aria-current="page"]');
-        if (list === null || list === undefined || current === null || current === undefined) return;
-        const overflow = current.offsetLeft + current.offsetWidth - list.clientWidth;
-        if (overflow > 0) list.scrollLeft = overflow + 32;
-    }, [shell.nav.activePage, shell.nav.activeArea]);
     return (
         <div className="cbx-m-head">
-            {area !== undefined && <p className="cbx-m-title">{area.label}</p>}
             {environment !== null && (
                 <div className={`cbx-m-env cbx-env-${environment.tone ?? 'neutral'}`} role="status">
                     <ToneSquare tone={environment.tone} />
@@ -107,17 +105,9 @@ export function MobileAreaHead() {
                 </div>
             )}
             {area !== undefined && pages.length > 1 ? (
-                <nav ref={strip} className="cbx-m-chips" aria-label={t('{area} pages', { area: area.label })}>
-                    {pages.map(page => {
-                        const on = page.key === shell.nav.activePage;
-                        return (
-                            <Link key={page.key} href={navUrl(page)} className={`cbx-m-chip ${on ? 'is-on' : ''}`} aria-current={on ? 'page' : undefined}>
-                                {page.label}
-                                {page.locked === true && <NavPageMarks page={page} />}
-                            </Link>
-                        );
-                    })}
-                </nav>
+                <div className="cbx-m-section-nav">
+                    <PageTabs items={pages.map(page => ({ href: navUrl(page), label: `${area.label} · ${page.label}`, badge: page.locked ? <NavPageMarks page={page} /> : undefined }))} currentPath={navUrl(pages.find(page => page.key === shell.nav.activePage) ?? pages[0]!)} LinkComponent={props => <Link href={props.href} className={props.className} aria-current={props['aria-current']}>{props.children}</Link>} />
+                </div>
             ) : (
                 <div className="cbx-m-chips-gap" />
             )}

@@ -1,5 +1,7 @@
 import { ChevronDown, ChevronRight, Plus, Search } from 'lucide-react';
-import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Dialog } from '../primitives/dialog';
+import { Button } from '../primitives/button';
 import { hueFor } from './app-grid';
 import { ToneSquare } from './context-menus';
 import { useShell } from './context';
@@ -34,6 +36,9 @@ export type ShellCreateForm = {
     done: (created?: ShellCreated) => void;
     /** Close the whole sheet without creating anything. */
     close: () => void;
+    /** Report unsaved work and in-flight writes so leaving cannot silently discard them. */
+    setDirty?: (dirty: boolean) => void;
+    setBusy?: (busy: boolean) => void;
     /** The current environment, when the app has one. */
     environment: ContextItem | null;
 };
@@ -41,7 +46,7 @@ export type ShellCreateForm = {
 /** The app's create forms: one per creatable key. Return null for a key it has no form for. */
 export type ShellRenderCreate = (form: ShellCreateForm) => ReactNode;
 
-type Entry = { kind: 'tree' } | { kind: 'form'; key: string; onCreated?: (created: ShellCreated) => void };
+type Entry = { kind: 'tree' } | { kind: 'form'; key: string; onCreated?: (created: ShellCreated) => void; returnFocus?: HTMLElement };
 
 export function findCreatable(shell: Shell, key: string | undefined | null): ShellCreatable | undefined {
     if (key === undefined || key === null) return undefined;
@@ -69,13 +74,30 @@ export function createLabel(shell: Shell, t: (key: string, replace?: Record<stri
 export function CreateSheet({ onClose }: { onClose: () => void }) {
     const { shell, t, mobile, createKey, renderCreate } = useShell();
     const [stack, setStack] = useState<Entry[]>(() => (findCreatable(shell, createKey) !== undefined ? [{ kind: 'tree' }, { kind: 'form', key: createKey! }] : [{ kind: 'tree' }]));
+    const guards = useRef(new Map<Entry, { dirty: boolean; busy: boolean }>());
+    const [leaving, setLeaving] = useState<'top' | 'all' | null>(null);
     const top = stack[stack.length - 1]!;
     const below = stack.length > 1 ? stack[stack.length - 2]! : null;
     const environmentLevelItem = environmentLevel(shell.context.levels)?.current ?? null;
     const notLive = environmentLevelItem !== null && isLive(environmentLevelItem) === false;
     const name = (entry: Entry | null) => (entry === null ? '' : entry.kind === 'tree' ? t('Create') : (findCreatable(shell, entry.key)?.label ?? entry.key));
 
-    const pop = () => setStack(current => (current.length > 1 ? current.slice(0, -1) : current));
+    const pop = () => {
+        guards.current.delete(top);
+        setStack(current => (current.length > 1 ? current.slice(0, -1) : current));
+        if (top.kind === 'form') requestAnimationFrame(() => top.returnFocus?.focus());
+    };
+    const leave = (scope: 'top' | 'all') => {
+        const entries = scope === 'all' ? stack : [top];
+        if (entries.some(entry => guards.current.get(entry)?.busy)) return false;
+        if (entries.some(entry => guards.current.get(entry)?.dirty)) {
+            setLeaving(scope);
+            return false;
+        }
+        if (scope === 'all' || below === null) onClose();
+        else pop();
+        return true;
+    };
     const title = top.kind === 'tree' ? t('Create') : t('New {thing}', { thing: name(top).toLowerCase() });
 
     return (
@@ -83,9 +105,10 @@ export function CreateSheet({ onClose }: { onClose: () => void }) {
             label={title}
             side={mobile ? 'bottom' : 'right'}
             size="tall"
-            onClose={onClose}
+            onClose={() => leave('all')}
+            onEscape={() => leave('top')}
             className="cbx-create-sheet"
-            back={below !== null ? { label: t('Back to {thing}', { thing: name(below) }), text: name(below), onBack: pop } : undefined}
+            back={below !== null ? { label: t('Back to {thing}', { thing: name(below) }), text: name(below), onBack: () => leave('top') } : undefined}
         >
             {top.kind === 'tree' && <CreateTree onPick={key => setStack([{ kind: 'tree' }, { kind: 'form', key }])} />}
             {notLive && top.kind === 'form' && (
@@ -106,7 +129,8 @@ export function CreateSheet({ onClose }: { onClose: () => void }) {
                     submitLabel: parent !== null ? t('Create and use in {thing}', { thing: parent.label.toLowerCase() }) : (creatable.submitLabel ?? t('Create {thing}', { thing: creatable.label.toLowerCase() })),
                     createRef: (key, onCreated) => {
                         if (findCreatable(shell, key) === undefined) return;
-                        setStack(current => [...current.slice(0, index + 1), { kind: 'form', key, onCreated }]);
+                        const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+                        setStack(current => [...current.slice(0, index + 1), { kind: 'form', key, onCreated, returnFocus }]);
                     },
                     done: created => {
                         if (parent === null) {
@@ -116,7 +140,9 @@ export function CreateSheet({ onClose }: { onClose: () => void }) {
                         setStack(current => current.slice(0, index));
                         if (created !== undefined) entry.onCreated?.(created);
                     },
-                    close: onClose,
+                    close: () => leave('all'),
+                    setDirty: dirty => guards.current.set(entry, { dirty, busy: guards.current.get(entry)?.busy ?? false }),
+                    setBusy: busy => guards.current.set(entry, { busy, dirty: guards.current.get(entry)?.dirty ?? false }),
                     environment: environmentLevelItem,
                 };
                 const body = renderCreate?.(form) ?? null;
@@ -126,6 +152,20 @@ export function CreateSheet({ onClose }: { onClose: () => void }) {
                     </div>
                 );
             })}
+            <Dialog
+                open={leaving !== null}
+                onOpenChange={open => { if (!open) setLeaving(null); }}
+                title={leaving === 'all' ? t('Discard this creation flow?') : t('Discard {thing}?', { thing: name(top).toLowerCase() })}
+                description={leaving === 'all' ? t('Unsaved entries in every task will be lost.') : t('Only this task is discarded. The task underneath keeps its values.')}
+                footer={<>
+                    <Button onClick={() => setLeaving(null)}>{t('Keep editing')}</Button>
+                    <Button variant="danger" onClick={() => {
+                        if (leaving === 'all' || below === null) onClose();
+                        else pop();
+                        setLeaving(null);
+                    }}>{t('Discard')}</Button>
+                </>}
+            />
         </Sheet>
     );
 }

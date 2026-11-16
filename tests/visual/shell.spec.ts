@@ -21,6 +21,21 @@ async function settle(page: Page): Promise<void> {
 
 for (const theme of ['light', 'dark'] as const) {
     test.describe(`${theme}`, () => {
+        test('mobile section chooser', async ({ page, isMobile }) => {
+            test.skip(!isMobile, 'The mobile section chooser replaces the subnav.');
+            await open(page, theme);
+            await expect(page.getByRole('navigation', { name: 'Section navigation' })).toBeHidden();
+            const trigger = page.getByRole('button', { name: 'Deploy · Deployments', exact: true });
+            await trigger.click();
+            const menu = page.getByRole('list', { name: 'Section navigation' });
+            await expect(menu.getByRole('link', { name: 'Deploy · Releases', exact: true })).toBeVisible();
+            await settle(page);
+            await expect(page).toHaveScreenshot(`${theme}-section-chooser.png`);
+            await page.keyboard.press('Escape');
+            await expect(menu).toBeHidden();
+            await expect(trigger).toBeFocused();
+        });
+
         test('closed', async ({ page }) => {
             await open(page, theme);
             await settle(page);

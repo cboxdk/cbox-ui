@@ -28,7 +28,7 @@ describe('phone top bar (V6)', () => {
         phone();
         const bar = document.querySelector('.cbx-m-bar')!;
         const labels = Array.from(bar.querySelectorAll('button')).map(button => button.getAttribute('aria-label'));
-        expect(labels).toEqual(['Where you work: Cbox, Cbox, Production', 'Help with Invoices', 'Search and commands', 'New invoice']);
+        expect(labels).toEqual(['Where you work: Cbox, Cbox, Production', 'Help with Invoices', 'Search and commands', 'Switch app', 'New invoice']);
         expect(bar.querySelector('.cbx-m-pill-top')!.textContent).toBe('Cbox · Cbox');
         expect(bar.querySelector('.cbx-m-pill-main')!.textContent).toBe('Production');
         expect(bar.querySelector('.cbx-m-pill-main .cbx-tone-production')).not.toBeNull();
@@ -58,12 +58,15 @@ describe('phone top bar (V6)', () => {
 });
 
 describe('phone area head (V6)', () => {
-    it('shows the area large and its pages as chips, the current one marked', () => {
-        phone();
-        expect(document.querySelector('.cbx-m-title')!.textContent).toBe('Billing');
-        const chips = screen.getByRole('navigation', { name: 'Billing pages' });
-        expect(within(chips).getAllByRole('link')).toHaveLength(7);
-        expect(within(chips).getByRole('link', { name: 'Invoices' }).getAttribute('aria-current')).toBe('page');
+    it('opens the complete area navigation from the current page', async () => {
+        const { user } = phone();
+        await user.click(screen.getByRole('button', { name: 'Billing · Invoices' }));
+        const pages = screen.getByRole('list', { name: 'Section navigation' });
+        expect(within(pages).getAllByRole('link')).toHaveLength(7);
+        expect(within(pages).getByRole('link', { name: 'Billing · Invoices' }).getAttribute('aria-current')).toBe('page');
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('list', { name: 'Section navigation' })).toBeNull();
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Billing · Invoices' }));
     });
 
     it('shows no chips for an area with one page', () => {
@@ -280,6 +283,25 @@ describe('palette on the phone (V6)', () => {
 });
 
 describe('create sheet (V7)', () => {
+    it('protects the child on Escape and preserves the parent when discarding it', async () => {
+        const { user } = phone();
+        await user.click(screen.getByRole('button', { name: 'New invoice' }));
+        await user.type(screen.getByRole('textbox', { name: 'Due' }), 'Net 30');
+        await user.click(screen.getByRole('button', { name: 'New customer' }));
+        await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Unfinished customer');
+        await user.keyboard('{Escape}');
+        let guard = screen.getByRole('dialog', { name: 'Discard customer?' });
+        await user.click(within(guard).getByRole('button', { name: 'Keep editing' }));
+        expect((screen.getByRole('textbox', { name: 'Name' }) as HTMLInputElement).value).toBe('Unfinished customer');
+        await user.keyboard('{Escape}');
+        guard = screen.getByRole('dialog', { name: 'Discard customer?' });
+        await user.click(within(guard).getByRole('button', { name: 'Discard' }));
+        expect((screen.getByRole('textbox', { name: 'Due' }) as HTMLInputElement).value).toBe('Net 30');
+        expect(screen.queryByRole('textbox', { name: 'Name' })).toBeNull();
+        await user.click(within(screen.getByRole('dialog', { name: 'New invoice' })).getByRole('button', { name: 'Close' }));
+        expect(screen.getByRole('dialog', { name: 'Discard this creation flow?' })).toBeTruthy();
+    });
+
     it('opens the page’s own form from “+”, with the non-production note', async () => {
         const { user } = phone({ shell: makeBillingShell({ environment: 'env_sandbox' }) });
         await user.click(screen.getByRole('button', { name: 'New invoice' }));
@@ -391,21 +413,19 @@ describe('phone feel: the page holds still under a sheet', () => {
     });
 });
 
-describe('phone: the page title is not shown twice', () => {
-    it('PageHeader keeps a title equal to the top bar’s for screen readers only, and shows a different one', () => {
+describe('phone: the page keeps its heading below compact navigation', () => {
+    it('PageHeader keeps the heading visible even when named after the area', () => {
         phone({ page: <PageHeader title="billing " help /> });
-        const shown = document.querySelector('.cbx-m-title')!.textContent!;
-        expect(shown).toBe('Billing');
         const row = screen.getByRole('heading', { level: 1, name: 'billing' }).parentElement!;
-        expect(row.hasAttribute('data-cbx-same-title')).toBe(true);
+        expect(row.hasAttribute('data-cbx-same-title')).toBe(false);
         reset();
         phone({ page: <PageHeader title="Invoices" /> });
         expect(screen.getByRole('heading', { level: 1, name: 'Invoices' }).parentElement!.hasAttribute('data-cbx-same-title')).toBe(false);
     });
 
-    it('marks an app’s own heading that opts in with data-cbx-page-title', async () => {
+    it('also leaves an app’s own heading visible', async () => {
         phone({ page: <><h1 data-cbx-page-title="">Billing</h1><h2 data-cbx-page-title="">Overdue</h2></> });
-        await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Billing' }).hasAttribute('data-cbx-same-title')).toBe(true));
+        await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Billing' }).hasAttribute('data-cbx-same-title')).toBe(false));
         expect(screen.getByRole('heading', { level: 2, name: 'Overdue' }).hasAttribute('data-cbx-same-title')).toBe(false);
     });
 
