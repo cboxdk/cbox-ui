@@ -38,6 +38,23 @@ for (const theme of ['light', 'dark'] as const) {
             await audit(page);
             await expect(page).toHaveScreenshot(`${theme}-dialog.png`);
         });
+
+        test('confirmation without a body keeps actions at the bottom', async ({ page }) => {
+            await open(page, theme, '&dialog=1&confirmation=1');
+            const dialog = page.getByRole('dialog', { name: 'Delete project' });
+            const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true });
+            const remove = dialog.getByRole('button', { name: 'Delete project', exact: true });
+            await expect(cancel).toBeVisible();
+            await expect(remove).toBeVisible();
+            const panel = (await dialog.boundingBox())!;
+            for (const button of [cancel, remove]) {
+                const box = (await button.boundingBox())!;
+                expect(panel.y + panel.height - box.y - box.height).toBeLessThan(24);
+                expect(box.y).toBeGreaterThan(panel.y);
+            }
+            await cancel.click();
+            await expect(dialog).toHaveCount(0);
+        });
     });
 }
 
