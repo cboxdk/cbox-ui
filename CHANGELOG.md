@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.14.0 — 2026-11-19
+
 ### Added
 
 - **`Sheet`, `SheetClose` and `useSheetClose`**: the modal is a sheet. From 768px it is a full-height
