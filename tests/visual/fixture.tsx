@@ -234,9 +234,11 @@ function Controls() {
                     </>
                 }
             >
-                <Field label="Type the project name to confirm" hint="webshop">
-                    <Input />
-                </Field>
+                {params.get('confirmation') !== '1' ? (
+                    <Field label="Type the project name to confirm" hint="webshop">
+                        <Input />
+                    </Field>
+                ) : null}
             </Dialog>
         </div>
     );

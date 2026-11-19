@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Sheet confirmation actions stay at the bottom of the panel even when it has no body content.
+
 ## 0.14.0 — 2026-11-19
 
 ### Added
