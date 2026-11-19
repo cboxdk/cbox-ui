@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.14.0 — 2026-11-19
+
+### Added
+
+- **`Sheet`, `SheetClose` and `useSheetClose`**: the modal is a sheet. From 768px it is a full-height
+  panel sliding in from the right (`size` sm, md or lg: 26, 30 or 44rem wide); on a phone it is a
+  bottom sheet with a grab handle that drags between its detents and down to close, like the
+  shell's own sheets. Focus, Escape, the scrim, `inert` and the scroll lock are unchanged.
+
+### Changed
+
+- **`Dialog` is no longer a centred modal.** Cbox never centres a modal over the page, so
+  `Dialog`, `DialogClose`, `useDialogClose`, `DialogProps` and `DialogSize` are now deprecated
+  aliases of the `Sheet` names and render the sheet. Props are unchanged. The `cbx-ui-dialog*`
+  classes are now `cbx-ui-sheet*`.
+
 ## 0.13.0 — 2026-11-16
 
 ### Changed

@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight, Plus, Search } from 'lucide-react';
 import { useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Dialog } from '../primitives/dialog';
+import { Dialog } from '../primitives/sheet';
 import { Button } from '../primitives/button';
 import { hueFor } from './app-grid';
 import { ToneSquare } from './context-menus';

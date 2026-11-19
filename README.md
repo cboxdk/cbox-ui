@@ -81,7 +81,7 @@ import {
     Button,
     Field,
     Input,
-    Dialog,
+    Sheet,
 } from '@cboxdk/cbox-ui';
 ```
 
@@ -113,7 +113,7 @@ Match id's existing patterns — see id/resources/js/pages/* for examples.
 | `KeyValue` / `KeyValueList` | Definition-list style "label → value" for detail panels. |
 | `Heading` | Section heading without the panel chrome. |
 
-### Form controls and the dialog
+### Form controls and the sheet
 
 Plain CSS in `tokens/controls.css` (`cbx-ui-*` classes in `@layer components`), which the
 `@cboxdk/cbox-ui/tokens` import already brings; `@cboxdk/cbox-ui/controls.css` alone is there for
@@ -130,7 +130,7 @@ below 768px so iOS does not zoom. The few words the components say themselves ("
 | `Checkbox` | A native checkbox drawn on the tokens with its label (and an optional `hint`) beside it. `checked` may be `'indeterminate'`. 16px box, 24px target. |
 | `RadioGroup` | A labelled group of native radios: arrow keys move, Tab enters at the checked one. Options take a `hint` and `disabled`; `labelHidden` keeps the question for screen readers only. |
 | `Switch` | An immediate on/off (`role="switch"`). Named by its `Field`, or `aria-label`. A setting that waits for Save is a `Checkbox`. |
-| `Dialog` / `DialogClose` / `useDialogClose` | A modal portalled to `<body>`: `title`, `description`, `footer`, `size` sm / md / lg. Focus moves in (to `autoFocus` / `data-autofocus`, else the first field, else Close, never a footer action), Tab stays inside, the page behind is `inert` and does not scroll, Escape / Close / the scrim close it (`dismissible={false}` keeps the scrim from closing it), and focus goes back to the opener. `DialogClose` is a Button that closes the dialog it is in. |
+| `Sheet` / `SheetClose` / `useSheetClose` | A modal sheet portalled to `<body>`, never a centred modal: a panel sliding in from the right from 768px (`size` sm / md / lg: 26, 30 or 44rem wide), a bottom sheet on a phone that drags down to close. `title`, `description`, `footer`. Focus moves in (to `autoFocus` / `data-autofocus`, else the first field, else Close, never a footer action), Tab stays inside, the page behind is `inert` and does not scroll, Escape / Close / the scrim close it (`dismissible={false}` keeps the scrim from closing it), and focus goes back to the opener. `SheetClose` is a Button that closes the sheet it is in. `Dialog` / `DialogClose` / `useDialogClose` are deprecated aliases that render the same sheet. |
 | `Spinner` | The indeterminate progress ring. Silent by default; `label` makes it a live status. |
 
 ### Charts
