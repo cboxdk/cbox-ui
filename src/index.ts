@@ -78,10 +78,15 @@ export { Checkbox, type CheckboxProps } from './primitives/checkbox';
 export {
     Dialog,
     DialogClose,
+    Sheet,
+    SheetClose,
     useDialogClose,
+    useSheetClose,
     type DialogProps,
     type DialogSize,
-} from './primitives/dialog';
+    type SheetProps,
+    type SheetSize,
+} from './primitives/sheet';
 export {
     Field,
     useFieldControl,

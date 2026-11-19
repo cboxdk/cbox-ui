@@ -20,7 +20,7 @@ import { makeBillingShell } from '../../src/shell/testing/billing';
 import { renderBillingCreate } from '../../src/shell/testing/billing-forms';
 import { Button } from '../../src/primitives/button';
 import { Checkbox } from '../../src/primitives/checkbox';
-import { Dialog, DialogClose } from '../../src/primitives/dialog';
+import { Dialog, DialogClose } from '../../src/primitives/sheet';
 import { Field } from '../../src/primitives/field';
 import { Input, Textarea } from '../../src/primitives/input';
 import { RadioGroup } from '../../src/primitives/radio-group';

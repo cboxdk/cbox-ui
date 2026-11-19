@@ -6,6 +6,7 @@ import {
     useId,
     useLayoutEffect,
     useRef,
+    useState,
     type KeyboardEvent,
     type MouseEvent,
     type ReactNode,
@@ -13,22 +14,23 @@ import {
 import { createPortal } from 'react-dom';
 import { useCboxLocalization } from '../context/localization';
 import { useScrollLock } from '../shell/scroll-lock';
+import { useSheetDrag } from '../shell/sheet-drag';
 import { cn } from '../utils/cn';
 import { Button, type ButtonProps } from './button';
 
-export type DialogSize = 'sm' | 'md' | 'lg';
+export type SheetSize = 'sm' | 'md' | 'lg';
 
-export type DialogProps = {
+export type SheetProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     title: ReactNode;
-    /** One sentence on what the dialog is for. Read out with the title when it opens. */
+    /** One sentence on what the sheet is for. Read out with the title when it opens. */
     description?: ReactNode;
     /** The buttons, right-aligned in a footer that stays in view. Cancel first, the action last. */
     footer?: ReactNode;
-    /** 24rem, 32rem (default) or 48rem wide; always 16px clear of a phone's edges. */
-    size?: DialogSize;
-    /** Clicking the scrim closes the dialog (default). Off for a form that would lose typed work. */
+    /** The panel's width on a wide screen: 26rem, 30rem (default) or 44rem. A phone's sheet is full width. */
+    size?: SheetSize;
+    /** Clicking the scrim (or dragging the phone's sheet down) closes it (default). Off for a form that would lose typed work. */
     dismissible?: boolean;
     className?: string;
     children?: ReactNode;
@@ -62,17 +64,17 @@ function tabbables(root: HTMLElement): HTMLElement[] {
     });
 }
 
-const DialogContext = createContext<(() => void) | null>(null);
+const SheetContext = createContext<(() => void) | null>(null);
 
-/** Closes the dialog it is inside (for a footer button that should not need the caller's state). */
-export function useDialogClose(): () => void {
-    const close = useContext(DialogContext);
+/** Closes the sheet it is inside (for a footer button that should not need the caller's state). */
+export function useSheetClose(): () => void {
+    const close = useContext(SheetContext);
     return close ?? (() => undefined);
 }
 
-/** A Button that closes the dialog it is inside, then runs its own `onClick`. Defaults to `ghost`. */
-export function DialogClose({ onClick, ...props }: ButtonProps) {
-    const close = useDialogClose();
+/** A Button that closes the sheet it is inside, then runs its own `onClick`. Defaults to `ghost`. */
+export function SheetClose({ onClick, ...props }: ButtonProps) {
+    const close = useSheetClose();
     return (
         <Button
             {...props}
@@ -86,8 +88,25 @@ export function DialogClose({ onClick, ...props }: ButtonProps) {
 
 const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
+/** Below 768px the sheet comes up from the bottom; the same breakpoint as `tokens/controls.css`. */
+const NARROW = '(max-width: 767.98px)';
+
+function useNarrow(): boolean {
+    const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(NARROW).matches);
+    useEffect(() => {
+        if (typeof window.matchMedia !== 'function') return;
+        const query = window.matchMedia(NARROW);
+        const update = () => setNarrow(query.matches);
+        update();
+        query.addEventListener('change', update);
+        return () => query.removeEventListener('change', update);
+    }, []);
+    return narrow;
+}
+
 /**
- * A modal dialog.
+ * A modal sheet: a panel sliding in from the right on a wide screen, a bottom sheet on a phone that
+ * drags down to close. Cbox never centres a modal over the page; forms and confirmations open here.
  *
  * - Focus moves in on open: to an element marked `autoFocus` or `data-autofocus`, else the first
  *   field in the body, else the close button (never a destructive footer action).
@@ -100,12 +119,13 @@ const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayout
  *
  * The close button's name ("Close") goes through the host's translator.
  */
-export function Dialog({ open, onOpenChange, title, description, footer, size = 'md', dismissible = true, className, children }: DialogProps) {
+export function Sheet({ open, onOpenChange, title, description, footer, size = 'md', dismissible = true, className, children }: SheetProps) {
     const { t } = useCboxLocalization();
     const id = useId();
     const titleId = `${id}-title`;
     const descriptionId = `${id}-description`;
     const layer = useRef<HTMLDivElement | null>(null);
+    const scrim = useRef<HTMLDivElement | null>(null);
     const panel = useRef<HTMLDivElement | null>(null);
     const closeButton = useRef<HTMLButtonElement | null>(null);
     const body = useRef<HTMLDivElement | null>(null);
@@ -122,7 +142,11 @@ export function Dialog({ open, onOpenChange, title, description, footer, size = 
 
     const close = useCallback(() => onOpenChange(false), [onOpenChange]);
 
+    const narrow = useNarrow();
+
     useScrollLock(open);
+    // On a phone the sheet drags by its handle and header, and down to close (refused when not dismissible).
+    useSheetDrag({ panel, scrim, size: 'fit', onClose: dismissible ? close : () => false, enabled: open && narrow });
 
     // Everything outside this dialog is inert while it is open; a nested dialog adds its own.
     useIsoLayoutEffect(() => {
@@ -212,9 +236,9 @@ export function Dialog({ open, onOpenChange, title, description, footer, size = 
     };
 
     return createPortal(
-        <DialogContext.Provider value={close}>
+        <SheetContext.Provider value={close}>
             <div ref={layer} data-cbx-scroll-layer="" data-cbx-dialog-layer="">
-                <div className="cbx-ui-overlay" aria-hidden="true" onMouseDown={onScrimDown} onClick={onScrimClick} />
+                <div ref={scrim} className="cbx-ui-overlay" aria-hidden="true" onMouseDown={onScrimDown} onClick={onScrimClick} />
                 <div
                     ref={panel}
                     role="dialog"
@@ -222,16 +246,17 @@ export function Dialog({ open, onOpenChange, title, description, footer, size = 
                     aria-labelledby={titleId}
                     aria-describedby={description !== undefined ? descriptionId : undefined}
                     tabIndex={-1}
-                    className={cn('cbx-ui-dialog', `cbx-ui-dialog--${size}`, className)}
+                    className={cn('cbx-ui-sheet', `cbx-ui-sheet--${size}`, className)}
                     onKeyDown={onKeyDown}
                 >
-                    <div className="cbx-ui-dialog-head">
-                        <div className="cbx-ui-dialog-heading">
-                            <h2 id={titleId} className="cbx-ui-dialog-title">
+                    <div className="cbx-ui-sheet-handle cbx-sheet-grab" aria-hidden="true" />
+                    <div className="cbx-ui-sheet-head cbx-sheet-grab">
+                        <div className="cbx-ui-sheet-heading">
+                            <h2 id={titleId} className="cbx-ui-sheet-title">
                                 {title}
                             </h2>
                             {description !== undefined && (
-                                <p id={descriptionId} className="cbx-ui-dialog-desc">
+                                <p id={descriptionId} className="cbx-ui-sheet-desc">
                                     {description}
                                 </p>
                             )}
@@ -243,14 +268,25 @@ export function Dialog({ open, onOpenChange, title, description, footer, size = 
                         </button>
                     </div>
                     {children !== undefined && children !== null && (
-                        <div ref={body} className="cbx-ui-dialog-body">
+                        <div ref={body} className="cbx-ui-sheet-body" data-cbx-sheet-scroll="">
                             {children}
                         </div>
                     )}
-                    {footer !== undefined && footer !== null && <div className="cbx-ui-dialog-foot">{footer}</div>}
+                    {footer !== undefined && footer !== null && <div className="cbx-ui-sheet-foot">{footer}</div>}
                 </div>
             </div>
-        </DialogContext.Provider>,
+        </SheetContext.Provider>,
         document.body,
     );
 }
+
+/** @deprecated Use `Sheet`; a Dialog is a Sheet (Cbox never centres a modal). */
+export const Dialog = Sheet;
+/** @deprecated Use `SheetClose`. */
+export const DialogClose = SheetClose;
+/** @deprecated Use `useSheetClose`. */
+export const useDialogClose = useSheetClose;
+/** @deprecated Use `SheetProps`. */
+export type DialogProps = SheetProps;
+/** @deprecated Use `SheetSize`. */
+export type DialogSize = SheetSize;
