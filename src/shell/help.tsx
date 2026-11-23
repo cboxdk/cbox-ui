@@ -584,7 +584,7 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
                                 <ChevronLeft size={20} strokeWidth={1.8} aria-hidden />
                             </button>
                         )}
-                        <strong className="cbx-sheet-title cbx-truncate">{view === 'article' ? t('Article') : view === 'chat' ? t('Ask Cbox') : t('Help with {page}', { page: topic })}</strong>
+                        <h2 className="cbx-sheet-title cbx-truncate">{view === 'article' ? t('Article') : view === 'chat' ? t('Ask Cbox') : t('Help with {page}', { page: topic })}</h2>
                         <button type="button" className="cbx-icon-button" onClick={close} aria-label={t('Close Help')}>
                             <X size={18} strokeWidth={1.8} aria-hidden />
                         </button>
