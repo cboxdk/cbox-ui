@@ -226,3 +226,20 @@ for (const theme of ['light', 'dark'] as const) {
         });
     });
 }
+
+// Help, Search, Switch app and "+" leave the pill's text column narrower than a long name. Each
+// line must end in an ellipsis inside the pill, clear of the chevron.
+test('phone context pill cuts long names short of its chevron', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'The context pill is the phone header.');
+    await open(page, 'light', '&fixture=billing&pill=long');
+    const pill = (await page.locator('.cbx-m-pill').boundingBox())!;
+    const chevron = (await page.locator('.cbx-m-pill-chevron').boundingBox())!;
+    expect(chevron.x + chevron.width).toBeLessThanOrEqual(pill.x + pill.width);
+    for (const [line, starts] of [['.cbx-m-pill-top', 'Northwind'], ['.cbx-m-pill-main .cbx-truncate', 'Production for']] as const) {
+        const text = page.locator(line);
+        await expect(text).toContainText(starts);
+        const box = (await text.boundingBox())!;
+        expect(box.x + box.width, line).toBeLessThanOrEqual(chevron.x);
+        expect(await text.evaluate(element => element.scrollWidth > element.clientWidth), line).toBe(true);
+    }
+});

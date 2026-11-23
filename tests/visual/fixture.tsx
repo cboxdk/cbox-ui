@@ -298,6 +298,11 @@ if (params.get('fixture') === 'billing') {
     const billing = makeBillingShell({ area: params.get('area') ?? 'billing', page: params.get('pg') ?? 'Invoices', environment: params.get('env') ?? 'env_production' });
     billing.preferences.theme = theme;
     billing.help.scriptUrl = '/support-stub.js';
+    // Names longer than the phone's context pill has room for, on both of its lines.
+    if (params.get('pill') === 'long') {
+        billing.context.levels[0]!.current = { ...billing.context.levels[0]!.current, name: 'Northwind Trading Company International' };
+        billing.context.levels[2]!.current = { ...billing.context.levels[2]!.current, name: 'Production for the Nordic region' };
+    }
     createRoot(document.getElementById('root')!).render(
         <StrictMode>
             <CboxShell shell={billing} navigate={navigateLog} onPreferenceChange={() => undefined} renderCreate={renderBillingCreate}>
