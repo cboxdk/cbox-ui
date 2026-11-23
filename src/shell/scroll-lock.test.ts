@@ -25,7 +25,8 @@ describe('scroll lock', () => {
     it('holds the document while any lock is held, counted for stacked sheets', () => {
         const first = lockScroll();
         expect(document.documentElement.style.overflow).toBe('hidden');
-        expect(document.body.style.overflow).toBe('hidden');
+        // Not the body: hidden there would make it a scroll box that the sticky header sticks to.
+        expect(document.body.style.overflow).toBe('');
         expect(document.documentElement.hasAttribute('data-cbx-scroll-locked')).toBe(true);
         const second = lockScroll();
         expect(scrollLockCount()).toBe(2);
@@ -39,6 +40,15 @@ describe('scroll lock', () => {
         expect(document.documentElement.style.overflow).toBe('');
         expect(document.body.style.overflow).toBe('');
         expect(document.documentElement.hasAttribute('data-cbx-scroll-locked')).toBe(false);
+    });
+
+    it('holds the body as well when the body itself is the scroller (an h-full layout)', () => {
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflowY = 'auto';
+        const release = lockScroll();
+        expect(document.body.style.overflow).toBe('hidden');
+        release();
+        expect(document.body.style.overflowY).toBe('auto');
     });
 
     it('gives back the styles the page had', () => {

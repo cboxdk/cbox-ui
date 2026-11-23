@@ -4,8 +4,12 @@ import { useEffect, useLayoutEffect } from 'react';
  * The page behind a sheet, the palette or Help never scrolls while one is open (iOS Safari
  * included), and scrolling inside the sheet never chains to the page.
  *
- * - `overflow: hidden` on <html> and <body> stops the document on desktop browsers and on iOS 16
- *   and later. The scrollbar's width goes to padding, so nothing shifts sideways.
+ * - `overflow: hidden` on <html> stops the document on desktop browsers and on iOS 16 and later.
+ *   The scrollbar's width goes to the body's padding, so nothing shifts sideways. <body> is left
+ *   alone: hidden there too would make the body a scroll box of its own the moment <html> stops
+ *   passing its overflow to the viewport, and the shell's sticky header and rail would then stick
+ *   to the body, unscrolled, and jump by the page's scroll offset while a sheet is open. Only an
+ *   app whose body is itself the scroller (an h-full layout) has its body held, like a region.
  * - A touch guard on the document cancels every `touchmove` that would scroll something outside
  *   the open layer, or past the edge of a list inside it. That is what stops iOS from handing a
  *   gesture to the page when a list is at its top or bottom, or not scrollable at all.
@@ -106,8 +110,10 @@ export function lockScroll(): () => void {
             body: { overflow: body.style.overflow, paddingRight: body.style.paddingRight },
             regions: scrollRegions().map(element => ({ element, overflow: element.style.overflow, top: element.scrollTop })),
         };
+        // The body scrolls by itself only when <html> already clips (an h-full app layout).
+        const bodyScrolls = getComputedStyle(html).overflowY !== 'visible' && ['auto', 'scroll'].includes(getComputedStyle(body).overflowY);
         html.style.overflow = 'hidden';
-        body.style.overflow = 'hidden';
+        if (bodyScrolls) body.style.overflow = 'hidden';
         if (gutter > 0) body.style.paddingRight = `calc(${getComputedStyle(body).paddingRight} + ${gutter}px)`;
         for (const region of saved.regions) region.element.style.overflow = 'hidden';
         html.setAttribute('data-cbx-scroll-locked', '');

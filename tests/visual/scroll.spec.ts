@@ -28,6 +28,19 @@ for (const theme of ['light', 'dark'] as const) {
         }
         await expect(page).toHaveScreenshot(`${theme}-scrolled.png`);
 
+        // An open sheet locks the page without moving it: the header and rail stay put behind it.
+        await page.keyboard.press('Control+k');
+        await expect(page.locator('html[data-cbx-scroll-locked]')).toHaveCount(1);
+        expect(await page.evaluate(() => window.scrollY)).toBe(900);
+        expect((await page.locator(isMobile ? '.cbx-m-chrome > .cbx-m-bar' : '.cbx-header').boundingBox())!.y).toBe(0);
+        if (!isMobile) expect((await page.locator('.cbx-rail').boundingBox())!.y).toBe(6);
+        await page.mouse.wheel(0, 600);
+        await page.waitForTimeout(200);
+        expect(await page.evaluate(() => window.scrollY)).toBe(900);
+        await page.keyboard.press('Escape');
+        await expect(page.locator('html[data-cbx-scroll-locked]')).toHaveCount(0);
+        expect(await page.evaluate(() => window.scrollY)).toBe(900);
+
         await page.evaluate(() => window.scrollTo(0, 0));
         await expect(page).toHaveScreenshot(`${theme}-long-page.png`, { fullPage: true });
     });

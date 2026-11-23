@@ -25,6 +25,8 @@ type StatTileProps = {
 /**
  * Cortex-style metric tile. Coloured square icon block on the left,
  * label + value on the right, optional caption below the value.
+ * The label and caption wrap rather than end in an ellipsis: in a grid of tiles the caption is the
+ * explanation ("live in this organization"), and a tile is never so narrow that a word breaks.
  */
 export function StatTile({
     label,
@@ -55,11 +57,11 @@ export function StatTile({
                 <p className="tabular text-2xl leading-none font-semibold tracking-tight text-foreground">
                     {value}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="text-xs text-pretty break-words text-muted-foreground">
                     {label}
                 </p>
                 {suffix ? (
-                    <p className="text-mono truncate text-[10px] text-muted-foreground">
+                    <p className="text-mono text-[10px] text-pretty break-words text-muted-foreground">
                         {suffix}
                     </p>
                 ) : null}

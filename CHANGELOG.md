@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- An open sheet, the palette or Help no longer moves the page behind it. The scroll lock set `overflow: hidden` on `<body>` as well as `<html>`, which made the body a scroll box of its own; the sticky header and rail then stuck to the unscrolled body and jumped up by the page's scroll offset (the header vanished on a scrolled page). The lock now holds `<html>` only, and holds `<body>` too only when the body itself is the scroller (an h-full app layout). Apps can drop workarounds such as `html[data-cbx-scroll-locked] > body { overflow: visible }`.
+- StatTile's label and caption wrap instead of ending in an ellipsis ("live in this organi…").
+
 ## 0.15.0 — 2026-11-23
 
 ### Fixed
