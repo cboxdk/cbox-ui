@@ -23,6 +23,16 @@ describe('contrast (tokens checked in tests/tokens/contrast.test.ts)', () => {
     });
 });
 
+describe('StatTile', () => {
+    it('wraps a long label and caption instead of cutting them off with an ellipsis', () => {
+        render(<StatTile label="Handed to humans this month" value="10" suffix="live in this organization" icon={Activity} />);
+        for (const text of ['Handed to humans this month', 'live in this organization']) {
+            expect(screen.getByText(text).className.split(' ')).not.toContain('truncate');
+            expect(screen.getByText(text).className.split(' ')).toContain('break-words');
+        }
+    });
+});
+
 describe('SectionHeader', () => {
     it('keeps the actions in the title row and lets them wrap under it when there is no room', () => {
         render(<SectionHeader title="Invoices" actions={<a href="#all">View all</a>} />);
