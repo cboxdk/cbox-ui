@@ -105,7 +105,7 @@ Match id's existing patterns — see id/resources/js/pages/* for examples.
 |---|---|
 | `PageShell` | Outer page container with vertical rhythm. |
 | `PageHeader` | Title + description + actions slot. Tab-strip-aware (no padding mismatch when followed by `PageTabs`). |
-| `PageTabs` | Tabs strip on the page baseline. Pass `currentPath` + optional `LinkComponent` (Inertia's `Link`, Next's, etc.). |
+| `PageTabs` | Tabs strip on the page baseline. Pass `currentPath` + optional `LinkComponent` (Inertia's `Link`, Next's, etc.). Its CSS comes with `@cboxdk/cbox-ui/tokens`; an app without that import takes `@cboxdk/cbox-ui/page-tabs.css`. |
 | `DataPanel` / `PanelBody` / `SectionHeader` | The default building block for content sections. |
 | `StatusPill` | Coloured chip for status / state. Tones: success / warning / destructive / info / muted / neutral. |
 | `EmptyState` | Centred icon + heading + description for empty lists. |

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.2 — 2026-11-23
+
+### Fixed
+
+- On a phone, a long organization or environment name no longer runs under the context pill's chevron. Both lines of the pill were capped at 150px whatever room the pill had, so with Help, Search, Switch app and "+" in the bar the text was wider than its column. The cap is now `min(150px, 100%)`, and each line ends in an ellipsis inside the pill.
+
+### Added
+
+- `@cboxdk/cbox-ui/page-tabs.css` is exported, like `shell.css` and `controls.css`, for an app that uses `PageTabs` without the `@cboxdk/cbox-ui/tokens` import. Until now such an app had to import the file by its path in `node_modules`.
+
 ## 0.15.1 — 2026-11-23
 
 ### Fixed

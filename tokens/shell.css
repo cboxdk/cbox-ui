@@ -449,8 +449,8 @@ textarea.cbx-input { height: auto; padding: 10px 12px; resize: vertical; min-hei
 .cbx-m-pill { display: flex; align-items: center; gap: 8px; height: 40px; min-width: 0; max-width: 220px; padding: 0 10px 0 4px; border-radius: 20px; background: var(--secondary); color: var(--foreground); }
 .cbx-m-pill .cbx-chip { width: 30px; height: 30px; border-radius: 15px; font-size: 11px; }
 .cbx-m-pill-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; line-height: 1.15; }
-.cbx-m-pill-top { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--muted-foreground); }
-.cbx-m-pill-main { display: flex; align-items: center; gap: 5px; max-width: 150px; min-width: 0; font-size: 14px; font-weight: 600; }
+.cbx-m-pill-top { max-width: min(150px, 100%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--muted-foreground); }
+.cbx-m-pill-main { display: flex; align-items: center; gap: 5px; max-width: min(150px, 100%); min-width: 0; font-size: 14px; font-weight: 600; }
 .cbx-m-pill-chevron { flex: none; color: var(--muted-foreground); }
 .cbx-m-icon { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; border-radius: 10px; color: var(--foreground); }
 .cbx-m-icon.is-primary { color: var(--primary); }
