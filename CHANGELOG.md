@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.15.0 — 2026-11-23
 
 ### Fixed
 
@@ -19,7 +19,7 @@
 
 ### Added
 
-- The chat renders inside the Help column (`<cbox-support inline="column">`, or `"sheet"` on a phone; laravel-assistant-client 0.3) with Back to Help, instead of a second dialog over the page. An older SDK keeps opening its own dialog.
+- The chat renders inside the Help column (`<cbox-support inline="column">`, or `"sheet"` on a phone; laravel-assistant-client 0.2.3) with Back to Help, instead of a second dialog over the page. An older SDK keeps opening its own dialog.
 - An article from search or a topic list opens in the column with its body from Assistant's article endpoint (`article_url`), reduced to plain structure, http(s) links and https images before it reaches the page.
 
 ## 0.14.1 — 2026-11-19

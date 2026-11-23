@@ -410,7 +410,7 @@ The chat is the Assistant SDK's `<cbox-support session-url inline>` element (lar
 `/ai-assistant/support.js` by default, loaded the first time Help opens). The shell sets
 `element.intent = { route, title, context, url }` (and an `intent` JSON attribute) on every
 page, and calls `element.ask(question, intent)` / `element.handover()` when the SDK has them,
-else `element.open()`. From laravel-assistant-client 0.3 the chat fills the column
+else `element.open()`. From laravel-assistant-client 0.2.3 the chat fills the column
 (`cbox-support:open` with `detail.inline`), `ask()` answers whether the chat opened so the question
 is never lost, and a product link raises `cbox-support:navigate`, which the shell turns into an app
 visit so the conversation stays open.
