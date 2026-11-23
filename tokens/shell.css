@@ -368,7 +368,9 @@ textarea.cbx-input { height: auto; padding: 10px 12px; resize: vertical; min-hei
 .cbx-help-prose pre { padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--secondary); overflow-x: auto; }
 .cbx-help-prose pre code { padding: 0; border: 0; background: none; }
 .cbx-help-prose blockquote { padding-left: 12px; border-left: 2px solid var(--border-strong, var(--border)); color: var(--muted-foreground); }
-.cbx-help-prose table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 13px; }
+/* A table keeps its words whole and scrolls sideways when it must: with the prose's `anywhere`
+   a narrow column broke "Status" in two. */
+.cbx-help-prose table { display: block; max-width: 100%; overflow-x: auto; overflow-wrap: break-word; border-collapse: collapse; font-size: 13px; }
 .cbx-help-prose :is(th, td) { padding: 6px 10px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
 .cbx-help-prose img { max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: 8px; }
 .cbx-help-prose hr { margin: 16px 0; border: 0; border-top: 1px solid var(--border); }

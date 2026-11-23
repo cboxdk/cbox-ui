@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUp, ArrowUpRight, BookOpen, ChevronLeft, ChevronRight, CircleAlert, LifeBuoy, MessageSquare, Ticket, UserRound, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowUpRight, BookOpen, ChevronLeft, ChevronRight, CircleAlert, CornerDownLeft, LifeBuoy, MessageSquare, Sparkles, Ticket, UserRound, X } from 'lucide-react';
 import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type Ref } from 'react';
 import { withQuery } from './data';
 import { cleanArticleHtml, helpEndpointState, helpRequest, helpSessionKey, HelpUnavailableError, loadHelpSession } from './help-api';
@@ -409,9 +409,26 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
         </p>
     );
 
+    // What is in the field, as a question to Cbox: the first row under it, before any article.
+    // Enter does the same, but nothing on the screen says so, and a list of articles under a
+    // question reads as "search only".
+    const typed = query.trim();
+    const askTyped = typed !== '' && chatReady && (
+        <div className="cbx-group cbx-help-resume">
+            <button type="button" className="cbx-grow is-tall" data-help-ask="" onClick={() => askCbox(typed)}>
+                <span className="cbx-tile is-accent" aria-hidden="true"><Sparkles size={16} strokeWidth={1.8} /></span>
+                <span className="cbx-grow-text">
+                    <span className="cbx-grow-strong cbx-truncate" title={typed}>{t('Ask Cbox: “{query}”', { query: typed })}</span>
+                    <span className="cbx-grow-sub cbx-truncate">{t('Answers with what you see on {page}', { page: topic })}</span>
+                </span>
+                <CornerDownLeft className="cbx-grow-trail" size={16} strokeWidth={1.8} aria-hidden />
+            </button>
+        </div>
+    );
+
     // Help's first screen, the same on a desktop and a phone: one field that searches while the
-    // person types and asks Cbox when they send, then the way back to their conversation, replies
-    // from support and the articles for this page.
+    // person types and asks Cbox when they send, then the chat itself (a new one, or the way back
+    // to theirs), replies from support and the articles for this page.
     const home = (
         <>
             {unavailable && (
@@ -435,6 +452,7 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
                 </>
             )}
             {chatProblem && <p className="cbx-create-error" role="alert">{t('The chat could not be opened. Try again, or use the support portal.')}</p>}
+            {askTyped}
             {results !== null ? (
                 <section aria-labelledby="cbx-help-results" aria-live="polite">
                     <h3 id="cbx-help-results" className="cbx-help-heading">{t('Results')}</h3>
@@ -449,11 +467,16 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
                 </section>
             ) : (
                 <>
-                    {chatKnown && chatReady && (
+                    {/* The chat is always one press away: nobody has to type into the field, or
+                        find an article first, to talk to Cbox. */}
+                    {chatReady && typed === '' && (
                         <div className="cbx-group cbx-help-resume">
-                            <button type="button" className="cbx-grow" onClick={() => void openChat()}>
+                            <button type="button" className="cbx-grow is-tall" data-help-chat="" onClick={() => void openChat()}>
                                 <span className="cbx-tile is-accent" aria-hidden="true"><MessageSquare size={16} strokeWidth={1.8} /></span>
-                                <span className="cbx-grow-label cbx-grow-strong">{t('Continue the conversation')}</span>
+                                <span className="cbx-grow-text">
+                                    <span className="cbx-grow-strong cbx-truncate">{chatKnown ? t('Continue the conversation') : t('Ask Cbox')}</span>
+                                    <span className="cbx-grow-sub cbx-truncate">{t('Answers with what you see on {page}', { page: topic })}</span>
+                                </span>
                                 <ChevronRight className="cbx-grow-trail" size={16} strokeWidth={1.8} aria-hidden />
                             </button>
                         </div>
