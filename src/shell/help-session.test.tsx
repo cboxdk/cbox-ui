@@ -145,8 +145,23 @@ describe('Ask Cbox in the column (§7.2.4)', () => {
         expect(supportCalls.map(call => call.question)).toEqual(['How do I add email?', 'How do I add email?']);
 
         // The way back to that conversation is on Help's first screen, and opens it without asking again.
-        await user.click(await within(column).findByRole('button', { name: 'Continue the conversation' }));
+        await user.click(await within(column).findByRole('button', { name: /^Continue the conversation/ }));
         await waitFor(() => expect(supportCalls.at(-1)!.method).toBe('open'));
+    });
+
+    it('has the chat one press away, and offers what is typed as a question before any article', async () => {
+        const { user, column } = await open();
+        // Nobody has to type, or find an article first, to talk to Cbox.
+        await user.click(within(column).getByRole('button', { name: /^Ask Cbox Answers with what you see on Deployments/ }));
+        await waitFor(() => expect(supportCalls.map(call => call.method)).toEqual(['open']));
+
+        // With text in the field the row is the question itself; pressing it sends it once.
+        const field = within(column).getByRole('textbox', { name: 'Search or ask…' });
+        await user.type(field, 'How do I add email?');
+        expect(within(column).queryByRole('button', { name: /^(Ask Cbox|Continue the conversation) Answers/ })).toBeNull();
+        await user.click(within(column).getByRole('button', { name: /^Ask Cbox: “How do I add email\?”/ }));
+        await waitFor(() => expect(supportCalls.map(call => call.question)).toEqual([undefined, 'How do I add email?']));
+        await waitFor(() => expect(field).toHaveProperty('value', ''));
     });
 
     it('Enter sends, Shift+Enter and an Enter that commits a dead key do not', async () => {
@@ -176,8 +191,9 @@ describe('Ask Cbox in the column (§7.2.4)', () => {
         await user.click(within(column).getByRole('button', { name: 'Back to Help' }));
         expect(within(column).getByRole('textbox', { name: 'Search or ask…' })).toBeTruthy();
         expect(column.querySelector('cbox-support')).toBe(chat);
-        // Nothing was asked yet, so there is no conversation to go back to.
-        expect(within(column).queryByRole('button', { name: 'Continue the conversation' })).toBeNull();
+        // Nothing was asked yet, so there is no conversation to go back to: the row starts one.
+        expect(within(column).queryByRole('button', { name: /^Continue the conversation/ })).toBeNull();
+        expect(within(column).getByRole('button', { name: /^Ask Cbox Answers/ })).toBeTruthy();
 
         // The chat lost its session: Help is back, and says so.
         act(() => void chat.dispatchEvent(new CustomEvent('cbox-support:open', { detail: { inline: true }, bubbles: true })));

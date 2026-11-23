@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.15.3 — 2026-11-23
+
+### Added
+
+- Help's first screen has a row under the field that opens the chat: "Ask Cbox", or "Continue the conversation" for a person who has one. Until now a person who had not chatted on this device had no visible way to the chat; nothing said that Enter asks Cbox.
+- With text in the field, the first row offers that text as a question to Cbox ("Ask Cbox: “…”"), before any article. Enter still sends it. Both rows reuse texts the palette already has, so an app's translations need nothing new.
+
+### Fixed
+
+- A table in a Help article keeps its words whole and scrolls sideways when it must. Narrow columns used to break words in the middle.
+
 ## 0.15.2 — 2026-11-23
 
 ### Fixed
