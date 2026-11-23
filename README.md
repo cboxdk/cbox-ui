@@ -364,7 +364,7 @@ moves focus to `<main id={mainId}>` (default `main-content`).
 | `palette.gotoUrl` | `GET ?q=` | `{ data: [{ title, subtitle?, levels?: { organization, project, … }, url? }] }` across organizations. |
 | `apps.catalogUrl` | `GET` | The catalog below, plus `in_organization`, `admission_url`, `purpose` and `hue` per app. |
 | `help.updatesUrl` | `GET`; `POST {updatesUrl}/{id}/read` | `{ data: [{ id, kind: "ticket" \| "chat", title, excerpt?, at, unread, url? }] }` |
-| `help.searchUrl` | `GET ?q=&topic=` | `{ data: [{ id, title, excerpt?, body?, url?, source? }] }` |
+| `help.searchUrl` | `GET ?q=&topic=` | `{ data: [{ id, title, excerpt?, body?, url?, source? }] }`, or Assistant's `{ groups: [{ source, data }] }` |
 | `help.articlesUrl` | `GET` (template, `{topic}`) | The same shape; the first three are shown. |
 
 Every link the shell follows from these answers (`url`, `detailsUrl`) must be `http(s)://` or
@@ -399,11 +399,21 @@ until they open it, so a phone or a narrow window never lands under the overlay.
 updates are per organization: they load again when the organization or `updatesUrl` changes.
 Closing Help gives focus back to what opened it.
 
-The chat is the Assistant SDK's `<cbox-support session-url>` element (laravel-assistant-client,
+An app that sends no `help.searchUrl`, `articlesUrl` or `updatesUrl` (console-kit sends none) still
+gets all three: Help fetches `help.sessionUrl` in the browser after the page has painted and uses
+the session's `search_url`, `topics_url`, `article_url` and `updates_url` on Cbox Assistant, with
+its `identity` as a bearer token (no cookies), and a new session when the identity runs out. The
+app's CSP must allow the Assistant API origin in `connect-src`. A session without those URLs means
+no search field and no article list; the chat still works.
+
+The chat is the Assistant SDK's `<cbox-support session-url inline>` element (laravel-assistant-client,
 `/ai-assistant/support.js` by default, loaded the first time Help opens). The shell sets
 `element.intent = { route, title, context, url }` (and an `intent` JSON attribute) on every
 page, and calls `element.ask(question, intent)` / `element.handover()` when the SDK has them,
-else `element.open()`.
+else `element.open()`. From laravel-assistant-client 0.3 the chat fills the column
+(`cbox-support:open` with `detail.inline`), `ask()` answers whether the chat opened so the question
+is never lost, and a product link raises `cbox-support:navigate`, which the shell turns into an app
+visit so the conversation stays open.
 
 A page's own `?` button uses `useShellHelp()?.toggleHelp()`, or `<PageHeader help />`. The page's
 help topic is `shell.help.topic`, set on the server per route (console-kit's `helpTopic`), not

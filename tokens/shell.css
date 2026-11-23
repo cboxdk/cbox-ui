@@ -316,35 +316,65 @@ textarea.cbx-input { height: auto; padding: 10px 12px; resize: vertical; min-hei
 .cbx-help-head { display: flex; align-items: center; gap: 8px; height: 56px; flex: none; padding: 0 12px 0 16px; border-bottom: 1px solid var(--border); }
 .cbx-help-mark { color: var(--primary); flex: none; }
 .cbx-help-title { flex: 1; margin: 0; font-size: 15px; font-weight: 600; }
-.cbx-help-page { display: flex; flex-direction: column; gap: 2px; flex: none; margin: 0; padding: 12px 20px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--muted-foreground); }
-.cbx-help-page strong { color: var(--foreground); font-weight: 600; }
-.cbx-help-page-label { font-family: var(--cbx-font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
-.cbx-help-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 20px 20px; overscroll-behavior: contain; scroll-behavior: smooth; }
-.cbx-help-section { margin-top: 8px; }
-.cbx-help-section .cbx-pane-heading { padding: 0; }
-.cbx-help-section .cbx-list { margin: 0 -8px; padding: 0 0 4px; }
+.cbx-help-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 20px 20px; overscroll-behavior: contain; scroll-behavior: smooth; }
 .cbx-help-notice { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--warning-soft); font-size: 13px; }
 .cbx-help-notice svg { flex: none; margin-top: 2px; color: var(--warning-foreground); }
-.cbx-help-search { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; margin-top: 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--input); color: var(--muted-foreground); }
-.cbx-help-search:focus-within { border-color: var(--ring); box-shadow: 0 0 0 3px var(--accent-soft); }
-.cbx-help-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: none !important; background: none; font-size: 14px; color: var(--foreground); }
-.cbx-update { display: flex; align-items: flex-start; gap: 12px; width: 100%; min-height: 40px; padding: 10px 12px; border-radius: 8px; color: var(--foreground); }
-.cbx-update:hover { background: var(--secondary); }
-.cbx-update > svg { flex: none; margin-top: 2px; color: var(--muted-foreground); }
-.cbx-update-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.cbx-update-title { font-size: 14px; }
-.cbx-update.is-unread .cbx-update-title { font-weight: 600; }
-.cbx-update-excerpt { font-size: 12.5px; color: var(--muted-foreground); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.cbx-update-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; font-size: 12px; color: var(--muted-foreground); }
 .cbx-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
-.cbx-ask { display: flex; flex-direction: column; gap: 8px; }
-.cbx-ask .cbx-button { align-self: flex-end; }
+/* Help's building blocks, the same on a desktop and a phone: one field, one row, one footer. */
+.cbx-askfield { display: flex; align-items: flex-end; gap: 6px; margin: 16px 0 8px; padding: 5px 5px 5px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); box-shadow: 0 1px 2px oklch(0.2 0.02 80 / 0.05); transition: border-color 150ms var(--cbx-ease), box-shadow 150ms var(--cbx-ease); }
+.cbx-askfield:hover { border-color: var(--border-strong); }
+.cbx-askfield:focus-within { border-color: var(--ring); box-shadow: 0 0 0 3px var(--accent-soft); }
+.cbx-askfield textarea { flex: 1; min-width: 0; height: 32px; min-height: 32px; max-height: 120px; margin: 0; padding: 6px 0; border: 0; border-radius: 0; outline: none !important; box-shadow: none !important; background: none; resize: none; color: var(--foreground); font: inherit; font-size: 14px; line-height: 20px; }
+.cbx-askfield textarea::placeholder { color: var(--muted-foreground); }
+.cbx-askfield-send { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: var(--primary-foreground) !important; transition: opacity 150ms var(--cbx-ease); }
+.cbx-askfield-send:disabled { opacity: 0.35; cursor: default; }
+.cbx-askfield > textarea:last-child { margin-right: 9px; }
+:is(.cbx-help, .cbx-help-sheet) .cbx-list-note { padding: 4px 2px; }
+.cbx-ctxnote { display: flex; align-items: center; gap: 6px; min-width: 0; margin: 0; padding: 0 2px 4px; font-size: 12.5px; color: var(--muted-foreground); }
+.cbx-ctxnote.is-strip { flex: none; padding: 8px 20px; border-bottom: 1px solid var(--border); }
+.cbx-help-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; margin: 20px 2px 8px; font-family: var(--cbx-font-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-foreground); }
+.cbx-help-heading h3 { margin: 0; font: inherit; letter-spacing: inherit; }
+:is(.cbx-help, .cbx-help-sheet) .cbx-group { margin: 0; }
+:is(.cbx-help, .cbx-help-sheet) .cbx-help-resume { margin-top: 16px; }
+:is(.cbx-help, .cbx-help-sheet) .cbx-grow.is-tall { padding-block: 10px; }
+:is(.cbx-help, .cbx-help-sheet) .cbx-grow.is-unread .cbx-grow-strong { font-weight: 700; }
+.cbx-help .cbx-grow { min-height: 46px; padding-inline: 12px; font-size: 14px; }
+.cbx-help .cbx-grow.is-tall { min-height: 58px; }
+.cbx-help-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; font-size: 12px; color: var(--muted-foreground); }
+.cbx-help-foot { display: flex; gap: 8px; flex: none; padding: 12px 20px; border-top: 1px solid var(--border); }
+.cbx-help-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 1; min-width: 0; min-height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--foreground); font-size: 13.5px; font-weight: 500; white-space: nowrap; transition: border-color 150ms var(--cbx-ease), background 150ms var(--cbx-ease); }
+.cbx-help-action:hover { border-color: var(--border-strong); background: var(--secondary); }
+.cbx-help-action svg { flex: none; color: var(--muted-foreground); }
+.cbx-help-sheet .cbx-help-foot { padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+.cbx-help-sheet .cbx-help-action { min-height: 46px; font-size: 15px; border-radius: 12px; }
+.cbx-help-sheet .cbx-askfield { margin-top: 4px; }
+.cbx-help-sheet .cbx-ctxnote.is-strip { padding-inline: 16px; }
 .cbx-chat-host { position: relative; }
 .cbx-chat-host cbox-support { position: fixed; bottom: 0; left: 0; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.cbx-help-article h3 { margin: 16px 0 8px; font-family: var(--cbx-font-display); font-size: 18px; line-height: 1.3; }
+/* The chat in the column: it takes the body's whole height, and scrolls on its own inside. */
+:is(.cbx-help-body, .cbx-help-sheet .cbx-sheet-body).is-chat { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.cbx-chat-host.is-open { display: flex; flex: 1; min-height: 0; }
+.cbx-chat-host.is-open cbox-support { position: static; flex: 1; width: auto; height: auto; min-height: 0; overflow: visible; clip-path: none; }
+/* An article's body as Assistant rendered it. */
+.cbx-help-prose { font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.cbx-help-prose :is(h4, h5, h6) { margin: 20px 0 8px; font-size: 14px; font-weight: 600; }
+.cbx-help-prose :is(p, ul, ol, pre, blockquote, table) { margin: 0 0 12px; }
+.cbx-help-prose :is(ul, ol) { padding-left: 22px; }
+.cbx-help-prose ul { list-style: disc; }
+.cbx-help-prose ol { list-style: decimal; }
+.cbx-help-prose li + li { margin-top: 4px; }
+.cbx-help-prose a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.cbx-help-prose :is(code, kbd) { padding: 1px 5px; border: 1px solid var(--border); border-radius: 6px; background: var(--secondary); font-family: var(--cbx-font-mono); font-size: 12.5px; }
+.cbx-help-prose pre { padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--secondary); overflow-x: auto; }
+.cbx-help-prose pre code { padding: 0; border: 0; background: none; }
+.cbx-help-prose blockquote { padding-left: 12px; border-left: 2px solid var(--border-strong, var(--border)); color: var(--muted-foreground); }
+.cbx-help-prose table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 13px; }
+.cbx-help-prose :is(th, td) { padding: 6px 10px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+.cbx-help-prose img { max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: 8px; }
+.cbx-help-prose hr { margin: 16px 0; border: 0; border-top: 1px solid var(--border); }
+.cbx-help-article-title { margin: 16px 0 10px; font-family: var(--cbx-font-display); font-size: 20px; line-height: 1.25; }
+.cbx-help-article .cbx-link { margin-top: 4px; }
 .cbx-help-article p { margin: 0 0 12px; }
-.cbx-help-foot { display: flex; flex-direction: column; gap: 4px; flex: none; padding: 8px; border-top: 1px solid var(--border); }
-.cbx-help-foot .cbx-row-action:disabled { opacity: 0.55; cursor: default; }
 
 /* ── Sheets (phone) ─────────────────────────────────────────────────────────── */
 /* A dragged sheet fades its scrim through --cbx-scrim (0–1); the sheet sits inside the scrim, so
@@ -523,22 +553,11 @@ textarea.cbx-input { height: auto; padding: 10px 12px; resize: vertical; min-hei
 .cbx-sheet-body > .cbx-group:last-child { margin-bottom: 0; }
 
 /* Help on the phone */
-.cbx-askbar { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 8px 8px 8px 14px; border-radius: 14px; background: var(--secondary); }
-.cbx-askbar:focus-within { box-shadow: 0 0 0 2px var(--ring); }
-.cbx-askbar input { flex: 1; min-width: 0; height: 34px; border: 0; outline: none !important; background: none; color: var(--foreground); font-size: 16px; }
-.cbx-askbar input::placeholder { color: var(--muted-foreground); }
-.cbx-askbar-send { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 34px; height: 34px; border-radius: 17px; background: var(--primary); color: var(--primary-foreground) !important; }
-.cbx-askbar-send:disabled { opacity: 0.55; cursor: default; }
-.cbx-ctxnote { display: flex; align-items: center; gap: 6px; margin: 0; padding: 0 2px 12px; font-size: 12.5px; color: var(--muted-foreground); }
-.cbx-pbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.cbx-pbtn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 46px; margin: 0 0 12px; border-radius: 12px; background: var(--secondary); color: var(--foreground); font-size: 14px; font-weight: 600; text-align: center; }
-.cbx-pbtns .cbx-pbtn { margin: 0; }
-.cbx-pbtn:disabled { opacity: 0.55; cursor: default; }
-.cbx-help-sheet .cbx-help-article-title { margin: 4px 0 14px; font-family: var(--cbx-font-display); font-size: 22px; line-height: 1.25; }
-.cbx-help-sheet .cbx-help-article p { margin: 0 0 12px; }
-.cbx-help-sheet .cbx-help-article .cbx-eyebrow { margin: 20px 0 0; padding: 0 4px 6px 2px; font-family: var(--cbx-font-mono); font-size: 11px; }
-.cbx-help-sheet .cbx-grow.is-unread .cbx-grow-strong { font-weight: 700; }
 .cbx-help-sheet .cbx-help-notice { margin: 0 0 12px; }
+/* Room for the ask field's focus ring, which the scrolling body otherwise cuts off at the top. */
+.cbx-help-sheet .cbx-sheet-body:not(.is-chat) { padding-top: 3px; }
+/* The chat reaches the sheet's edges, and stays clear of the phone's home indicator. */
+.cbx-help-sheet .cbx-sheet-body.is-chat { padding-bottom: env(safe-area-inset-bottom, 0px); }
 
 /* The palette as the phone's sheet */
 .cbx-palette-backdrop.is-sheet { align-items: flex-end; padding: 0; }

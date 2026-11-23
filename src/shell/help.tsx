@@ -1,7 +1,8 @@
-import { ArrowLeft, ArrowUp, ArrowUpRight, BookOpen, ChevronLeft, ChevronRight, CircleAlert, FileText, LifeBuoy, MessageSquare, Search, Sparkles, Ticket, UserRound, X } from 'lucide-react';
-import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
-import { requestJson, withQuery } from './data';
-import { helpVisible, parseArticles, parseUpdates, type HelpArticle, type HelpState, type HelpStore, type SupportUpdate } from './help-store';
+import { ArrowLeft, ArrowUp, ArrowUpRight, BookOpen, ChevronLeft, ChevronRight, CircleAlert, LifeBuoy, MessageSquare, Ticket, UserRound, X } from 'lucide-react';
+import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type Ref } from 'react';
+import { withQuery } from './data';
+import { cleanArticleHtml, helpEndpointState, helpRequest, helpSessionKey, HelpUnavailableError, loadHelpSession } from './help-api';
+import { helpVisible, parseArticleBody, parseArticles, parseUpdates, type HelpArticle, type HelpState, type HelpStore, type SupportUpdate } from './help-store';
 import { useShell } from './context';
 import { environmentLevel } from './data';
 import { canAutofocus } from './media';
@@ -47,11 +48,25 @@ export function pageIntent(shell: Shell): PageIntent {
 
 /** The Assistant SDK's element, with the methods a newer SDK may add. */
 type SupportElement = HTMLElement & {
+    /** A newer SDK answers whether the chat opened (`false`: it could not); an older one answers nothing. */
     open?: () => unknown;
     ask?: (question: string, intent?: PageIntent) => unknown;
     handover?: () => unknown;
+    /** Hides the chat and keeps its conversation. */
+    close?: () => unknown;
     intent?: PageIntent;
 };
+
+/** A same-origin address as a path, for the app's own navigation; null for anywhere else. */
+function ownPath(url: unknown): string | null {
+    if (typeof url !== 'string' || typeof window === 'undefined') return null;
+    try {
+        const target = new URL(url, window.location.href);
+        return target.origin === window.location.origin ? target.pathname + target.search + target.hash : null;
+    } catch {
+        return null;
+    }
+}
 
 function ensureScript(src: string): void {
     if (typeof document === 'undefined' || customElements.get(SUPPORT_TAG) !== undefined) return;
@@ -97,20 +112,35 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
     const updates = useHelpState(store, state => state.updates);
     const updatesStatus = useHelpState(store, state => state.updatesStatus);
     const pendingQuestion = useHelpState(store, state => state.pendingQuestion);
+    // The chat fills the column (an SDK that renders it inline says so when it opens).
+    const chat = useHelpState(store, state => state.chat);
+    const session = useHelpState(store, state => state.session);
+    const [loadedArticle, setLoadedArticle] = useState<{ id: string; html: string | null; status: 'loading' | 'ready' } | null>(null);
     const [articles, setArticles] = useState<{ topic: string | undefined; items: HelpArticle[]; status: 'loading' | 'ready' | 'unavailable' }>({ topic: undefined, items: [], status: 'loading' });
     const [results, setResults] = useState<{ q: string; items: HelpArticle[]; status: 'loading' | 'ready' | 'unavailable' } | null>(null);
-    const [question, setQuestion] = useState('');
     const [chatProblem, setChatProblem] = useState(false);
-    // The phone's sheet: a question was sent to Ask Cbox, so "Talk to a person" is offered.
-    const [asked, setAsked] = useState(false);
     const [followUp, setFollowUp] = useState('');
     const column = useRef<HTMLDivElement>(null);
     const body = useRef<HTMLDivElement>(null);
     const chatHost = useRef<HTMLDivElement>(null);
-    const searchField = useRef<HTMLInputElement>(null);
+    const askField = useRef<HTMLTextAreaElement>(null);
     const opener = useRef<HTMLElement | null>(null);
     const scrim = useRef<HTMLDivElement>(null);
     const { help } = shell;
+    // The latest page, for requests and events that outlive the render they started in.
+    const latest = useRef({ shell, navigate, toggleHelp, docked });
+    latest.current = { shell, navigate, toggleHelp, docked };
+    // An endpoint the app has no URL for comes from the support session (help-api.ts). Until the
+    // session has answered it may exist, so its control shows; with no endpoint it is not drawn.
+    const sessionKey = helpSessionKey(shell);
+    const canSearch = helpEndpointState(help, session, sessionKey, 'search') !== 'none';
+    const canLoadArticles = helpEndpointState(help, session, sessionKey, 'articles') !== 'none';
+    const hasUpdates = helpEndpointState(help, session, sessionKey, 'updates') !== 'none';
+    const sentArticles = (help.articles ?? []).slice(0, 4);
+    const view: 'article' | 'chat' | 'home' = article !== null ? 'article' : chat ? 'chat' : 'home';
+    // The person has a conversation here (this visit or an earlier one), so Help offers the way back to it.
+    const [chatKnown, setChatKnown] = useState(false);
+    useEffect(() => setChatKnown(knowsChat(sessionKey)), [sessionKey]);
     // The phone's Help is a bottom sheet: the page behind holds still, and it drags like one.
     useScrollLock(mobile && open);
     const closeSheet = useCallback(() => toggleHelp(false), [toggleHelp]);
@@ -120,19 +150,20 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
     // Support updates are per person per organization (§7.3). They feed the button's count, so
     // they load after the first paint, open or not, and again when the URL or organization
     // changes: the store outlives Inertia visits, so an org switch must not keep the old count.
-    const updatesKey = help.enabled && help.updatesUrl !== undefined ? `${help.updatesUrl}|${shell.context.levels[0]?.current.id ?? ''}` : null;
+    const updatesKey = hasUpdates ? `${help.updatesUrl ?? help.sessionUrl}|${shell.context.levels[0]?.current.id ?? ''}` : null;
     const loadUpdates = useCallback(() => {
-        if (updatesKey === null || help.updatesUrl === undefined) return;
+        if (updatesKey === null) return;
         const current = () => store.get().updatesKey === updatesKey;
         store.set({ updatesStatus: 'loading', updatesKey });
-        requestJson(help.updatesUrl)
+        helpRequest(store, latest.current.shell, 'updates', url => url)
             .then(answer => {
                 if (current()) store.set({ updates: parseUpdates(answer), updatesStatus: 'ready' });
             })
-            .catch(() => {
-                if (current()) store.set({ updatesStatus: 'unavailable' });
+            .catch((error: unknown) => {
+                // No updates endpoint is not an outage: there is simply nothing to list here.
+                if (current()) store.set(error instanceof HelpUnavailableError ? { updates: [], updatesStatus: 'ready' } : { updatesStatus: 'unavailable' });
             });
-    }, [updatesKey, help.updatesUrl, store]);
+    }, [updatesKey, store]);
     useEffect(() => {
         const state = store.get();
         if (state.updatesKey !== updatesKey) {
@@ -146,39 +177,69 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
 
     // Articles for this page's topic.
     useEffect(() => {
-        if (!open || !help.enabled || help.articlesUrl === undefined || help.topic === undefined) return;
-        if (articles.topic === help.topic && articles.status === 'ready') return;
+        const topic = help.topic;
+        // Articles sent with the page are the page's articles; nothing is fetched for them.
+        if (!open || !canLoadArticles || topic === undefined || (help.articlesUrl === undefined && sentArticles.length > 0)) return;
+        if (articles.topic === topic && articles.status === 'ready') return;
         const controller = new AbortController();
-        setArticles({ topic: help.topic, items: [], status: 'loading' });
-        requestJson(help.articlesUrl.split('{topic}').join(encodeURIComponent(help.topic)), { signal: controller.signal })
-            .then(answer => setArticles({ topic: help.topic, items: parseArticles(answer).slice(0, 4), status: 'ready' }))
+        setArticles({ topic, items: [], status: 'loading' });
+        helpRequest(store, latest.current.shell, 'articles', url => url.split('{topic}').join(encodeURIComponent(topic)), { signal: controller.signal })
+            .then(answer => setArticles({ topic, items: parseArticles(answer).slice(0, 4), status: 'ready' }))
             .catch((error: unknown) => {
-                if ((error as { name?: string })?.name !== 'AbortError') setArticles({ topic: help.topic, items: [], status: 'unavailable' });
+                if ((error as { name?: string })?.name === 'AbortError') return;
+                setArticles({ topic, items: [], status: error instanceof HelpUnavailableError ? 'ready' : 'unavailable' });
             });
         return () => controller.abort();
-    }, [open, help.enabled, help.articlesUrl, help.topic]);
+    }, [open, canLoadArticles, help.articlesUrl, help.topic, sessionKey]);
 
     // Docs search, debounced like the palette.
     useEffect(() => {
         const q = query.trim();
-        if (!help.enabled || help.searchUrl === undefined || q === '') {
+        if (!canSearch || q === '') {
             setResults(null);
             return;
         }
         const controller = new AbortController();
         const timer = setTimeout(() => {
             setResults(current => ({ q, items: current?.items ?? [], status: 'loading' }));
-            requestJson(withQuery(help.searchUrl!, { q, topic: help.topic }), { signal: controller.signal })
+            helpRequest(store, latest.current.shell, 'search', url => withQuery(url, { q, topic: help.topic }), { signal: controller.signal })
                 .then(answer => setResults({ q, items: parseArticles(answer), status: 'ready' }))
                 .catch((error: unknown) => {
-                    if ((error as { name?: string })?.name !== 'AbortError') setResults({ q, items: [], status: 'unavailable' });
+                    if ((error as { name?: string })?.name === 'AbortError') return;
+                    setResults(error instanceof HelpUnavailableError ? null : { q, items: [], status: 'unavailable' });
                 });
         }, DEBOUNCE_MS);
         return () => {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [query, help.enabled, help.searchUrl, help.topic]);
+    }, [query, canSearch, help.searchUrl, help.topic, sessionKey, store]);
+
+    // What the app has no URL for comes from the support session: ask for it once Help is open,
+    // so a control that turns out to have nothing behind it goes away before it is used.
+    const needsSession = help.enabled && sessionKey !== null && (help.searchUrl === undefined || help.updatesUrl === undefined || (help.articlesUrl === undefined && sentArticles.length === 0));
+    useEffect(() => {
+        if (open && needsSession && sessionKey !== null) void loadHelpSession(store, latest.current.shell.help, sessionKey);
+    }, [open, needsSession, sessionKey, store]);
+
+    // An article from a search or a topic list has a title and an excerpt; its body is fetched
+    // when it opens, so it is read inside the column.
+    const articleId = article?.id;
+    const articleHasBody = article !== null && (article.body !== undefined || article.bodyHtml !== undefined);
+    useEffect(() => {
+        if (articleId === undefined || articleHasBody) return;
+        const page = latest.current.shell;
+        if (helpEndpointState(page.help, store.get().session, helpSessionKey(page), 'article') === 'none') return;
+        const controller = new AbortController();
+        setLoadedArticle({ id: articleId, html: null, status: 'loading' });
+        helpRequest(store, page, 'article', url => url.split('{id}').join(encodeURIComponent(articleId)), { signal: controller.signal })
+            .then(answer => setLoadedArticle({ id: articleId, html: parseArticleBody(answer)?.bodyHtml ?? null, status: 'ready' }))
+            .catch((error: unknown) => {
+                // The excerpt and the link to the full article are still there.
+                if ((error as { name?: string })?.name !== 'AbortError') setLoadedArticle({ id: articleId, html: null, status: 'ready' });
+            });
+        return () => controller.abort();
+    }, [articleId, articleHasBody, sessionKey, store]);
 
     // The SDK script loads once Help is first opened: never before the page has painted.
     useEffect(() => {
@@ -193,38 +254,102 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
         if (element !== null && element !== undefined) element.intent = JSON.parse(intentJson) as PageIntent;
     }, [intentJson]);
 
+    /**
+     * Opens the chat, with the person's question or their wish for a person. Answers whether that
+     * was handed to the chat: the caller clears what the person typed only then, so a chat that
+     * could not open, or an SDK that cannot take a question, never loses their words.
+     */
     const openChat = useCallback(
-        async (ask?: string, handover = false) => {
+        async (ask?: string, handover = false): Promise<boolean> => {
             setChatProblem(false);
             if (help.sessionUrl === undefined) {
                 setChatProblem(true);
-                return;
+                return false;
             }
             ensureScript(help.scriptUrl ?? DEFAULT_SUPPORT_SCRIPT);
             const element = await whenSupportReady(chatHost.current);
             if (element === null) {
                 setChatProblem(true);
-                return;
+                return false;
             }
-            element.intent = JSON.parse(intentJson) as PageIntent;
-            if (handover && typeof element.handover === 'function') void element.handover();
-            else if (ask !== undefined && ask !== '' && typeof element.ask === 'function') void element.ask(ask, element.intent);
-            else void element.open?.();
+            const intent = JSON.parse(intentJson) as PageIntent;
+            element.intent = intent;
+            let opened: unknown;
+            let handed = false;
+            if (handover && typeof element.handover === 'function') {
+                opened = element.handover();
+                handed = true;
+            } else if (ask !== undefined && ask !== '' && typeof element.ask === 'function') {
+                opened = element.ask(ask, intent);
+                handed = true;
+            } else opened = element.open?.();
+            if ((await opened) === false) {
+                setChatProblem(true);
+                return false;
+            }
+            rememberChat(sessionKey);
+            setChatKnown(true);
+            return handed;
         },
-        [help.sessionUrl, help.scriptUrl, intentJson],
+        [help.sessionUrl, help.scriptUrl, intentJson, sessionKey],
     );
+    /** Ask Cbox what the person typed; the field is emptied once the chat has it. */
+    const askCbox = useCallback(
+        (text: string) => {
+            void openChat(text).then(sent => {
+                // What the person typed is theirs until the chat has it; anything typed since stays.
+                if (sent) store.set(state => (state.query.trim() === text ? { query: '' } : {}));
+            });
+        },
+        [openChat, store],
+    );
+    const closeChat = useCallback(() => {
+        const element = chatHost.current?.querySelector<SupportElement>(SUPPORT_TAG);
+        if (typeof element?.close === 'function') void element.close();
+        store.set({ chat: false });
+    }, [store]);
 
     useEffect(() => {
         if (pendingQuestion === null || !open) return;
-        store.set({ pendingQuestion: null });
-        setQuestion(pendingQuestion);
-        void openChat(pendingQuestion);
-    }, [pendingQuestion, open, openChat, store]);
+        store.set({ pendingQuestion: null, query: pendingQuestion });
+        askCbox(pendingQuestion);
+    }, [pendingQuestion, open, askCbox, store]);
+
+    // What the chat element tells the column: it opened inside it, it closed, or the person
+    // followed a link to a page of this app.
+    useEffect(() => {
+        const node = column.current;
+        if (node === null) return;
+        const onOpen = (event: Event) => {
+            if ((event as CustomEvent<{ inline?: boolean } | null>).detail?.inline === true) store.set({ chat: true });
+        };
+        const onClose = (event: Event) => {
+            store.set({ chat: false });
+            if ((event as CustomEvent<{ reason?: string | null } | null>).detail?.reason === 'unavailable') setChatProblem(true);
+        };
+        // The app visits the page itself, so nothing reloads and the conversation stays open
+        // beside it. Where Help covers the page, it steps aside; the chat is there on return.
+        const onNavigate = (event: Event) => {
+            const path = ownPath((event as CustomEvent<{ url?: unknown } | null>).detail?.url);
+            if (path === null) return;
+            event.preventDefault();
+            if (!latest.current.docked) latest.current.toggleHelp(false);
+            latest.current.navigate(path);
+        };
+        node.addEventListener('cbox-support:open', onOpen);
+        node.addEventListener('cbox-support:close', onClose);
+        node.addEventListener('cbox-support:navigate', onNavigate);
+        return () => {
+            node.removeEventListener('cbox-support:open', onOpen);
+            node.removeEventListener('cbox-support:close', onClose);
+            node.removeEventListener('cbox-support:navigate', onNavigate);
+        };
+    }, [store]);
 
     // Scroll position survives page changes.
     useLayoutEffect(() => {
         if (open && body.current !== null) body.current.scrollTop = store.get().scrollTop;
-    }, [open, article, store]);
+    }, [open, view, store]);
 
     // When the person opens Help, its search takes focus on a desktop. Help that was simply left
     // open never takes focus on a page load, unless it is the modal overlay, which must hold it.
@@ -248,14 +373,14 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
             const active = document.activeElement;
             opener.current = active instanceof HTMLElement && active !== document.body && !column.current?.contains(active) ? active : null;
         }
-        if (opened && canAutofocus() && store.get().article === null) searchField.current?.focus();
+        if (opened && canAutofocus() && store.get().article === null && !store.get().chat) askField.current?.focus();
         else if (!docked && !column.current?.contains(document.activeElement)) column.current?.focus();
     }, [open, docked, store]);
 
     const markRead = (update: SupportUpdate) => {
         if (!update.unread) return;
         store.set(state => ({ updates: state.updates.map(item => (item.id === update.id ? { ...item, unread: false } : item)) }));
-        if (help.updatesUrl !== undefined) requestJson(`${help.updatesUrl.replace(/\/$/, '')}/${encodeURIComponent(update.id)}/read`, { method: 'POST' }).catch(() => undefined);
+        helpRequest(store, latest.current.shell, 'updates', url => `${url.replace(/\/$/, '')}/${encodeURIComponent(update.id)}/read`, { method: 'POST' }).catch(() => undefined);
     };
     const openUpdate = (update: SupportUpdate) => {
         markRead(update);
@@ -266,23 +391,174 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
 
     const unread = updates.filter(update => update.unread);
     const unavailable = !help.enabled || updatesStatus === 'unavailable' || articles.status === 'unavailable' || results?.status === 'unavailable';
-    const trail = contextTrail(shell);
+    const topic = helpTopicName(shell);
+    const where = shell.context.levels.map(level => level.current.name).join(' · ');
+    const environment = environmentLevel(shell.context.levels)?.current;
+    const chatReady = help.enabled && help.sessionUrl !== undefined;
+    const close = () => toggleHelp(false);
+    const back = () => (view === 'article' ? store.set({ article: null }) : closeChat());
 
-    const submit = (event: FormEvent) => {
-        event.preventDefault();
-        void openChat(question.trim());
-        if (question.trim() !== '') setAsked(true);
+    // Articles for this page: the ones sent with the page, else loaded for its topic.
+    const pageArticles: HelpArticle[] = help.articlesUrl === undefined && sentArticles.length > 0 ? sentArticles : articles.items;
+
+    // One line, in every view: what the answers are about. It follows the person as they navigate.
+    const context = (strip: boolean) => (
+        <p className={`cbx-ctxnote ${strip ? 'is-strip' : ''}`}>
+            {environment !== undefined && <span className={`cbx-tone cbx-tone-${environment.tone ?? 'neutral'}`} aria-hidden="true" />}
+            <span className="cbx-truncate" title={t('Cbox sees this page: {page} in {where}', { page: topic, where })}>{t('Cbox sees this page: {page} in {where}', { page: topic, where })}</span>
+        </p>
+    );
+
+    // Help's first screen, the same on a desktop and a phone: one field that searches while the
+    // person types and asks Cbox when they send, then the way back to their conversation, replies
+    // from support and the articles for this page.
+    const home = (
+        <>
+            {unavailable && (
+                <div className="cbx-help-notice" role="status">
+                    <CircleAlert size={16} strokeWidth={1.8} aria-hidden />
+                    <span>{help.enabled ? t('Help is not available right now. The rest of the app works as usual.') : t('Help is not available here yet.')}</span>
+                    {help.enabled && <button type="button" className="cbx-link" onClick={() => { loadUpdates(); setArticles(current => ({ ...current, status: 'loading', topic: undefined })); }}>{t('Try again')}</button>}
+                </div>
+            )}
+            {(chatReady || canSearch) && (
+                <>
+                    <AskField
+                        field={askField}
+                        value={query}
+                        onChange={value => store.set({ query: value })}
+                        onSubmit={chatReady ? () => askCbox(query.trim()) : undefined}
+                        placeholder={!chatReady ? t('Search docs and knowledge base') : canSearch ? t('Search or ask…') : t('Ask about {page}…', { page: topic })}
+                        label={!chatReady ? t('Search docs and knowledge base') : canSearch ? t('Search or ask…') : t('Ask Cbox')}
+                    />
+                    {chatReady && context(false)}
+                </>
+            )}
+            {chatProblem && <p className="cbx-create-error" role="alert">{t('The chat could not be opened. Try again, or use the support portal.')}</p>}
+            {results !== null ? (
+                <section aria-labelledby="cbx-help-results" aria-live="polite">
+                    <h3 id="cbx-help-results" className="cbx-help-heading">{t('Results')}</h3>
+                    {results.items.length > 0 && (
+                        <div className="cbx-group">
+                            {results.items.map(item => <ArticleRow key={item.id} article={item} />)}
+                        </div>
+                    )}
+                    {/* A question is not a failed search: with no article for it, the next step is to send it. */}
+                    {results.status === 'ready' && results.items.length === 0 && <p className="cbx-list-note">{chatReady ? t('No articles match. Send it to ask Cbox.') : t('Nothing matches “{query}”.', { query: results.q })}</p>}
+                    {results.status === 'loading' && results.items.length === 0 && <p className="cbx-list-note">{t('Searching…')}</p>}
+                </section>
+            ) : (
+                <>
+                    {chatKnown && chatReady && (
+                        <div className="cbx-group cbx-help-resume">
+                            <button type="button" className="cbx-grow" onClick={() => void openChat()}>
+                                <span className="cbx-tile is-accent" aria-hidden="true"><MessageSquare size={16} strokeWidth={1.8} /></span>
+                                <span className="cbx-grow-label cbx-grow-strong">{t('Continue the conversation')}</span>
+                                <ChevronRight className="cbx-grow-trail" size={16} strokeWidth={1.8} aria-hidden />
+                            </button>
+                        </div>
+                    )}
+                    {updates.length > 0 && (
+                        <section aria-labelledby="cbx-help-updates">
+                            <div className="cbx-help-heading">
+                                <h3 id="cbx-help-updates">{t('Support updates')}</h3>
+                                {unread.length > 0 && <button type="button" className="cbx-pane-all" onClick={() => unread.forEach(markRead)}>{t('Mark all read')}</button>}
+                            </div>
+                            <div className="cbx-group">
+                                {updates.map(update => (
+                                    <button key={update.id} type="button" className={`cbx-grow is-tall ${update.unread ? 'is-unread' : ''}`} onClick={() => openUpdate(update)}>
+                                        <span className="cbx-tile is-plain" aria-hidden="true">{update.kind === 'chat' ? <MessageSquare size={16} strokeWidth={1.8} /> : <Ticket size={16} strokeWidth={1.8} />}</span>
+                                        <span className="cbx-grow-text">
+                                            <span className="cbx-grow-strong cbx-truncate" title={update.title}>{update.title}</span>
+                                            {update.excerpt !== undefined && <span className="cbx-grow-sub cbx-truncate">{update.excerpt}</span>}
+                                        </span>
+                                        <span className="cbx-help-meta">
+                                            {update.at !== undefined && <time dateTime={update.at}>{formatDate(update.at)}</time>}
+                                            {update.unread && <span className="cbx-unread-dot" role="img" aria-label={t('Unread')} />}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+                    {pageArticles.length > 0 && (
+                        <section aria-labelledby="cbx-help-topic">
+                            <h3 id="cbx-help-topic" className="cbx-help-heading">{t('For {page}', { page: topic })}</h3>
+                            <div className="cbx-group">
+                                {pageArticles.map(item => <ArticleRow key={item.id} article={item} />)}
+                            </div>
+                        </section>
+                    )}
+                </>
+            )}
+        </>
+    );
+
+    const reading = article !== null && (
+        <article className="cbx-help-article">
+            <h3 className="cbx-help-article-title">{article.title}</h3>
+            <ArticleBody article={article} loaded={loadedArticle !== null && loadedArticle.id === article.id ? loadedArticle : null} />
+            {article.url !== undefined && (
+                <a className="cbx-link" href={article.url} target="_blank" rel="noopener">
+                    {t('Open the full article')} <ArrowUpRight size={14} strokeWidth={1.8} aria-hidden />
+                </a>
+            )}
+            {chatReady && (
+                <>
+                    <h4 className="cbx-help-heading">{t('Still stuck?')}</h4>
+                    <AskField
+                        value={followUp}
+                        onChange={setFollowUp}
+                        onSubmit={() => {
+                            const text = followUp.trim();
+                            store.set({ article: null, query: text });
+                            setFollowUp('');
+                            askCbox(text);
+                        }}
+                        placeholder={t('Ask a follow-up…')}
+                        label={t('Ask a follow-up')}
+                    />
+                </>
+            )}
+        </article>
+    );
+
+    // The chat element sits outside the home/article/chat switch, so opening an article (from
+    // the palette, "For this page" or a search) never unmounts it and the conversation survives (§7.1).
+    const content = (
+        <>
+            {view === 'article' ? reading : view === 'home' ? home : null}
+            {chatReady && (
+                <div ref={chatHost} className={`cbx-chat-host ${view === 'chat' ? 'is-open' : ''}`} data-view={view}>
+                    {/* `inline`: an SDK that can renders the chat here, not in a dialog over the page,
+                        in the column's measures or the phone sheet's. */}
+                    {createElement(SUPPORT_TAG, { 'session-url': help.sessionUrl, intent: intentJson, inline: mobile ? 'sheet' : 'column' })}
+                </div>
+            )}
+        </>
+    );
+
+    // One way to a person and one way to the portal. The open chat has its own way to a person,
+    // so the footer is not shown beside it.
+    const foot = view !== 'chat' && (chatReady || portal !== undefined) && (
+        <div className="cbx-help-foot">
+            {chatReady && (
+                <button type="button" className="cbx-help-action" onClick={() => void openChat(t('I would like to talk to a person.'), true)}>
+                    <UserRound size={16} strokeWidth={1.8} aria-hidden /> {t('Talk to a person')}
+                </button>
+            )}
+            {portal !== undefined && (
+                <a className="cbx-help-action" href={portal} target="_blank" rel="noopener" aria-label={t('Support portal (opens in a new tab)')}>
+                    <BookOpen size={16} strokeWidth={1.8} aria-hidden /> {t('Support portal')} <ArrowUpRight size={14} strokeWidth={1.8} aria-hidden />
+                </a>
+            )}
+        </div>
+    );
+    const onScroll = (top: number) => {
+        if (view !== 'chat') store.set({ scrollTop: top });
     };
 
-    // Articles for this page: loaded from `articlesUrl`, else the ones sent with the page.
-    const pageArticles: HelpArticle[] = help.articlesUrl !== undefined ? articles.items : (help.articles ?? []).slice(0, 4);
-
     if (mobile) {
-        const topic = helpTopicName(shell);
-        const environment = environmentLevel(shell.context.levels)?.current;
-        const where = shell.context.levels.map(level => level.current.name).join(' · ');
-        const chatReady = help.enabled && help.sessionUrl !== undefined;
-        const close = () => toggleHelp(false);
         return (
             <div ref={scrim} className="cbx-overlay cbx-sheet-backdrop" hidden={!open} {...scrimHandlers(close)}>
                 <div
@@ -302,113 +578,22 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
                     }}
                 >
                     <div className="cbx-sheet-handle cbx-sheet-grab" aria-hidden="true" />
-                    <div className={`cbx-sheet-head cbx-sheet-grab ${article !== null ? 'has-back' : ''}`}>
-                        {article !== null && (
-                            <button type="button" className="cbx-sheet-back" onClick={() => store.set({ article: null })} aria-label={t('Back to Help')}>
+                    <div className={`cbx-sheet-head cbx-sheet-grab ${view !== 'home' ? 'has-back' : ''}`}>
+                        {view !== 'home' && (
+                            <button type="button" className="cbx-sheet-back" onClick={back} aria-label={t('Back to Help')}>
                                 <ChevronLeft size={20} strokeWidth={1.8} aria-hidden />
                             </button>
                         )}
-                        <strong className="cbx-sheet-title cbx-truncate">{article !== null ? t('Article') : t('Help with {page}', { page: topic })}</strong>
+                        <h2 className="cbx-sheet-title cbx-truncate">{view === 'article' ? t('Article') : view === 'chat' ? t('Ask Cbox') : t('Help with {page}', { page: topic })}</h2>
                         <button type="button" className="cbx-icon-button" onClick={close} aria-label={t('Close Help')}>
                             <X size={18} strokeWidth={1.8} aria-hidden />
                         </button>
                     </div>
-                    <div ref={body} className="cbx-sheet-body" data-cbx-sheet-scroll="" onScroll={event => store.set({ scrollTop: event.currentTarget.scrollTop })}>
-                        {article !== null ? (
-                            <article className="cbx-help-article">
-                                <h2 className="cbx-help-article-title">{article.title}</h2>
-                                {(article.body ?? article.excerpt ?? '').split(/\n{2,}/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-                                {article.url !== undefined && (
-                                    <a className="cbx-link" href={article.url} target="_blank" rel="noopener">
-                                        {t('Open the full article')} <ArrowUpRight size={14} strokeWidth={1.8} aria-hidden />
-                                    </a>
-                                )}
-                                <p className="cbx-eyebrow">{t('Still stuck?')}</p>
-                                <form
-                                    className="cbx-askbar"
-                                    onSubmit={event => {
-                                        event.preventDefault();
-                                        const text = followUp.trim();
-                                        if (text === '') return;
-                                        store.set({ article: null });
-                                        setQuestion(text);
-                                        setAsked(true);
-                                        void openChat(text);
-                                    }}
-                                >
-                                    <input type="text" value={followUp} onChange={event => setFollowUp(event.target.value)} placeholder={t('Ask a follow-up…')} aria-label={t('Ask a follow-up')} disabled={!chatReady} />
-                                    <button type="submit" className="cbx-askbar-send" aria-label={t('Ask')} disabled={!chatReady}><ArrowUp size={16} strokeWidth={2.2} aria-hidden /></button>
-                                </form>
-                            </article>
-                        ) : (
-                            <>
-                                {unavailable && (
-                                    <div className="cbx-help-notice" role="status">
-                                        <CircleAlert size={16} strokeWidth={1.8} aria-hidden />
-                                        <span>{help.enabled ? t('Help is not available right now. The rest of the app works as usual.') : t('Help is not available here yet.')}</span>
-                                    </div>
-                                )}
-                                <form className="cbx-askbar" onSubmit={submit}>
-                                    <input ref={searchField} type="text" value={question} onChange={event => setQuestion(event.target.value)} placeholder={t('Ask about {page}…', { page: topic })} aria-label={t('Ask Cbox')} disabled={!chatReady} />
-                                    <button type="submit" className="cbx-askbar-send" aria-label={t('Ask')} disabled={!chatReady}><ArrowUp size={16} strokeWidth={2.2} aria-hidden /></button>
-                                </form>
-                                <p className="cbx-ctxnote">
-                                    {environment !== undefined && <span className={`cbx-tone cbx-tone-${environment.tone ?? 'neutral'}`} aria-hidden="true" />}
-                                    {t('Cbox sees this page: {page} in {where}', { page: topic, where })}
-                                </p>
-                                {chatProblem && <p className="cbx-create-error" role="alert">{t('The chat could not be opened. Try again, or use the support portal.')}</p>}
-                                {asked && chatReady && (
-                                    <button type="button" className="cbx-pbtn" onClick={() => void openChat(t('I would like to talk to a person.'), true)}>
-                                        <UserRound size={16} strokeWidth={1.8} aria-hidden /> {t('Talk to a person')}
-                                    </button>
-                                )}
-                                {updates.length > 0 && (
-                                    <section aria-labelledby="cbx-help-threads">
-                                        <h2 id="cbx-help-threads" className="cbx-eyebrow">{t('Your conversations')}</h2>
-                                        <div className="cbx-group">
-                                            {updates.map(update => (
-                                                <button key={update.id} type="button" className={`cbx-grow is-tall ${update.unread ? 'is-unread' : ''}`} onClick={() => openUpdate(update)}>
-                                                    <span className="cbx-tile is-plain" aria-hidden="true">{update.kind === 'chat' ? <MessageSquare size={16} strokeWidth={1.8} /> : <Ticket size={16} strokeWidth={1.8} />}</span>
-                                                    <span className="cbx-grow-text">
-                                                        <span className="cbx-grow-strong cbx-truncate">{update.title}</span>
-                                                        {update.excerpt !== undefined && <span className="cbx-grow-sub cbx-truncate">{update.excerpt}</span>}
-                                                    </span>
-                                                    {update.unread && <span className="cbx-badge">{t('{count} new', { count: 1 })}</span>}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </section>
-                                )}
-                                {pageArticles.length > 0 && (
-                                    <section aria-labelledby="cbx-help-for">
-                                        <h2 id="cbx-help-for" className="cbx-eyebrow">{t('For {page}', { page: topic })}</h2>
-                                        <div className="cbx-group">
-                                            {pageArticles.map(item => (
-                                                <button key={item.id} type="button" className="cbx-grow" onClick={() => store.set({ article: item })}>
-                                                    <FileText className="cbx-grow-icon" size={18} strokeWidth={1.7} aria-hidden />
-                                                    <span className="cbx-grow-label">{item.title}</span>
-                                                    <ChevronRight className="cbx-grow-trail" size={16} strokeWidth={1.8} aria-hidden />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </section>
-                                )}
-                                <div className="cbx-pbtns">
-                                    <button type="button" className="cbx-pbtn" onClick={() => void openChat(t('I would like to talk to a person.'), true)} disabled={!chatReady}>{t('Chat with support')}</button>
-                                    {portal !== undefined && (
-                                        <a className="cbx-pbtn" href={portal} target="_blank" rel="noopener">
-                                            {t('Help center')} <ArrowUpRight size={14} strokeWidth={1.8} aria-hidden />
-                                        </a>
-                                    )}
-                                </div>
-                            </>
-                        )}
-                        {help.enabled && help.sessionUrl !== undefined && (
-                            <div ref={chatHost} className="cbx-chat-host" data-view={article !== null ? 'article' : 'home'}>
-                                {createElement(SUPPORT_TAG, { 'session-url': help.sessionUrl, intent: intentJson })}
-                            </div>
-                        )}
+                    {view === 'chat' && context(true)}
+                    <div ref={body} className={`cbx-sheet-body ${view === 'chat' ? 'is-chat' : ''}`} data-cbx-sheet-scroll="" onScroll={event => onScroll(event.currentTarget.scrollTop)}>
+                        {content}
                     </div>
+                    {foot}
                 </div>
             </div>
         );
@@ -428,159 +613,101 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
             onKeyDown={event => {
                 if (event.key === 'Escape' && !event.defaultPrevented) {
                     event.preventDefault();
-                    toggleHelp(false);
+                    close();
                 }
                 if (!docked) trapTab(event, column.current);
             }}
         >
             <div className="cbx-help-head">
-                {article !== null ? (
-                    <button type="button" className="cbx-icon-button" onClick={() => store.set({ article: null })} aria-label={t('Back to Help')}>
+                {view !== 'home' ? (
+                    <button type="button" className="cbx-icon-button" onClick={back} aria-label={t('Back to Help')}>
                         <ArrowLeft size={18} strokeWidth={1.8} aria-hidden />
                     </button>
                 ) : (
                     <LifeBuoy className="cbx-help-mark" size={18} strokeWidth={1.8} aria-hidden />
                 )}
-                <h2 className="cbx-help-title">{t('Help')}</h2>
-                {portal !== undefined && (
-                    <a className="cbx-icon-button" href={portal} target="_blank" rel="noopener" aria-label={t('Support portal (opens in a new tab)')} title={t('Support portal')}>
-                        <ArrowUpRight size={18} strokeWidth={1.8} aria-hidden />
-                    </a>
-                )}
-                <button type="button" className="cbx-icon-button" onClick={() => toggleHelp(false)} aria-label={t('Close Help')}>
+                <h2 className="cbx-help-title">{view === 'article' ? t('Article') : view === 'chat' ? t('Ask Cbox') : t('Help')}</h2>
+                <button type="button" className="cbx-icon-button" onClick={close} aria-label={t('Close Help')}>
                     <X size={18} strokeWidth={1.8} aria-hidden />
                 </button>
             </div>
-            <p className="cbx-help-page">
-                <span className="cbx-help-page-label">{t('On this page')}</span>
-                <span className="cbx-truncate" title={[shell.page?.title, trail].filter(Boolean).join(' · ')}>
-                    {shell.page?.title !== undefined && <strong>{shell.page.title}</strong>}
-                    {shell.page?.title !== undefined && trail !== '' && ' · '}
-                    {trail}
-                </span>
-            </p>
-            <div ref={body} className="cbx-help-body" onScroll={event => store.set({ scrollTop: event.currentTarget.scrollTop })}>
-                {article !== null ? (
-                    <article className="cbx-help-article">
-                        <h3>{article.title}</h3>
-                        {(article.body ?? article.excerpt ?? '').split(/\n{2,}/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-                        {article.url !== undefined && (
-                            <a className="cbx-link" href={article.url} target="_blank" rel="noopener">
-                                {t('Open the full article')} <ArrowUpRight size={14} strokeWidth={1.8} aria-hidden />
-                            </a>
-                        )}
-                    </article>
-                ) : (
-                    <>
-                        {unavailable && (
-                            <div className="cbx-help-notice" role="status">
-                                <CircleAlert size={16} strokeWidth={1.8} aria-hidden />
-                                <span>{help.enabled ? t('Help is not available right now. The rest of the app works as usual.') : t('Help is not available here yet.')}</span>
-                                {help.enabled && <button type="button" className="cbx-link" onClick={() => { loadUpdates(); setArticles(current => ({ ...current, status: 'loading', topic: undefined })); }}>{t('Try again')}</button>}
-                            </div>
-                        )}
-                        {unread.length > 0 || updates.length > 0 ? (
-                            <section className="cbx-help-section" aria-labelledby="cbx-help-updates">
-                                <div className="cbx-pane-heading">
-                                    <span id="cbx-help-updates">{t('Support updates')}</span>
-                                    {unread.length > 0 && <button type="button" className="cbx-pane-all" onClick={() => unread.forEach(markRead)}>{t('Mark all read')}</button>}
-                                </div>
-                                <ul className="cbx-list" role="list">
-                                    {updates.map(update => (
-                                        <li key={update.id}>
-                                            <button type="button" className={`cbx-update ${update.unread ? 'is-unread' : ''}`} onClick={() => openUpdate(update)}>
-                                                {update.kind === 'chat' ? <MessageSquare size={16} strokeWidth={1.8} aria-hidden /> : <Ticket size={16} strokeWidth={1.8} aria-hidden />}
-                                                <span className="cbx-update-text">
-                                                    <span className="cbx-update-title cbx-truncate" title={update.title}>{update.title}</span>
-                                                    {update.excerpt !== undefined && <span className="cbx-update-excerpt">{update.excerpt}</span>}
-                                                </span>
-                                                <span className="cbx-update-meta">
-                                                    {update.at !== undefined && <time dateTime={update.at}>{formatDate(update.at)}</time>}
-                                                    {update.unread && <span className="cbx-unread-dot" aria-label={t('Unread')} />}
-                                                </span>
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </section>
-                        ) : null}
-                        <section className="cbx-help-section" aria-label={t('Search docs and knowledge base')}>
-                            <div className="cbx-help-search">
-                                <Search size={16} strokeWidth={1.8} aria-hidden />
-                                <input
-                                    ref={searchField}
-                                    type="search"
-                                    value={query}
-                                    onChange={event => store.set({ query: event.target.value })}
-                                    placeholder={t('Search docs and knowledge base')}
-                                    aria-label={t('Search docs and knowledge base')}
-                                    disabled={!help.enabled || help.searchUrl === undefined}
-                                />
-                            </div>
-                            {results !== null && (
-                                <ul className="cbx-list" role="list" aria-live="polite">
-                                    {results.items.map(item => (
-                                        <li key={item.id}><ArticleRow article={item} /></li>
-                                    ))}
-                                    {results.status === 'ready' && results.items.length === 0 && <li className="cbx-list-note">{t('Nothing matches “{query}”.', { query: results.q })}</li>}
-                                    {results.status === 'loading' && results.items.length === 0 && <li className="cbx-list-note">{t('Searching…')}</li>}
-                                </ul>
-                            )}
-                        </section>
-                        {help.topic !== undefined && pageArticles.length > 0 && (
-                            <section className="cbx-help-section" aria-labelledby="cbx-help-topic">
-                                <div className="cbx-pane-heading"><span id="cbx-help-topic">{t('For this page')}</span></div>
-                                <ul className="cbx-list" role="list">
-                                    {pageArticles.slice(0, 3).map(item => <li key={item.id}><ArticleRow article={item} /></li>)}
-                                </ul>
-                            </section>
-                        )}
-                        <section className="cbx-help-section" aria-labelledby="cbx-help-ask">
-                            <div className="cbx-pane-heading"><span id="cbx-help-ask">{t('Ask Cbox')}</span></div>
-                            <form className="cbx-ask" onSubmit={submit}>
-                                <textarea
-                                    className="cbx-input"
-                                    rows={3}
-                                    value={question}
-                                    onChange={event => setQuestion(event.target.value)}
-                                    placeholder={t('Ask about this page…')}
-                                    aria-label={t('Ask Cbox')}
-                                    disabled={!help.enabled || help.sessionUrl === undefined}
-                                    onKeyDown={event => {
-                                        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) submit(event);
-                                    }}
-                                />
-                                <button type="submit" className="cbx-button cbx-button-primary" disabled={!help.enabled || help.sessionUrl === undefined}>
-                                    <Sparkles size={15} strokeWidth={1.8} aria-hidden /> {t('Ask')}
-                                </button>
-                            </form>
-                            {chatProblem && <p className="cbx-create-error" role="alert">{t('The chat could not be opened. Try again, or use the support portal.')}</p>}
-                        </section>
-                    </>
-                )}
-                {/* The chat element sits outside the home/article switch, so opening an article
-                    (from the palette, "For this page" or a search) never unmounts it and the
-                    conversation survives (§7.1). */}
-                {help.enabled && help.sessionUrl !== undefined && (
-                    <div ref={chatHost} className="cbx-chat-host" data-view={article !== null ? 'article' : 'home'}>
-                        {createElement(SUPPORT_TAG, { 'session-url': help.sessionUrl, intent: intentJson })}
-                    </div>
-                )}
+            {view === 'chat' && context(true)}
+            <div ref={body} className={`cbx-help-body ${view === 'chat' ? 'is-chat' : ''}`} onScroll={event => onScroll(event.currentTarget.scrollTop)}>
+                {content}
             </div>
-            <div className="cbx-help-foot">
-                <button type="button" className="cbx-row cbx-row-action" onClick={() => void openChat(t('I would like to talk to a person.'), true)} disabled={!help.enabled || help.sessionUrl === undefined}>
-                    <UserRound size={16} strokeWidth={1.8} aria-hidden />
-                    <span className="cbx-row-name">{t('Talk to a person')}</span>
-                </button>
-                {portal !== undefined && (
-                    <a className="cbx-row cbx-row-action" href={portal} target="_blank" rel="noopener">
-                        <BookOpen size={16} strokeWidth={1.8} aria-hidden />
-                        <span className="cbx-row-name">{t('Support portal')}</span>
-                        <ArrowUpRight className="cbx-row-trail" size={14} strokeWidth={1.8} aria-hidden />
-                    </a>
-                )}
-            </div>
+            {foot}
         </div>
+    );
+}
+
+/** Whether the person has had a conversation in this organization on this device. Only a flag is kept. */
+const CHAT_FLAG = 'cbx-help-chat:';
+function knowsChat(key: string | null): boolean {
+    try {
+        return key !== null && localStorage.getItem(CHAT_FLAG + key) === '1';
+    } catch {
+        return false;
+    }
+}
+function rememberChat(key: string | null): void {
+    try {
+        if (key !== null) localStorage.setItem(CHAT_FLAG + key, '1');
+    } catch {
+        // No storage: the way back is offered for this visit only.
+    }
+}
+
+/**
+ * Help's one field, wherever the person types to Cbox: it grows with the text, Enter sends and
+ * Shift+Enter breaks the line. Enter that commits a dead key or an IME composition is not "send".
+ */
+function AskField({ value, onChange, onSubmit, placeholder, label, field }: { value: string; onChange: (value: string) => void; /** Absent: the field only searches, and has no send button. */ onSubmit?: () => void; placeholder: string; label: string; field?: Ref<HTMLTextAreaElement> }) {
+    const { t } = useShell();
+    const own = useRef<HTMLTextAreaElement | null>(null);
+    const fit = useCallback(() => {
+        const element = own.current;
+        if (element === null) return;
+        element.style.height = 'auto';
+        // Not on screen (Help is closed): there is nothing to measure, so the stylesheet's height stands.
+        element.style.height = element.scrollHeight > 0 ? `${Math.min(element.scrollHeight, 120)}px` : '';
+    }, []);
+    useLayoutEffect(fit, [value, fit]);
+    const empty = value.trim() === '';
+    const send = () => {
+        if (!empty) onSubmit?.();
+    };
+    return (
+        <form
+            className="cbx-askfield"
+            onSubmit={event => {
+                event.preventDefault();
+                send();
+            }}
+        >
+            <textarea
+                ref={element => {
+                    own.current = element;
+                    if (typeof field === 'function') field(element);
+                    else if (field != null) field.current = element;
+                }}
+                rows={1}
+                value={value}
+                onChange={event => onChange(event.target.value)}
+                placeholder={placeholder}
+                aria-label={label}
+                onFocus={fit}
+                onKeyDown={event => {
+                    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing || event.keyCode === 229) return;
+                    event.preventDefault();
+                    send();
+                }}
+            />
+            {onSubmit !== undefined && (
+                <button type="submit" className="cbx-askfield-send" aria-label={t('Ask')} disabled={empty}>
+                    <ArrowUp size={16} strokeWidth={2.2} aria-hidden />
+                </button>
+            )}
+        </form>
     );
 }
 
@@ -600,15 +727,33 @@ export function useShortDate(locale: string | undefined, timeZone: string | unde
     }, [format]);
 }
 
+/**
+ * An article's text: the body Assistant rendered (cleaned again here before it reaches the page),
+ * else its plain body or excerpt as paragraphs.
+ */
+function ArticleBody({ article, loaded }: { article: HelpArticle; loaded: { html: string | null; status: 'loading' | 'ready' } | null }) {
+    const { t } = useShell();
+    const html = article.bodyHtml ?? loaded?.html ?? null;
+    const clean = useMemo(() => (html === null ? '' : cleanArticleHtml(html)), [html]);
+    if (clean !== '') return <div className="cbx-help-prose" dangerouslySetInnerHTML={{ __html: clean }} />;
+    return (
+        <>
+            {(article.body ?? article.excerpt ?? '').split(/\n{2,}/).filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+            {loaded?.status === 'loading' && <p className="cbx-list-note" role="status">{t('Loading…')}</p>}
+        </>
+    );
+}
+
 function ArticleRow({ article }: { article: HelpArticle }) {
     const { openArticle } = useShell();
     return (
-        <button type="button" className="cbx-update" onClick={() => openArticle(article)}>
-            <BookOpen size={16} strokeWidth={1.8} aria-hidden />
-            <span className="cbx-update-text">
-                <span className="cbx-update-title cbx-truncate" title={article.title}>{article.title}</span>
-                {article.excerpt !== undefined && <span className="cbx-update-excerpt">{article.excerpt}</span>}
+        <button type="button" className={`cbx-grow ${article.excerpt !== undefined ? 'is-tall' : ''}`} onClick={() => openArticle(article)}>
+            <span className="cbx-tile is-plain" aria-hidden="true"><BookOpen size={16} strokeWidth={1.8} /></span>
+            <span className="cbx-grow-text">
+                <span className="cbx-grow-strong cbx-truncate" title={article.title}>{article.title}</span>
+                {article.excerpt !== undefined && <span className="cbx-grow-sub cbx-truncate">{article.excerpt}</span>}
             </span>
+            <ChevronRight className="cbx-grow-trail" size={16} strokeWidth={1.8} aria-hidden />
         </button>
     );
 }

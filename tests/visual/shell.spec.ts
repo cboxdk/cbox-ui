@@ -82,7 +82,7 @@ for (const theme of ['light', 'dark'] as const) {
             await page.getByRole('button', { name: /^Help/ }).click();
             await expect(page.getByRole('button', { name: /Deploy stuck/ })).toBeVisible();
             await expect(page.getByRole('button', { name: /Roll back a deployment/ })).toBeVisible();
-            await page.locator('#cbx-help input').first().blur();
+            await page.locator('#cbx-help textarea').blur();
             await settle(page);
             await expect(page).toHaveScreenshot(`${theme}-help.png`);
         });
@@ -138,7 +138,7 @@ for (const theme of ['light', 'dark'] as const) {
                 // focus, no search), and "On this page" follows the page.
                 await open(page, theme, '&help=1&page=releases');
                 await expect(page.getByRole('complementary', { name: 'Help' })).toBeVisible();
-                await expect(page.getByRole('complementary', { name: 'Help' }).getByText('Releases')).toBeVisible();
+                await expect(page.getByRole('complementary', { name: 'Help' }).getByRole('heading', { name: 'For Releases' })).toBeVisible();
                 await expect(page.getByRole('button', { name: /Deploy stuck/ })).toBeVisible();
                 await page.mouse.move(700, 450);
                 await settle(page);

@@ -60,7 +60,7 @@ describe('Help column (§7)', () => {
         const { user, rerender } = renderShell({ store });
         await user.click(screen.getByRole('button', { name: /^Help/ }));
         const column = screen.getByRole('complementary', { name: 'Help' });
-        await user.type(within(column).getByRole('searchbox', { name: 'Search docs and knowledge base' }), 'roll');
+        await user.type(within(column).getByRole('textbox', { name: 'Search or ask…' }), 'roll');
         expect(await within(column).findByRole('button', { name: /Roll back a deployment/ })).toBeTruthy();
         const chat = column.querySelector('cbox-support');
         expect(chat).not.toBeNull();
@@ -72,9 +72,9 @@ describe('Help column (§7)', () => {
 
         const after = screen.getByRole('complementary', { name: 'Help' });
         expect(after.hidden).toBe(false);
-        expect(within(after).getByRole('searchbox', { name: 'Search docs and knowledge base' })).toHaveProperty('value', 'roll');
+        expect(within(after).getByRole('textbox', { name: 'Search or ask…' })).toHaveProperty('value', 'roll');
         expect(after.querySelector('cbox-support')).toBe(chat);
-        expect(within(after).getByText('Servers')).toBeTruthy();
+        expect(within(after).getByText(/^Cbox sees this page: Servers in /)).toBeTruthy();
         expect(screen.getByRole('heading', { name: 'Servers' })).toBeTruthy();
     });
 
@@ -82,11 +82,11 @@ describe('Help column (§7)', () => {
         const store = createHelpStore();
         const first = renderShell({ store });
         await first.user.click(screen.getByRole('button', { name: /^Help/ }));
-        await first.user.type(screen.getByRole('searchbox', { name: 'Search docs and knowledge base' }), 'deploy');
+        await first.user.type(screen.getByRole('textbox', { name: 'Search or ask…' }), 'deploy');
         first.unmount();
         renderShell({ store });
         expect(screen.getByRole('complementary', { name: 'Help' }).hidden).toBe(false);
-        expect(screen.getByRole('searchbox', { name: 'Search docs and knowledge base' })).toHaveProperty('value', 'deploy');
+        expect(screen.getByRole('textbox', { name: 'Search or ask…' })).toHaveProperty('value', 'deploy');
     });
 
     it('starts open when the person left it open, and stores the choice', async () => {
@@ -110,7 +110,7 @@ describe('Help column (§7)', () => {
         await user.click(button);
         expect(document.getElementById('cbx-help')?.hidden).toBe(true);
         await user.click(button);
-        expect(document.activeElement).toBe(screen.getByRole('searchbox', { name: 'Search docs and knowledge base' }));
+        expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Search or ask…' }));
     });
 
     it('shows support updates, marks one read when opened, and offers articles for this page', async () => {
@@ -118,8 +118,7 @@ describe('Help column (§7)', () => {
         await user.click(screen.getByRole('button', { name: /^Help/ }));
         const column = screen.getByRole('complementary', { name: 'Help' });
         const ticket = await within(column).findByRole('button', { name: /Deploy stuck/ });
-        expect(within(column).getByText('On this page')).toBeTruthy();
-        expect(within(column).getByText(/Cbox \/ Webshop \/ Production/)).toBeTruthy();
+        expect(within(column).getByText('Cbox sees this page: Deployments in Cbox · Webshop · Production')).toBeTruthy();
         await user.click(ticket);
         expect(navigate).toHaveBeenCalledWith('https://support.cbox.dk/tickets/1042', { newTab: true });
         expect(calls.some(call => call.method === 'POST' && call.url === '/orgs/cbox/help/updates/upd_1/read')).toBe(true);
@@ -129,16 +128,20 @@ describe('Help column (§7)', () => {
         expect(within(column).getByRole('heading', { name: 'Deploy a project' })).toBeTruthy();
         expect(within(column).getByText('Every environment follows one branch.')).toBeTruthy();
         await user.click(within(column).getByRole('button', { name: 'Back to Help' }));
-        expect(within(column).getByRole('searchbox', { name: 'Search docs and knowledge base' })).toBeTruthy();
+        expect(within(column).getByRole('textbox', { name: 'Search or ask…' })).toBeTruthy();
     });
 
-    it('has the support portal in the header and the footer, and Talk to a person', async () => {
+    it('has one way to the support portal and one way to a person', async () => {
         const { user } = renderShell();
         await user.click(screen.getByRole('button', { name: /^Help/ }));
         const column = screen.getByRole('complementary', { name: 'Help' });
-        expect(within(column).getByRole('link', { name: 'Support portal (opens in a new tab)' }).getAttribute('href')).toBe('https://support.cbox.dk');
-        expect(within(column).getByRole('link', { name: 'Support portal' }).getAttribute('target')).toBe('_blank');
-        expect(within(column).getByRole('button', { name: 'Talk to a person' })).toBeTruthy();
+        const portal = within(column).getAllByRole('link', { name: /Support portal/ });
+        expect(portal).toHaveLength(1);
+        expect(portal[0]!.getAttribute('href')).toBe('https://support.cbox.dk');
+        expect(portal[0]!.getAttribute('target')).toBe('_blank');
+        expect(within(column).getAllByRole('button', { name: 'Talk to a person' })).toHaveLength(1);
+        // One field searches and asks; there is no second input beside it.
+        expect(within(column).getAllByRole('textbox')).toHaveLength(1);
     });
 
     it('says Help is unavailable when Assistant is down, and the shell still works', async () => {
@@ -161,7 +164,7 @@ describe('Help column (§7)', () => {
     it('gives the chat the page intent and sends a question to it', async () => {
         const { user } = renderShell();
         await user.click(screen.getByRole('button', { name: /^Help/ }));
-        await user.type(screen.getByRole('textbox', { name: 'Ask Cbox' }), 'Why did it fail?');
+        await user.type(screen.getByRole('textbox', { name: 'Search or ask…' }), 'Why did it fail?');
         await user.click(screen.getByRole('button', { name: 'Ask' }));
         await waitFor(() => expect(supportCalls).toHaveLength(1));
         expect(supportCalls[0]).toMatchObject({ method: 'ask', question: 'Why did it fail?', intent: { route: 'deployments.index', title: 'Deployments', context: 'Cbox / Webshop / Production' } });
