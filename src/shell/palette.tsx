@@ -6,6 +6,7 @@ import { helpTopicName } from './help';
 import { recentPages } from './recent';
 import { ToneSquare } from './context-menus';
 import { DEBOUNCE_MS, useContextList } from './use-list';
+import { helpEndpointState, helpRequest, helpSessionKey, HelpUnavailableError } from './help-api';
 import { parseArticles, type HelpArticle } from './help-store';
 import { resolveIcon } from './icons';
 import { navUrl } from './nav-pages';
@@ -100,7 +101,7 @@ function rows(body: unknown, group?: string): Array<Record<string, unknown>> {
  * near-full-screen sheet with Cancel.
  */
 export function CommandPalette({ onClose }: { onClose: () => void }) {
-    const { shell, t, navigate, switchTo, openArticle, ask, mobile, openContext, openCreate, canCreate, searchRecords } = useShell();
+    const { shell, t, help: helpStore, navigate, switchTo, openArticle, ask, mobile, openContext, openCreate, canCreate, searchRecords } = useShell();
     const [scope, setScope] = useState<PaletteScope>('all');
     const [input, setInput] = useState('');
     const [query, setQuery] = useState('');
@@ -223,9 +224,16 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             if (settled.every(result => result.status === 'rejected') && settled.length > 0) throw new Error('unavailable');
             return settled.flatMap(result => (result.status === 'fulfilled' ? result.value : []));
         });
-        if (shell.help.enabled && shell.help.searchUrl !== undefined) {
+        // The app's own search route, else Cbox Assistant's through the support session (help-api.ts).
+        if (helpEndpointState(shell.help, helpStore.get().session, helpSessionKey(shell), 'search') !== 'none') {
             run('docs', async () =>
-                parseArticles(await requestJson(withQuery(shell.help.searchUrl!, { q, topic: shell.help.topic }), { signal })).map((article: HelpArticle) => ({
+                parseArticles(
+                    await helpRequest(helpStore, shell, 'search', url => withQuery(url, { q, topic: shell.help.topic }), { signal }).catch((error: unknown) => {
+                        // The session has no search: there are no docs to list, which is not an error.
+                        if (error instanceof HelpUnavailableError) return [];
+                        throw error;
+                    }),
+                ).map((article: HelpArticle) => ({
                     id: `doc:${article.id}`,
                     title: article.title,
                     subtitle: article.excerpt,

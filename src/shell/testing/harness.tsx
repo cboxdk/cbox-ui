@@ -37,6 +37,9 @@ export function stubMedia({ pointer = 'fine', width = 1440, dark = false }: Envi
 /** What the stand-in for the Assistant SDK's `<cbox-support>` element was asked to do. */
 export const supportCalls: Array<{ method: 'open' | 'ask' | 'handover'; question?: string; intent?: unknown }> = [];
 
+/** What the stand-in answers: `undefined` like an older SDK, or whether the chat opened like a newer one. */
+export const supportAnswers: { ask: unknown } = { ask: undefined };
+
 /** Define a stand-in `<cbox-support>`, so no SDK script is loaded in a test. */
 export function defineFakeSupport(): void {
     if (typeof customElements === 'undefined' || customElements.get('cbox-support') !== undefined) return;
@@ -47,6 +50,7 @@ export function defineFakeSupport(): void {
         }
         ask(question: string, intent: unknown) {
             supportCalls.push({ method: 'ask', question, intent });
+            return supportAnswers.ask;
         }
         handover() {
             supportCalls.push({ method: 'handover', intent: this.intent });
@@ -61,7 +65,10 @@ export type Call = { method: string; url: string; body: unknown };
  * `fetch` answering from the fixture. `delays` holds paths that answer late (ms) and `fail`
  * paths that answer 503, so a test can make one group slow or one service unavailable.
  */
-export function stubFetch({ delays = {}, fail = [] }: { delays?: Record<string, number>; fail?: string[] } = {}): Call[] {
+/** A test's own answer for a request; `undefined` leaves it to the fixture. */
+export type Answer = (call: Call & { headers: Record<string, string>; credentials: RequestCredentials | undefined }) => { status: number; body: unknown } | undefined;
+
+export function stubFetch({ delays = {}, fail = [], answer: own }: { delays?: Record<string, number>; fail?: string[]; answer?: Answer } = {}): Call[] {
     const calls: Call[] = [];
     vi.stubGlobal('fetch', async (input: string, init: RequestInit = {}) => {
         const method = (init.method ?? 'GET').toUpperCase();
@@ -79,7 +86,7 @@ export function stubFetch({ delays = {}, fail = [] }: { delays?: Record<string, 
             });
         }
         if (fail.includes(path)) return new Response('{}', { status: 503, headers: { 'Content-Type': 'application/json' } });
-        const answer = fixtureAnswer(method, input, body);
+        const answer = own?.({ method, url: input, body, headers: (init.headers ?? {}) as Record<string, string>, credentials: init.credentials }) ?? fixtureAnswer(method, input, body);
         if (answer === undefined) return new Response('{"message":"Not found"}', { status: 404 });
         return new Response(answer.body === null ? '' : JSON.stringify(answer.body), { status: answer.status, headers: { 'Content-Type': 'application/json' } });
     });
@@ -110,6 +117,7 @@ export function renderShell({ shell = makeShell(), environment = {}, store = cre
 export function reset(): void {
     cleanup();
     supportCalls.length = 0;
+    supportAnswers.ask = undefined;
     forgetLists();
     forgetShellCatalog();
     vi.unstubAllGlobals();

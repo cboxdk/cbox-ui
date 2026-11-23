@@ -218,15 +218,16 @@ describe('Help on the phone (V6)', () => {
         await user.click(screen.getByRole('button', { name: /^Help with Invoices/ }));
         const sheet = screen.getByRole('dialog', { name: 'Help with Invoices' });
         expect(within(sheet).getByText('Cbox sees this page: Invoices in Cbox · Cbox · Production')).toBeTruthy();
-        expect(await within(sheet).findByRole('button', { name: /Dunning on Hubhus ApS.*1 new/ })).toBeTruthy();
-        expect(await within(sheet).findByRole('button', { name: 'How dunning retries work' })).toBeTruthy();
-        expect(headings(sheet)).toEqual(['Your conversations', 'For Invoices']);
-        expect(within(sheet).getByRole('link', { name: /Help center/ }).getAttribute('href')).toBe('https://support.cbox.dk');
-        expect(within(sheet).queryByRole('button', { name: 'Talk to a person' })).toBeNull();
-        await user.type(within(sheet).getByRole('textbox', { name: 'Ask Cbox' }), 'Why is it overdue?');
+        expect(await within(sheet).findByRole('button', { name: /Dunning on Hubhus ApS.*Unread/ })).toBeTruthy();
+        expect(await within(sheet).findByRole('button', { name: /^How dunning retries work/ })).toBeTruthy();
+        expect(within(sheet).getAllByRole('heading', { level: 3 }).map(heading => heading.textContent)).toEqual(['Support updates', 'For Invoices']);
+        // The same parts as the desktop column: one field, one way to the portal, one way to a person.
+        expect(within(sheet).getAllByRole('textbox')).toHaveLength(1);
+        expect(within(sheet).getAllByRole('link', { name: /Support portal/ }).map(link => link.getAttribute('href'))).toEqual(['https://support.cbox.dk']);
+        expect(within(sheet).getAllByRole('button', { name: 'Talk to a person' })).toHaveLength(1);
+        await user.type(within(sheet).getByRole('textbox', { name: 'Search or ask…' }), 'Why is it overdue?');
         await user.click(within(sheet).getByRole('button', { name: 'Ask' }));
         await waitFor(() => expect(supportCalls[0]).toMatchObject({ method: 'ask', question: 'Why is it overdue?' }));
-        // An AI answer always offers a person.
         await user.click(within(sheet).getByRole('button', { name: 'Talk to a person' }));
         await waitFor(() => expect(supportCalls.at(-1)).toMatchObject({ method: 'handover' }));
     });

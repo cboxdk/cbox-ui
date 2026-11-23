@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Fixed
+
+- Help search was disabled in every app: console-kit sends no `help.searchUrl`, `articlesUrl` or `updatesUrl`. Help now reads those endpoints from the support session (`help.sessionUrl`, laravel-assistant-client's `SupportSession::forUser()`) and calls Cbox Assistant from the browser with the session's identity as a bearer token, fetching a new one when it runs out. A URL in the `shell.help` prop still wins. With no endpoint, the search field is not drawn instead of being shown disabled. The palette's Help group searches the same way.
+- Assistant's grouped search answer (`{ groups: [{ source, data }] }`) is read, so results from docs, the help centre and the knowledge base all show.
+- Ask Cbox no longer loses the question: the field is emptied only when the chat has taken it, and stays as typed when the chat could not open.
+- A link in a chat answer to a page of the app is an app visit (`navigate`), so nothing reloads and the conversation stays open beside the page. Below 1280px Help steps aside for the page.
+
+### Changed
+
+- Help is one design on a desktop and a phone, built from the same parts. One field searches while the person types and asks Cbox when they send (Enter; Shift+Enter breaks the line; an Enter that commits a dead key or an IME does not send). It replaces the search input, the "Ask Cbox" textarea with its own button, and the phone's separate ask bar, which had three different looks.
+- One way to a person and one way to the support portal, in the footer. Removed: the portal icon in the header beside the footer link, the phone's "Chat with support" beside "Talk to a person" (both handed the chat over), and the phone's "Help center" link under another name. The footer is not shown beside the open chat, which has its own way to a person.
+- Support updates, search results and page articles are the same grouped rows in both layouts. "Continue the conversation" takes the person back to their chat once they have one.
+- The "On this page" block is one line, "Cbox sees this page: …", under the field and above the open chat.
+- Removed classes: `cbx-help-page`, `cbx-help-search`, `cbx-update*`, `cbx-ask`, `cbx-askbar*`, `cbx-pbtn*`, `cbx-help-section`. New: `cbx-askfield`, `cbx-help-heading`, `cbx-help-action`, `cbx-help-meta`.
+
+### Added
+
+- The chat renders inside the Help column (`<cbox-support inline="column">`, or `"sheet"` on a phone; laravel-assistant-client 0.3) with Back to Help, instead of a second dialog over the page. An older SDK keeps opening its own dialog.
+- An article from search or a topic list opens in the column with its body from Assistant's article endpoint (`article_url`), reduced to plain structure, http(s) links and https images before it reaches the page.
+
 ## 0.14.1 — 2026-11-19
 
 ### Fixed
