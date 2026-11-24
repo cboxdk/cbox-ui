@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.15.4 — 2026-11-24
 
 ### Fixed
 
 - A label inside a sentence ("New {thing}", "Create {thing}", "Discard {thing}?", "Search {things}", "Switch {thing}") keeps its case: only its first letter is lowered, a leading acronym ("API key") stays, and German keeps every capital. Lowercasing the whole label broke translated labels ("Domæne, I ejer" became "domæne, i ejer"; "Eigene Domain" became "eigene domain").
+- Help's footer keeps "Talk to a person" and "Support portal" inside their buttons on a phone in every language. A label longer than its half of the row ("Tal med et menneske" at 390px, German and Finnish at 320px, even English "Support portal" at 320px) ran out of its button into the other one. The two buttons now share the row while both labels fit, and otherwise each takes a full row; nothing is cut short. Desktop and English at 390px look as before.
 
 ## 0.15.3 — 2026-11-23
 

@@ -9,12 +9,15 @@
  * deployments: a page several screens tall). `fixture=billing` renders the Billing-shaped shell
  * of the V6 mockup instead, with `area=`, `pg=` (a page label) and `env=` (an environment id).
  * `controls=1` shows the form controls (Button, Field, Input, Checkbox, RadioGroup, Switch) in
- * every state; `dialog=1` opens the Dialog over them.
+ * every state; `dialog=1` opens the Dialog over them. With `fixture=billing`, `lang=da|de|fi`
+ * translates Help's footer (the words that run longest in other languages) and `portal=0` leaves
+ * the support portal out, as for an app without one.
  */
-import { StrictMode, useState } from 'react';
+import { StrictMode, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BarChart, WaterfallChart } from '../../src/charts';
 import { CboxShell, applyTheme } from '../../src/shell';
+import { CboxLocalizationProvider, interpolate } from '../../src/context/localization';
 import { ENVIRONMENTS, makeShell } from '../../src/shell/testing/fixture';
 import { makeBillingShell } from '../../src/shell/testing/billing';
 import { renderBillingCreate } from '../../src/shell/testing/billing-forms';
@@ -292,6 +295,24 @@ function BillingPage({ title }: { title: string }) {
     );
 }
 
+/** Help's footer in the languages whose words run longest; English when `lang` names none. */
+const FOOTER: Record<string, Record<string, string>> = {
+    da: { 'Talk to a person': 'Tal med et menneske', 'Support portal': 'Supportportal', 'Support portal (opens in a new tab)': 'Supportportal (åbner i en ny fane)' },
+    de: { 'Talk to a person': 'Mit einem Menschen sprechen', 'Support portal': 'Support-Portal', 'Support portal (opens in a new tab)': 'Support-Portal (öffnet in einem neuen Tab)' },
+    fi: { 'Talk to a person': 'Keskustele ihmisen kanssa', 'Support portal': 'Tukiportaali', 'Support portal (opens in a new tab)': 'Tukiportaali (avautuu uuteen välilehteen)' },
+};
+
+function Translated({ children }: { children: ReactNode }) {
+    const lang = params.get('lang') ?? '';
+    const catalog = FOOTER[lang];
+    if (catalog === undefined) return <>{children}</>;
+    return (
+        <CboxLocalizationProvider locale={lang} translate={(message, values) => interpolate(catalog[message] ?? message, values)}>
+            {children}
+        </CboxLocalizationProvider>
+    );
+}
+
 const navigateLog = (url: string, options?: unknown) => console.info('navigate', url, JSON.stringify(options ?? {}));
 
 if (params.get('fixture') === 'billing') {
@@ -303,11 +324,14 @@ if (params.get('fixture') === 'billing') {
         billing.context.levels[0]!.current = { ...billing.context.levels[0]!.current, name: 'Northwind Trading Company International' };
         billing.context.levels[2]!.current = { ...billing.context.levels[2]!.current, name: 'Production for the Nordic region' };
     }
+    if (params.get('portal') === '0') delete billing.help.portalUrl;
     createRoot(document.getElementById('root')!).render(
         <StrictMode>
+            <Translated>
             <CboxShell shell={billing} navigate={navigateLog} onPreferenceChange={() => undefined} renderCreate={renderBillingCreate}>
                 <BillingPage title={billing.page!.title} />
             </CboxShell>
+            </Translated>
         </StrictMode>,
     );
 } else {
