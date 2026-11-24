@@ -40,4 +40,11 @@ describe('a label inside a sentence', () => {
         expect(inSentence('Eigene Domain', 'de')).toBe('Eigene Domain');
         expect(inSentence('Organisation', 'de-AT')).toBe('Organisation');
     });
+
+    it('takes the locale as the app writes it, so a Laravel locale or none never breaks the shell', () => {
+        expect(inSentence('Domæne, I ejer', 'da_DK')).toBe('domæne, I ejer');
+        expect(inSentence('Chave de API', 'pt_BR')).toBe('chave de API');
+        expect(inSentence('Eigene Domain', 'de_CH')).toBe('Eigene Domain');
+        expect(inSentence('Status page', '')).toBe('status page');
+    });
 });
