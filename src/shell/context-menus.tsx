@@ -1,4 +1,5 @@
 import { Check, ChevronRight, Plus, Search, Settings } from 'lucide-react';
+import { inSentence, useCboxLocalization } from '../context/localization';
 import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
 import { createItem, environmentFor, initialsOf, pluralOf, settingsHref, ShellRequestError } from './data';
 import { canAutofocus } from './media';
@@ -64,6 +65,7 @@ type Option = { kind: 'item'; item: ContextItem } | { kind: 'more' };
  * the rows, so both work without a mouse (§12.2).
  */
 export function LevelPane({ level, parent, currentId, heading, viewAll = true, searchable = true, autoFocus = false, chevron = false, createLabel, onPick, onPreview, onArrowRight, onArrowLeft, handle, className }: PaneProps) {
+    const { locale } = useCboxLocalization();
     const { t, Link, navigate } = useShell();
     const [q, setQ] = useState('');
     const [active, setActiveRow] = useState(-1);
@@ -246,8 +248,8 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
                         aria-controls={listboxId}
                         aria-activedescendant={activeId}
                         aria-autocomplete="list"
-                        aria-label={t('Search {things}', { things: plural.toLowerCase() })}
-                        placeholder={t('Search {things}…', { things: plural.toLowerCase() })}
+                        aria-label={t('Search {things}', { things: inSentence(plural, locale) })}
+                        placeholder={t('Search {things}…', { things: inSentence(plural, locale) })}
                         value={q}
                         onChange={event => setQ(event.target.value)}
                         autoComplete="off"
@@ -337,6 +339,7 @@ export function LevelPane({ level, parent, currentId, heading, viewAll = true, s
 }
 
 function ListStatus({ status, empty, query, plural, onRetry }: { status: 'loading' | 'ready' | 'error'; empty: boolean; query: string; plural: string; onRetry: () => void }) {
+    const { locale } = useCboxLocalization();
     const { t } = useShell();
     if (status === 'error') {
         return (
@@ -348,7 +351,7 @@ function ListStatus({ status, empty, query, plural, onRetry }: { status: 'loadin
     }
     if (status === 'loading' && empty) return <div className="cbx-list-note" aria-live="polite">{t('Loading…')}</div>;
     if (status === 'ready' && empty) {
-        return <div className="cbx-list-note" aria-live="polite">{query.trim() === '' ? t('No {things} yet.', { things: plural.toLowerCase() }) : t('Nothing matches “{query}”.', { query: query.trim() })}</div>;
+        return <div className="cbx-list-note" aria-live="polite">{query.trim() === '' ? t('No {things} yet.', { things: inSentence(plural, locale) }) : t('Nothing matches “{query}”.', { query: query.trim() })}</div>;
     }
     return null;
 }
@@ -443,6 +446,7 @@ export async function pickKeepingEnvironment(outer: ContextLevel, inner: Context
 
 /** The organization menu (§5.3). */
 export function OrganizationMenu({ level }: { level: ContextLevel }) {
+    const { locale } = useCboxLocalization();
     const { t, switchTo } = useShell();
     return (
         <div className="cbx-menu cbx-menu-org">
@@ -451,7 +455,7 @@ export function OrganizationMenu({ level }: { level: ContextLevel }) {
                 currentId={level.current.id}
                 heading={pluralOf(level)}
                 autoFocus
-                createLabel={t('New {thing}', { thing: level.label.toLowerCase() })}
+                createLabel={t('New {thing}', { thing: inSentence(level.label, locale) })}
                 onPick={item => switchTo({ [level.key]: item.id })}
             />
         </div>
@@ -466,6 +470,7 @@ export function OrganizationMenu({ level }: { level: ContextLevel }) {
  * with `?parent=`, so an answer can never belong to another organization.
  */
 export function CascadeMenu({ levels, parent }: { levels: ContextLevel[]; parent?: string }) {
+    const { locale } = useCboxLocalization();
     const { t, switchTo } = useShell();
     const [outer, inner] = levels as [ContextLevel, ContextLevel | undefined];
     const [preview, setPreview] = useState<ContextItem>(outer.current);
@@ -481,7 +486,7 @@ export function CascadeMenu({ levels, parent }: { levels: ContextLevel[]; parent
                     currentId={outer.current.id}
                     heading={pluralOf(outer)}
                     autoFocus
-                    createLabel={t('New {thing}', { thing: outer.label.toLowerCase() })}
+                    createLabel={t('New {thing}', { thing: inSentence(outer.label, locale) })}
                     onPick={item => switchTo({ [outer.key]: item.id })}
                 />
             </div>
@@ -500,7 +505,7 @@ export function CascadeMenu({ levels, parent }: { levels: ContextLevel[]; parent
                 heading={pluralOf(outer)}
                 autoFocus
                 chevron
-                createLabel={t('New {thing}', { thing: outer.label.toLowerCase() })}
+                createLabel={t('New {thing}', { thing: inSentence(outer.label, locale) })}
                 onPick={item => void pickOuter(item)}
                 onPreview={setPreview}
                 onArrowRight={() => {
@@ -518,7 +523,7 @@ export function CascadeMenu({ levels, parent }: { levels: ContextLevel[]; parent
                 heading={t('{things} in {name}', { things: pluralOf(inner), name: preview.name })}
                 viewAll={false}
                 searchable={false}
-                createLabel={t('New {thing} in {name}', { thing: inner.label.toLowerCase(), name: preview.name })}
+                createLabel={t('New {thing} in {name}', { thing: inSentence(inner.label, locale), name: preview.name })}
                 onPick={item => switchTo({ [outer.key]: preview.id, [inner.key]: item.id })}
                 onArrowLeft={() => left.current?.focus()}
             />

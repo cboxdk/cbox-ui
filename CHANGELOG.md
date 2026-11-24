@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- A label inside a sentence ("New {thing}", "Create {thing}", "Discard {thing}?", "Search {things}", "Switch {thing}") keeps its case: only its first letter is lowered, a leading acronym ("API key") stays, and German keeps every capital. Lowercasing the whole label broke translated labels ("Domæne, I ejer" became "domæne, i ejer"; "Eigene Domain" became "eigene domain").
+
 ## 0.15.3 — 2026-11-23
 
 ### Added

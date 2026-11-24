@@ -1,4 +1,5 @@
 import { Check, Search } from 'lucide-react';
+import { inSentence, useCboxLocalization } from '../context/localization';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { canAutofocus } from './media';
 import { revealInList } from './popover';
@@ -58,6 +59,7 @@ export function rovingKeyDown(event: KeyboardEvent<HTMLElement>, container: HTML
  * density and keys as the context menus.
  */
 export function OptionList({ label, options, current, onPick, autoFocus = true }: { label: string; options: ShellOption[]; current?: string; onPick: (code: string) => void; autoFocus?: boolean }) {
+    const { locale } = useCboxLocalization();
     const { t } = useShell();
     const [q, setQ] = useState('');
     const id = useId();
@@ -110,7 +112,7 @@ export function OptionList({ label, options, current, onPick, autoFocus = true }
                     aria-expanded="true"
                     aria-controls={`${id}-list`}
                     aria-activedescendant={shown[active] !== undefined ? `${id}-${active}` : undefined}
-                    aria-label={t('Search {things}', { things: label.toLowerCase() })}
+                    aria-label={t('Search {things}', { things: inSentence(label, locale) })}
                     placeholder={t('Search…')}
                     value={q}
                     onChange={event => setQ(event.target.value)}
