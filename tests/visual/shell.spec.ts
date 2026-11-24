@@ -243,3 +243,41 @@ test('phone context pill cuts long names short of its chevron', async ({ page, i
         expect(await text.evaluate(element => element.scrollWidth > element.clientWidth), line).toBe(true);
     }
 });
+
+// Help's footer in the languages whose labels run longest, on the narrowest phones: each label
+// stays whole inside its own button, with nothing cut off and nothing reaching the other button.
+for (const lang of ['en', 'da', 'de', 'fi'] as const) {
+    for (const portal of [true, false]) {
+        test(`Help footer keeps its labels inside their buttons (${lang}${portal ? '' : ', no portal'})`, async ({ page, isMobile }) => {
+            test.skip(!isMobile, 'The phone is where the footer is narrowest.');
+            for (const width of [320, 360, 390]) {
+                await page.setViewportSize({ width, height: 844 });
+                await open(page, 'light', `&fixture=billing&lang=${lang}${portal ? '' : '&portal=0'}`);
+                await page.getByRole('button', { name: /^Help/ }).click();
+                const actions = page.locator('.cbx-help-sheet .cbx-help-foot .cbx-help-action');
+                await expect(actions).toHaveCount(portal ? 2 : 1);
+                const boxes = [];
+                for (const action of await actions.all()) {
+                    const box = (await action.boundingBox())!;
+                    // Every icon and every line of the label lies inside the button.
+                    const inside = await action.evaluate((element) => {
+                        const outer = element.getBoundingClientRect();
+                        const range = document.createRange();
+                        range.selectNodeContents(element);
+                        return [...range.getClientRects()].every((r) => r.left >= outer.left - 0.5 && r.right <= outer.right + 0.5 && r.top >= outer.top - 0.5 && r.bottom <= outer.bottom + 0.5)
+                            && element.scrollWidth <= element.clientWidth;
+                    });
+                    expect(inside, `${lang} at ${width}px: ${await action.textContent()}`).toBe(true);
+                    expect(box.x + box.width, `${lang} at ${width}px`).toBeLessThanOrEqual(width);
+                    boxes.push(box);
+                }
+                if (boxes.length === 2) {
+                    const [a, b] = boxes as [NonNullable<typeof boxes[0]>, NonNullable<typeof boxes[0]>];
+                    const apart = a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
+                    expect(apart, `${lang} at ${width}px: the buttons overlap`).toBe(true);
+                }
+                expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${lang} at ${width}px: sideways scroll`).toBe(true);
+            }
+        });
+    }
+}
