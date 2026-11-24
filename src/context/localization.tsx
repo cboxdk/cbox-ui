@@ -34,3 +34,17 @@ export function useCboxLocalization() {
 function defaultDate(value: string): string {
     return new Date(value).toLocaleString();
 }
+
+/**
+ * A label as a word inside a sentence ("New {thing}", "Discard {thing}?"): its first letter in
+ * lower case, nothing else. A label that starts with an acronym ("API key", "DNS record") keeps
+ * it, and German keeps every capital because its nouns are written with one. Lowercasing the whole
+ * label broke a catalog's own capitals ("Domæne, I ejer" became "domæne, i ejer").
+ */
+export function inSentence(label: string, locale: string): string {
+    const language = locale.toLowerCase().split(/[-_]/)[0];
+    if (language === 'de' || language === 'lb') return label;
+    const [first = '', second = ''] = Array.from(label);
+    if (second !== '' && second !== second.toLowerCase()) return label;
+    return first.toLocaleLowerCase(locale) + label.slice(first.length);
+}

@@ -1,4 +1,5 @@
 import { ArrowLeftRight, ArrowRight, BookOpen, Building2, Clock, CornerDownLeft, FileText, Plus, Search, Sparkles, Zap } from 'lucide-react';
+import { inSentence, useCboxLocalization } from '../context/localization';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { environmentLevel, initialsOf, requestJson, safeUrl, withQuery } from './data';
 import { findCreatable } from './create';
@@ -101,6 +102,7 @@ function rows(body: unknown, group?: string): Array<Record<string, unknown>> {
  * near-full-screen sheet with Cancel.
  */
 export function CommandPalette({ onClose }: { onClose: () => void }) {
+    const { locale } = useCboxLocalization();
     const { shell, t, help: helpStore, navigate, switchTo, openArticle, ask, mobile, openContext, openCreate, canCreate, searchRecords } = useShell();
     const [scope, setScope] = useState<PaletteScope>('all');
     const [input, setInput] = useState('');
@@ -286,7 +288,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     const createItem = (key: string): PaletteItem | null => {
         const creatable = findCreatable(shell, key);
         if (creatable === undefined || !canCreate) return null;
-        return { id: `create:${key}`, title: t('New {thing}', { thing: creatable.label.toLowerCase() }), kind: 'actions', icon: <Plus size={16} strokeWidth={1.8} aria-hidden />, run: () => { onClose(); openCreate(key); } };
+        return { id: `create:${key}`, title: t('New {thing}', { thing: inSentence(creatable.label, locale) }), kind: 'actions', icon: <Plus size={16} strokeWidth={1.8} aria-hidden />, run: () => { onClose(); openCreate(key); } };
     };
     const pageCreate = shell.page?.create !== undefined ? createItem(shell.page.create) : null;
     const pageActions = [...(pageCreate !== null ? [pageCreate] : []), ...(shell.page?.actions ?? []).map(action => toItem(action, 'page'))];
@@ -313,7 +315,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     if (organization !== undefined) {
         switchItems.push({
             id: 'switch:organization',
-            title: t('Switch {thing}', { thing: organization.label.toLowerCase() }),
+            title: t('Switch {thing}', { thing: inSentence(organization.label, locale) }),
             subtitle: t('Now {name}', { name: organization.current.name }),
             kind: 'actions',
             icon: <ArrowLeftRight size={16} strokeWidth={1.8} aria-hidden />,

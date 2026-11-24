@@ -1,4 +1,5 @@
 import { ArrowUpRight, Bell, Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, LayoutGrid, Lock, MoreHorizontal, Plus, Search } from 'lucide-react';
+import { inSentence, useCboxLocalization } from '../context/localization';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Avatar } from './account-menu';
 import { AppGrid, hueFor } from './app-grid';
@@ -47,6 +48,7 @@ function useUnread(): number {
 /** The phone's top bar (V6): the context pill, then Help, Search and the page's "+". */
 export function MobileTopBar() {
     const { shell, t, openContext, toggleHelp, setOverlay, openCreate, canCreate, overlay } = useShell();
+    const { locale } = useCboxLocalization();
     const apps = useRef<HTMLButtonElement>(null);
     const levels = shell.context.levels;
     const organization = levels[0];
@@ -82,7 +84,7 @@ export function MobileTopBar() {
             </button>
             <Popover open={overlay === 'apps'} anchor={apps} placement="bottom-end" label={t('Switch app')} onClose={() => setOverlay(null)}><AppGrid /></Popover>
             {canCreate && (
-                <button type="button" className="cbx-m-icon is-primary" onClick={() => openCreate()} aria-haspopup="dialog" aria-label={createLabel(shell, t)}>
+                <button type="button" className="cbx-m-icon is-primary" onClick={() => openCreate()} aria-haspopup="dialog" aria-label={createLabel(shell, t, locale)}>
                     <Plus size={22} strokeWidth={2} aria-hidden />
                 </button>
             )}
@@ -517,6 +519,7 @@ export type { MoreView };
  */
 export function ContextSheet({ onClose }: { onClose: () => void }) {
     const { shell, t, switchTo, contextStep } = useShell();
+    const { locale } = useCboxLocalization();
     const [step, setStep] = useState<ContextStep['step']>(contextStep.step);
     const direct = contextStep.direct;
     const levels = shell.context.levels;
@@ -548,7 +551,7 @@ export function ContextSheet({ onClose }: { onClose: () => void }) {
                         parent={parent?.current.id}
                         currentId={level.current.id}
                         heading={pluralOf(level)}
-                        createLabel={t('New {thing}', { thing: level.label.toLowerCase() })}
+                        createLabel={t('New {thing}', { thing: inSentence(level.label, locale) })}
                         onPick={item => (index === 0 ? switchTo({ [level.key]: item.id }) : void pickKeepingEnvironment(level, inner, item, switchTo))}
                     />
                 </div>
@@ -565,6 +568,7 @@ export function ContextSheet({ onClose }: { onClose: () => void }) {
 
 function ContextRoot({ onStep }: { onStep: (step: ContextStep['step']) => void }) {
     const { shell, t, switchTo } = useShell();
+    const { locale } = useCboxLocalization();
     const levels = shell.context.levels;
     const environment = environmentLevel(levels);
     const above = levels.filter(level => level !== environment);
@@ -605,7 +609,7 @@ function ContextRoot({ onStep }: { onStep: (step: ContextStep['step']) => void }
                             );
                         })}
                         <button type="button" className="cbx-grow is-accent" onClick={() => onStep('environments')}>
-                            <span className="cbx-grow-label">{list.status === 'ready' && !list.hasMore ? t('All {count} {things}', { count: list.items.length, things: pluralOf(environment).toLowerCase() }) : t('All {things}', { things: pluralOf(environment).toLowerCase() })}</span>
+                            <span className="cbx-grow-label">{list.status === 'ready' && !list.hasMore ? t('All {count} {things}', { count: list.items.length, things: inSentence(pluralOf(environment), locale) }) : t('All {things}', { things: inSentence(pluralOf(environment), locale) })}</span>
                             <Trail />
                         </button>
                     </div>
@@ -618,6 +622,7 @@ function ContextRoot({ onStep }: { onStep: (step: ContextStep['step']) => void }
 /** Every environment, searchable, under the app's groups, with a check on the current one. */
 export function EnvironmentList({ level, parent, parentName, onPick }: { level: ContextLevel; parent?: string; parentName?: string; onPick: (item: ContextItem) => void }) {
     const { t } = useShell();
+    const { locale } = useCboxLocalization();
     const [q, setQ] = useState('');
     const [creating, setCreating] = useState(false);
     const list = useContextList(level.listUrl, { q, parent });
@@ -626,7 +631,7 @@ export function EnvironmentList({ level, parent, parentName, onPick }: { level: 
         <div className="cbx-env-list">
             <label className="cbx-field-search">
                 <Search size={18} strokeWidth={1.8} aria-hidden />
-                <input type="search" value={q} onChange={event => setQ(event.target.value)} placeholder={t('Search {things}', { things: plural.toLowerCase() })} aria-label={t('Search {things}', { things: plural.toLowerCase() })} autoComplete="off" />
+                <input type="search" value={q} onChange={event => setQ(event.target.value)} placeholder={t('Search {things}', { things: inSentence(plural, locale) })} aria-label={t('Search {things}', { things: inSentence(plural, locale) })} autoComplete="off" />
             </label>
             {groupItems(list.items).map((run, index) => (
                 <section key={run.group ?? `run-${index}`} aria-label={run.group ?? plural}>
@@ -661,17 +666,17 @@ export function EnvironmentList({ level, parent, parentName, onPick }: { level: 
                     {t('{things} could not be loaded.', { things: plural })} <button type="button" className="cbx-link" onClick={list.retry}>{t('Try again')}</button>
                 </p>
             )}
-            {list.status === 'ready' && list.items.length === 0 && <p className="cbx-list-note" aria-live="polite">{q.trim() === '' ? t('No {things} yet.', { things: plural.toLowerCase() }) : t('Nothing matches “{query}”.', { query: q.trim() })}</p>}
+            {list.status === 'ready' && list.items.length === 0 && <p className="cbx-list-note" aria-live="polite">{q.trim() === '' ? t('No {things} yet.', { things: inSentence(plural, locale) }) : t('Nothing matches “{query}”.', { query: q.trim() })}</p>}
             {level.createUrl !== undefined && (
                 <div className="cbx-group">
                     {creating ? (
                         <div className="cbx-grow is-static">
-                            <InlineCreate level={level} parent={parent} label={parentName !== undefined ? t('New {thing} in {name}', { thing: level.label.toLowerCase(), name: parentName }) : t('New {thing}', { thing: level.label.toLowerCase() })} onCancel={() => setCreating(false)} />
+                            <InlineCreate level={level} parent={parent} label={parentName !== undefined ? t('New {thing} in {name}', { thing: inSentence(level.label, locale), name: parentName }) : t('New {thing}', { thing: inSentence(level.label, locale) })} onCancel={() => setCreating(false)} />
                         </div>
                     ) : (
                         <button type="button" className="cbx-grow is-accent" onClick={() => setCreating(true)}>
                             <Plus size={16} strokeWidth={1.8} aria-hidden />
-                            <span className="cbx-grow-label">{t('New {thing}', { thing: level.label.toLowerCase() })}</span>
+                            <span className="cbx-grow-label">{t('New {thing}', { thing: inSentence(level.label, locale) })}</span>
                         </button>
                     )}
                 </div>
