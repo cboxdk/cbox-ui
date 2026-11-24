@@ -4,13 +4,35 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { PageHeader } from '../primitives/page-header';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { renderShell, reset, supportCalls } from './testing/harness';
+import { renderShell, reset, supportCalls, stubMedia, stubFetch } from './testing/harness';
+import { useState } from 'react';
 import { ENVIRONMENTS, makeShell } from './testing/fixture';
 import { createHelpStore } from './help-store';
 import { CboxShell, applyTheme, themeBootScript } from './shell';
 import { hueFor, parseShellCatalog } from './app-grid';
 
 afterEach(reset);
+
+it('preserves an open editor and its draft across both responsive breakpoints', async () => {
+    function Page() {
+        const [open, setOpen] = useState(false);
+        const [value, setValue] = useState('');
+        return <><button onClick={() => setOpen(true)}>Edit terms</button>{open && <section aria-label="Terms editor"><label>Terms<input value={value} onChange={event => setValue(event.target.value)} /></label></section>}</>;
+    }
+    stubMedia({ width: 1280 });
+    stubFetch();
+    const shell = makeShell();
+    const tree = () => <CboxShell shell={shell} navigate={() => {}}><Page /></CboxShell>;
+    const view = render(tree());
+    const { fireEvent } = await import('@testing-library/react');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit terms' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Terms' }), { target: { value: 'Unsaved partner terms' } });
+    for (const width of [390, 1280]) {
+        stubMedia({ width });
+        view.rerender(tree());
+        expect((screen.getByRole('textbox', { name: 'Terms' }) as HTMLInputElement).value).toBe('Unsaved partner terms');
+    }
+});
 
 describe('header (§4.3)', () => {
     it('puts Search, Help, the bell and Switch app on the right, in that order', () => {

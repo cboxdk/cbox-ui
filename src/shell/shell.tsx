@@ -282,58 +282,32 @@ export function CboxShell({ shell, children, navigate = defaultNavigate, LinkCom
         </>
     );
 
-    if (mobile) {
-        // More stays on screen under the sheets it opens (Switch app, a context step).
-        const moreOpen = overlay === 'more' || overlay === 'apps-sheet' || (overlay === 'context-sheet' && contextStep.underMore === true);
-        return (
-            <ShellContext.Provider value={api}>
-                <div className="cbx-shell is-mobile" data-help-open={helpOpen}>
-                    {skip}
-                    <div className="cbx-shell-column">
-                        <header className="cbx-m-chrome" hidden={moreOpen}>
-                            <MobileTopBar />
-                            <MobileAreaHead />
-                            {strips}
-                        </header>
-                        <main id={mainId} tabIndex={-1} className="cbx-shell-main canvas-gradient">
-                            {moreOpen && <MoreScreen view={moreView} setView={setMoreView} />}
-                            {/* The page stays mounted under More, so its state survives. */}
-                            <MobilePage hidden={moreOpen}>{children}</MobilePage>
-                        </main>
-                    </div>
-                    <TabBar
-                        onMore={() => {
-                            setMoreView({ kind: 'root' });
-                            setOverlay('more');
-                        }}
-                    />
-                    <HelpColumn docked={false} mobile />
-                    {overlays}
-                </div>
-            </ShellContext.Provider>
-        );
-    }
-
+    // Keep the page's ancestors stable across rotation, split view and window resizing.
+    const moreOpen = mobile && (overlay === 'more' || overlay === 'apps-sheet' || (overlay === 'context-sheet' && contextStep.underMore === true));
     return (
         <ShellContext.Provider value={api}>
-            <div className="cbx-shell" data-help-open={helpOpen}>
+            <div className={`cbx-shell${mobile ? ' is-mobile' : ''}`} data-help-open={helpOpen}>
                 {skip}
-                <Rail brandAssetBase={brandAssetBase} />
+                {!mobile && <Rail brandAssetBase={brandAssetBase} />}
                 <div className="cbx-shell-column">
-                    <Header />
+                    {mobile ? <header className="cbx-m-chrome" hidden={moreOpen}><MobileTopBar /><MobileAreaHead /></header> : <Header />}
                     {envBanner !== null && (
                         <div className={`cbx-banner cbx-banner-env cbx-env-${envBanner.tone ?? 'neutral'}`} role="status">
                             <ToneSquare tone={envBanner.tone} />
                             <span className="cbx-banner-text">{t('{environment}. Not production, nothing here touches live customers.', { environment: envBanner.name })}</span>
                         </div>
                     )}
-                    {strips}
+                    <div hidden={moreOpen}>{strips}</div>
                     <div className="cbx-shell-body">
-                        <Subnav />
-                        <main id={mainId} tabIndex={-1} className="cbx-shell-main canvas-gradient">{children}</main>
+                        {!mobile && <Subnav />}
+                        <main id={mainId} tabIndex={-1} className="cbx-shell-main canvas-gradient">
+                            {moreOpen && <MoreScreen view={moreView} setView={setMoreView} />}
+                            <MobilePage hidden={moreOpen}>{children}</MobilePage>
+                        </main>
                     </div>
                 </div>
-                <HelpColumn docked={docked} />
+                {mobile && <TabBar onMore={() => { setMoreView({ kind: 'root' }); setOverlay('more'); }} />}
+                <HelpColumn docked={!mobile && docked} mobile={mobile} />
                 {overlays}
             </div>
         </ShellContext.Provider>

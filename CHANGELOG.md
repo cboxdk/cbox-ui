@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.5 — 2026-11-24
+
+### Fixed
+
+- Open editors and unsaved page state survive switching between mobile and desktop widths. The shell keeps the page mounted across the 768px breakpoint during rotation, split view and window resizing.
+
 ## 0.15.4 — 2026-11-24
 
 ### Fixed
