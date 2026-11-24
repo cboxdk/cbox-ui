@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronRight, Plus, Search } from 'lucide-react';
+import { inSentence, useCboxLocalization } from '../context/localization';
 import { useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Dialog } from '../primitives/sheet';
 import { Button } from '../primitives/button';
@@ -59,9 +60,9 @@ export function pageCreateKey(shell: Shell): string | null {
 }
 
 /** "+"'s accessible name: "New invoice" on a page that creates invoices, else "Create". */
-export function createLabel(shell: Shell, t: (key: string, replace?: Record<string, string | number>) => string): string {
+export function createLabel(shell: Shell, t: (key: string, replace?: Record<string, string | number>) => string, locale = 'en'): string {
     const own = findCreatable(shell, shell.page?.create);
-    return own !== undefined ? t('New {thing}', { thing: own.label.toLowerCase() }) : t('Create');
+    return own !== undefined ? t('New {thing}', { thing: inSentence(own.label, locale) }) : t('Create');
 }
 
 /**
@@ -73,6 +74,7 @@ export function createLabel(shell: Shell, t: (key: string, replace?: Record<stri
  */
 export function CreateSheet({ onClose }: { onClose: () => void }) {
     const { shell, t, mobile, createKey, renderCreate } = useShell();
+    const { locale } = useCboxLocalization();
     const [stack, setStack] = useState<Entry[]>(() => (findCreatable(shell, createKey) !== undefined ? [{ kind: 'tree' }, { kind: 'form', key: createKey! }] : [{ kind: 'tree' }]));
     const guards = useRef(new Map<Entry, { dirty: boolean; busy: boolean }>());
     const [leaving, setLeaving] = useState<'top' | 'all' | null>(null);
@@ -98,7 +100,7 @@ export function CreateSheet({ onClose }: { onClose: () => void }) {
         else pop();
         return true;
     };
-    const title = top.kind === 'tree' ? t('Create') : t('New {thing}', { thing: name(top).toLowerCase() });
+    const title = top.kind === 'tree' ? t('Create') : t('New {thing}', { thing: inSentence(name(top), locale) });
 
     return (
         <Sheet
@@ -126,7 +128,7 @@ export function CreateSheet({ onClose }: { onClose: () => void }) {
                 const form: ShellCreateForm = {
                     creatable,
                     parent,
-                    submitLabel: parent !== null ? t('Create and use in {thing}', { thing: parent.label.toLowerCase() }) : (creatable.submitLabel ?? t('Create {thing}', { thing: creatable.label.toLowerCase() })),
+                    submitLabel: parent !== null ? t('Create and use in {thing}', { thing: inSentence(parent.label, locale) }) : (creatable.submitLabel ?? t('Create {thing}', { thing: inSentence(creatable.label, locale) })),
                     createRef: (key, onCreated) => {
                         if (findCreatable(shell, key) === undefined) return;
                         const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
@@ -155,7 +157,7 @@ export function CreateSheet({ onClose }: { onClose: () => void }) {
             <Dialog
                 open={leaving !== null}
                 onOpenChange={open => { if (!open) setLeaving(null); }}
-                title={leaving === 'all' ? t('Discard this creation flow?') : t('Discard {thing}?', { thing: name(top).toLowerCase() })}
+                title={leaving === 'all' ? t('Discard this creation flow?') : t('Discard {thing}?', { thing: inSentence(name(top), locale) })}
                 description={leaving === 'all' ? t('Unsaved entries in every task will be lost.') : t('Only this task is discarded. The task underneath keeps its values.')}
                 footer={<>
                     <Button onClick={() => setLeaving(null)}>{t('Keep editing')}</Button>
@@ -231,6 +233,7 @@ export function CreateField({ label, children, htmlFor }: { label: string; child
  */
 export function CreateRefField({ label, value, placeholder, thing, onChoose, onCreate }: { label: string; value?: string | null; placeholder: string; thing: string; onChoose?: () => void; onCreate: () => void }) {
     const { t } = useShell();
+    const { locale } = useCboxLocalization();
     const id = useId();
     return (
         <div className="cbx-cfield" role="group" aria-labelledby={id}>
@@ -242,7 +245,7 @@ export function CreateRefField({ label, value, placeholder, thing, onChoose, onC
                 </button>
                 <button type="button" className="cbx-grow is-accent" onClick={onCreate}>
                     <Plus size={16} strokeWidth={1.8} aria-hidden />
-                    <span className="cbx-grow-label">{t('New {thing}', { thing: thing.toLowerCase() })}</span>
+                    <span className="cbx-grow-label">{t('New {thing}', { thing: inSentence(thing, locale) })}</span>
                 </button>
             </div>
         </div>
