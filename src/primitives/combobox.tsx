@@ -6,11 +6,13 @@ import {
     useMemo,
     useRef,
     useState,
+    type AriaAttributes,
     type ComponentType,
     type KeyboardEvent,
     type ReactNode,
 } from 'react';
 import { cn } from '../utils/cn';
+import { useFieldControl } from './field';
 
 /**
  * Combobox — the canonical select replacement for the Cbox suite.
@@ -90,7 +92,7 @@ type LinkComp = ComponentType<{
     children: ReactNode;
 }>;
 
-type CommonProps = {
+type CommonProps = Pick<AriaAttributes, 'aria-describedby' | 'aria-invalid'> & {
     /** Options or grouped options. Pass an array of either shape. */
     items: ComboboxOption[] | ComboboxGroup[];
     /** Placeholder shown in the trigger when no value is selected. */
@@ -148,6 +150,7 @@ export type ComboboxProps = ValueModeProps | NavModeProps;
 
 export function Combobox(props: ComboboxProps) {
     const { t } = useCboxLocalization();
+    const field = useFieldControl();
     const {
         items,
         placeholder = t('Select…'),
@@ -155,7 +158,7 @@ export function Combobox(props: ComboboxProps) {
         emptyText = t('Nothing matches.'),
         footerLink,
         disabled = false,
-        required = false,
+        required = field.required ?? false,
         ariaLabel,
         triggerClassName,
         panelClassName,
@@ -183,10 +186,11 @@ export function Combobox(props: ComboboxProps) {
     const [highlightIndex, setHighlightIndex] = useState(-1);
 
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const triggerRef = useRef<HTMLButtonElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
     const listRef = useRef<HTMLUListElement | null>(null);
     const reactId = useId();
-    const id = idProp ?? reactId;
+    const id = idProp ?? field.id ?? reactId;
     const listId = `${id}-listbox`;
 
     // Filtered groups (preserves group structure for headings).
@@ -252,6 +256,7 @@ export function Combobox(props: ComboboxProps) {
             }
 
             if (props.onChange !== undefined) {
+                triggerRef.current?.focus();
                 props.onChange(opt.value);
             }
             setOpen(false);
@@ -304,11 +309,6 @@ export function Combobox(props: ComboboxProps) {
                 }
                 return;
             }
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                setOpen(false);
-                return;
-            }
             if (event.key === 'Tab') {
                 setOpen(false);
                 return;
@@ -321,8 +321,17 @@ export function Combobox(props: ComboboxProps) {
         <div
             ref={containerRef}
             className={cn('relative', triggerWidth === 'full' && 'w-full', className)}
+            onKeyDown={(event) => {
+                if (open && event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setOpen(false);
+                    triggerRef.current?.focus();
+                }
+            }}
         >
             <button
+                ref={triggerRef}
                 id={id}
                 type="button"
                 role="combobox"
@@ -332,6 +341,8 @@ export function Combobox(props: ComboboxProps) {
                 aria-controls={listId}
                 aria-required={required}
                 aria-label={ariaLabel}
+                aria-describedby={props['aria-describedby'] ?? field['aria-describedby']}
+                aria-invalid={props['aria-invalid'] ?? field['aria-invalid']}
                 onClick={() => setOpen((v) => ! v)}
                 className={cn(
                     'flex h-9 items-center gap-2 rounded-md border border-input bg-card px-3 text-left text-[13px] text-foreground transition-colors',
