@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.6 — 2026-11-26
+
+### Fixed
+
+- Combobox inherits its Field's label, required state, hint and validation error. Explicit control attributes still take precedence.
+- Escape closes only the open Combobox and returns focus to its trigger. Selecting a value also returns focus; clicking outside keeps focus on the clicked control.
+
 ## 0.15.5 — 2026-11-24
 
 ### Fixed
