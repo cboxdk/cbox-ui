@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Activity } from 'lucide-react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Combobox } from '../../src/primitives/combobox';
+import { Field } from '../../src/primitives/field';
 import { SectionHeader } from '../../src/primitives/data-panel';
 import { StatTile } from '../../src/primitives/stat-tile';
 import { StatusPill } from '../../src/primitives/status-pill';
@@ -52,5 +54,43 @@ describe('Combobox on a phone', () => {
         const field = document.querySelector('input')!;
         expect(field.className.split(' ')).toEqual(expect.arrayContaining(['text-base', 'md:text-[13px]']));
         expect(field.className).not.toMatch(/(^|\s)text-\[13px\]/);
+    });
+});
+
+describe('Combobox field and focus', () => {
+    it('inherits its label, description and validation state from Field', () => {
+        const { rerender } = render(<Field label="Customer" required hint="Choose the account" error="Customer is required"><Combobox items={[]} value={null} onChange={() => undefined} /></Field>);
+        const trigger = screen.getByRole('combobox', { name: 'Customer (required)' });
+        expect(trigger.getAttribute('aria-required')).toBe('true');
+        expect(trigger.getAttribute('aria-invalid')).toBe('true');
+        const descriptions = trigger.getAttribute('aria-describedby')!.split(' ').map(id => document.getElementById(id)?.textContent);
+        expect(descriptions).toEqual(['Choose the account', 'Customer is required']);
+        rerender(<Field label="Customer" error="Inherited error"><Combobox id="explicit" ariaLabel="Account" aria-describedby="external-hint" aria-invalid={false} required={false} items={[]} value={null} onChange={() => undefined} /></Field>);
+        const overridden = screen.getByRole('combobox', { name: 'Account' });
+        expect(overridden.id).toBe('explicit');
+        expect(overridden.getAttribute('aria-describedby')).toBe('external-hint');
+        expect(overridden.getAttribute('aria-invalid')).toBe('false');
+        expect(overridden.getAttribute('aria-required')).toBe('false');
+    });
+
+    it('returns focus on Escape and selection, but not when clicking away', async () => {
+        const user = userEvent.setup();
+        render(<><Combobox items={[{ value: 'a', label: 'Alpha' }]} value={null} onChange={() => undefined} ariaLabel="Customer" /><button>Next</button></>);
+        const trigger = screen.getByRole('combobox', { name: 'Customer' });
+        await user.click(trigger);
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('listbox')).toBeNull();
+        expect(document.activeElement).toBe(trigger);
+        await user.click(trigger);
+        await user.click(screen.getByRole('button', { name: 'Alpha' }));
+        expect(document.activeElement).toBe(trigger);
+        await user.click(trigger);
+        screen.getByRole('button', { name: 'Alpha' }).focus();
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('listbox')).toBeNull();
+        expect(document.activeElement).toBe(trigger);
+        await user.click(trigger);
+        await user.click(screen.getByRole('button', { name: 'Next' }));
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Next' }));
     });
 });
