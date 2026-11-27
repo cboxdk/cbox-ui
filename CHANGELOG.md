@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.1 — 2026-11-27
+
+### Fixed
+
+- **`CreateForm`** spaces every field the same: 14px between children, whatever they are. Before, only `CreateField` had space under it, so a `Field`, a `RadioGroup` or an app's own block in a create sheet sat flush, and a hint touched the next label.
+
 ## 0.16.0 — 2026-11-27
 
 ### Added
