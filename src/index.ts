@@ -105,6 +105,7 @@ export {
     type RadioOption,
 } from './primitives/radio-group';
 export { Spinner, type SpinnerProps } from './primitives/spinner';
+export { Slider, type SliderProps } from './primitives/slider';
 export { Switch, type SwitchProps } from './primitives/switch';
 
 // Cross-app surface runtime — single overlay layer (modal/drawer) that

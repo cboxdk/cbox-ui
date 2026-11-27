@@ -77,3 +77,18 @@ test('dialog keyboard: Tab stays inside, Escape closes and focus goes back', asy
     await expect(dialog).toHaveCount(0);
     await expect(opener).toBeFocused();
 });
+
+test('a stacked sheet dims the xl sheet underneath it, not only the page', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop', 'a phone shows one sheet at a time');
+    await page.emulateMedia({ reducedMotion: 'reduce' }); // measure the panels where they rest, not mid-slide
+    await page.goto('/?theme=light&controls=1&stacked=1');
+    const under = page.getByRole('dialog', { name: 'Transform' });
+    const top = page.getByRole('dialog', { name: 'Focal point' });
+    await expect(top).toBeVisible();
+    const wide = (await under.boundingBox())!;
+    const narrow = (await top.boundingBox())!;
+    expect(wide.width).toBeGreaterThan(narrow.width + 300);
+    // The part of the wide sheet left uncovered must be dimmed by the top sheet's scrim; the snapshot
+    // shows it (a hit test cannot: the sheet underneath is inert, so it is skipped either way).
+    await expect(page).toHaveScreenshot('light-stacked-sheets.png');
+});

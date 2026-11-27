@@ -18,7 +18,7 @@ import { useSheetDrag } from '../shell/sheet-drag';
 import { cn } from '../utils/cn';
 import { Button, type ButtonProps } from './button';
 
-export type SheetSize = 'sm' | 'md' | 'lg';
+export type SheetSize = 'sm' | 'md' | 'lg' | 'xl';
 
 export type SheetProps = {
     open: boolean;
@@ -28,7 +28,10 @@ export type SheetProps = {
     description?: ReactNode;
     /** The buttons, right-aligned in a footer that stays in view. Cancel first, the action last. */
     footer?: ReactNode;
-    /** The panel's width on a wide screen: 26rem, 30rem (default) or 44rem. A phone's sheet is full width. */
+    /**
+     * The panel's width on a wide screen: 26rem, 30rem (default), 44rem, or 72rem for work that needs
+     * room beside its controls, such as an editor with a live preview. A phone's sheet is full width.
+     */
     size?: SheetSize;
     /** Clicking the scrim (or dragging the phone's sheet down) closes it (default). Off for a form that would lose typed work. */
     dismissible?: boolean;

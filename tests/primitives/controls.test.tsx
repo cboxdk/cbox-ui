@@ -11,6 +11,7 @@ import { Dialog, DialogClose } from '../../src/primitives/sheet';
 import { Field } from '../../src/primitives/field';
 import { Input, Textarea } from '../../src/primitives/input';
 import { RadioGroup } from '../../src/primitives/radio-group';
+import { Slider } from '../../src/primitives/slider';
 import { Switch } from '../../src/primitives/switch';
 import { scrollLockCount } from '../../src/shell/scroll-lock';
 
@@ -248,6 +249,44 @@ describe('Switch', () => {
         expect(toggle.hasAttribute('required')).toBe(false);
         fireEvent.click(toggle);
         expect(onCheckedChange).toHaveBeenCalledWith(true);
+    });
+});
+
+describe('Slider', () => {
+    it('is a range named by its Field that reports numbers and fills the track up to its value', () => {
+        const onValueChange = vi.fn();
+        render(
+            <Field label="Brightness" hint="Negative darkens.">
+                <Slider value={-25} min={-100} max={100} onValueChange={onValueChange} valueText={(v) => `${v} percent`} />
+            </Field>,
+        );
+        const slider = screen.getByRole('slider', { name: 'Brightness' }) as HTMLInputElement;
+        expect(slider.getAttribute('aria-describedby')).toBe(screen.getByText('Negative darkens.').id);
+        expect(slider.getAttribute('aria-valuetext')).toBe('-25 percent');
+        // -25 on -100..100 is three eighths of the way, not a quarter.
+        expect(slider.style.getPropertyValue('--cbx-ui-slider-fill')).toBe('37.5%');
+        fireEvent.change(slider, { target: { value: '40' } });
+        expect(onValueChange).toHaveBeenCalledWith(40);
+    });
+
+    it('clamps the fill to the track and needs a name without a Field', () => {
+        render(<Slider aria-label="Blur" value={150} onValueChange={() => undefined} disabled />);
+        const slider = screen.getByRole('slider', { name: 'Blur' }) as HTMLInputElement;
+        expect(slider.style.getPropertyValue('--cbx-ui-slider-fill')).toBe('100%');
+        expect(slider.disabled).toBe(true);
+    });
+});
+
+describe('Sheet sizes', () => {
+    it('offers a 72rem xl panel beside sm, md and lg', () => {
+        const css = readFileSync(join(process.cwd(), 'tokens/controls.css'), 'utf8');
+        expect(css).toContain('.cbx-ui-sheet--xl { width: min(72rem, calc(100vw - 48px)); }');
+        render(
+            <Dialog open size="xl" onOpenChange={() => undefined} title="Transform">
+                Body
+            </Dialog>,
+        );
+        expect(screen.getByRole('dialog', { name: 'Transform' }).classList.contains('cbx-ui-sheet--xl')).toBe(true);
     });
 });
 

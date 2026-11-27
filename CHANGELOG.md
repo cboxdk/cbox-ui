@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.16.0 — 2026-11-27
+
+### Added
+
+- **`Slider`**: a value in a range, such as brightness or a crop's zoom. It is a native `<input type="range">`, so pointer, touch, arrow keys, Page Up/Down, Home/End and screen readers work as the platform does. The track fills up to the value in the theme's primary colour, light and dark. Inside a `<Field>` the Field's label and hint name and describe it; without one, pass `aria-label`. `valueText` sets what a screen reader says for the value ("40 percent").
+- **`Sheet` size `xl`**: 72rem on a wide screen, for work that needs room beside its controls, such as an editor with a live preview. A phone's sheet stays full width.
+
+### Fixed
+
+- A sheet opened from another sheet now dims the sheet underneath as well as the page. Both scrims and both panels shared one stacking order, so the second scrim went under the first panel and the two panels read as one surface.
+
 ## 0.15.7 — 2026-11-27
 
 ### Fixed

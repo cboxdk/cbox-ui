@@ -1,4 +1,4 @@
-/* Form controls and the dialog: Button, Field, Input, Textarea, Checkbox, RadioGroup, Switch,
+/* Form controls and the dialog: Button, Field, Input, Textarea, Checkbox, RadioGroup, Switch, Slider,
  * Spinner, Dialog. Plain CSS on the shared tokens, so it needs no Tailwind scan of the package.
  *
  * Everything sits in `@layer components`. In a Tailwind v4 app that layer is already ordered
@@ -14,6 +14,7 @@
     .cbx-ui-check,
     .cbx-ui-radio,
     .cbx-ui-switch,
+    .cbx-ui-slider,
     .cbx-ui-sheet,
     .cbx-ui-iconbtn {
         --cbx-ui-ease: cubic-bezier(.4, 0, .2, 1);
@@ -188,6 +189,52 @@
     .cbx-ui-radio.is-disabled .cbx-ui-radio-label,
     .cbx-ui-check.is-disabled .cbx-ui-check-label { cursor: not-allowed; opacity: 0.6; }
 
+    /* ── Slider: a 4px track filled up to the value, a 16px thumb; 20px tall like a Switch. */
+    .cbx-ui-slider {
+        --cbx-ui-slider-fill: 0%;
+        display: block;
+        width: 100%;
+        height: 20px;
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+    .cbx-ui-slider:disabled { opacity: 0.5; cursor: not-allowed; }
+    .cbx-ui-slider:focus-visible { outline: none; }
+    .cbx-ui-slider::-webkit-slider-runnable-track {
+        height: 4px;
+        border-radius: 9999px;
+        background: linear-gradient(to right, var(--primary) var(--cbx-ui-slider-fill), var(--control-border) var(--cbx-ui-slider-fill));
+    }
+    .cbx-ui-slider::-moz-range-track { height: 4px; border-radius: 9999px; background: var(--control-border); }
+    .cbx-ui-slider::-moz-range-progress { height: 4px; border-radius: 9999px; background: var(--primary); }
+    .cbx-ui-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        margin-top: -6px;
+        border: 2px solid var(--primary);
+        border-radius: 9999px;
+        background: var(--background);
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+        transition: transform 150ms var(--cbx-ui-ease);
+    }
+    .cbx-ui-slider::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        border: 2px solid var(--primary);
+        border-radius: 9999px;
+        background: var(--background);
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+    }
+    .cbx-ui-slider:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--ring); outline-offset: 2px; }
+    .cbx-ui-slider:focus-visible::-moz-range-thumb { outline: 2px solid var(--ring); outline-offset: 2px; }
+    .cbx-ui-slider:not(:disabled):active::-webkit-slider-thumb { transform: scale(1.15); }
+
     /* ── Switch: 36×20, a 16px thumb. */
     .cbx-ui-switch {
         position: relative;
@@ -244,6 +291,9 @@
 
     /* ── Sheet: never a centred modal. A bottom sheet on a phone, a panel from the right from
        768px. The body is the only scroller, so the title and the actions stay put. */
+    /* Each open sheet is one layer with its own stacking context, so a sheet opened from another
+       one (a stack) lays its scrim over the sheet underneath as well as over the page. */
+    [data-cbx-dialog-layer] { position: relative; z-index: 90; }
     .cbx-ui-overlay {
         position: fixed;
         inset: 0;
@@ -291,6 +341,7 @@
         }
         .cbx-ui-sheet--sm { width: min(26rem, calc(100vw - 48px)); }
         .cbx-ui-sheet--lg { width: min(44rem, calc(100vw - 48px)); }
+        .cbx-ui-sheet--xl { width: min(72rem, calc(100vw - 48px)); }
         .cbx-ui-sheet-handle { display: none; }
     }
     .cbx-ui-sheet-head { display: flex; flex: none; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 16px 14px 20px; border-bottom: 1px solid var(--border); }

@@ -13,7 +13,7 @@
  * translates Help's footer (the words that run longest in other languages) and `portal=0` leaves
  * the support portal out, as for an app without one.
  */
-import { StrictMode, useState, type ReactNode } from 'react';
+import { StrictMode, useEffect, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BarChart, WaterfallChart } from '../../src/charts';
 import { CboxShell, applyTheme } from '../../src/shell';
@@ -27,6 +27,7 @@ import { Dialog, DialogClose } from '../../src/primitives/sheet';
 import { Field } from '../../src/primitives/field';
 import { Input, Textarea } from '../../src/primitives/input';
 import { RadioGroup } from '../../src/primitives/radio-group';
+import { Slider } from '../../src/primitives/slider';
 import { Switch } from '../../src/primitives/switch';
 
 const params = new URLSearchParams(window.location.search);
@@ -168,6 +169,7 @@ function Controls() {
     const [summary, setSummary] = useState(true);
     const [region, setRegion] = useState<string>('hel1');
     const [live, setLive] = useState(true);
+    const [brightness, setBrightness] = useState(30);
     return (
         <div className="fixture-controls">
             <h1 className="fixture-title">Controls</h1>
@@ -224,7 +226,14 @@ function Controls() {
                 <Field label="Maintenance mode">
                     <Switch checked={live} onCheckedChange={setLive} />
                 </Field>
+                <Field label="Brightness">
+                    <Slider value={brightness} min={-100} max={100} onValueChange={setBrightness} />
+                </Field>
+                <Field label="Blur">
+                    <Slider value={0} onValueChange={() => undefined} disabled />
+                </Field>
             </div>
+            {params.get('stacked') === '1' && <Stacked />}
             <Dialog
                 open={dialog}
                 onOpenChange={setDialog}
@@ -244,6 +253,20 @@ function Controls() {
                 ) : null}
             </Dialog>
         </div>
+    );
+}
+
+/** A wide sheet with a second one opened on top of it afterwards, as a person would. */
+function Stacked() {
+    const [top, setTop] = useState(false);
+    useEffect(() => setTop(true), []);
+    return (
+        <Dialog open size="xl" onOpenChange={() => undefined} title="Transform" description="The wide sheet underneath.">
+            <p>Preview and controls.</p>
+            <Dialog open={top} onOpenChange={setTop} title="Focal point" description="Stacked on top.">
+                <p>The point.</p>
+            </Dialog>
+        </Dialog>
     );
 }
 
