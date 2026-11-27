@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.7 — 2026-11-27
+
+### Fixed
+
+- Help keeps the same chat iframe when switching between desktop and mobile widths, preserving the conversation and unsent draft. Back, Continue and Close remain usable after resizing.
+
 ## 0.15.6 — 2026-11-26
 
 ### Fixed

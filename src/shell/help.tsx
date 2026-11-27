@@ -581,84 +581,52 @@ export function HelpColumn({ docked, mobile = false }: { docked: boolean; mobile
         if (view !== 'chat') store.set({ scrollTop: top });
     };
 
-    if (mobile) {
-        return (
-            <div ref={scrim} className="cbx-overlay cbx-sheet-backdrop" hidden={!open} {...scrimHandlers(close)}>
-                <div
-                    ref={column}
-                    id="cbx-help"
-                    className="cbx-sheet cbx-sheet-bottom is-tall cbx-help-sheet"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label={t('Help with {page}', { page: topic })}
-                    tabIndex={-1}
-                    onKeyDown={event => {
-                        if (event.key === 'Escape' && !event.defaultPrevented) {
-                            event.preventDefault();
-                            close();
-                        }
-                        trapTab(event, column.current);
-                    }}
-                >
-                    <div className="cbx-sheet-handle cbx-sheet-grab" aria-hidden="true" />
-                    <div className={`cbx-sheet-head cbx-sheet-grab ${view !== 'home' ? 'has-back' : ''}`}>
-                        {view !== 'home' && (
-                            <button type="button" className="cbx-sheet-back" onClick={back} aria-label={t('Back to Help')}>
-                                <ChevronLeft size={20} strokeWidth={1.8} aria-hidden />
-                            </button>
-                        )}
-                        <h2 className="cbx-sheet-title cbx-truncate">{view === 'article' ? t('Article') : view === 'chat' ? t('Ask Cbox') : t('Help with {page}', { page: topic })}</h2>
-                        <button type="button" className="cbx-icon-button" onClick={close} aria-label={t('Close Help')}>
-                            <X size={18} strokeWidth={1.8} aria-hidden />
-                        </button>
-                    </div>
-                    {view === 'chat' && context(true)}
-                    <div ref={body} className={`cbx-sheet-body ${view === 'chat' ? 'is-chat' : ''}`} data-cbx-sheet-scroll="" onScroll={event => onScroll(event.currentTarget.scrollTop)}>
-                        {content}
-                    </div>
-                    {foot}
-                </div>
-            </div>
-        );
-    }
-
+    // Keep the SDK element (including its iframe and unsent draft) mounted when the
+    // column becomes a phone sheet. Reopening a replacement loses in-flight chat state.
     return (
         <div
-            ref={column}
-            id="cbx-help"
-            className={`cbx-help ${docked ? 'is-docked' : 'is-overlay'}`}
+            ref={scrim}
+            className={mobile ? 'cbx-overlay cbx-sheet-backdrop' : undefined}
+            style={mobile ? undefined : { display: 'contents' }}
             hidden={!open}
-            data-restored={restored ? 'true' : undefined}
-            aria-label={t('Help')}
-            role={docked ? 'complementary' : 'dialog'}
-            aria-modal={docked ? undefined : true}
-            tabIndex={-1}
-            onKeyDown={event => {
-                if (event.key === 'Escape' && !event.defaultPrevented) {
-                    event.preventDefault();
-                    close();
-                }
-                if (!docked) trapTab(event, column.current);
-            }}
+            {...(mobile ? scrimHandlers(close) : {})}
         >
-            <div className="cbx-help-head">
-                {view !== 'home' ? (
-                    <button type="button" className="cbx-icon-button" onClick={back} aria-label={t('Back to Help')}>
-                        <ArrowLeft size={18} strokeWidth={1.8} aria-hidden />
+            <div
+                ref={column}
+                id="cbx-help"
+                className={mobile ? 'cbx-sheet cbx-sheet-bottom is-tall cbx-help-sheet' : `cbx-help ${docked ? 'is-docked' : 'is-overlay'}`}
+                hidden={!open}
+                data-restored={!mobile && restored ? 'true' : undefined}
+                aria-label={mobile ? t('Help with {page}', { page: topic }) : t('Help')}
+                role={!mobile && docked ? 'complementary' : 'dialog'}
+                aria-modal={!mobile && docked ? undefined : true}
+                tabIndex={-1}
+                onKeyDown={event => {
+                    if (event.key === 'Escape' && !event.defaultPrevented) {
+                        event.preventDefault();
+                        close();
+                    }
+                    if (mobile || !docked) trapTab(event, column.current);
+                }}
+            >
+                {mobile && <div className="cbx-sheet-handle cbx-sheet-grab" aria-hidden="true" />}
+                <div className={mobile ? `cbx-sheet-head cbx-sheet-grab ${view !== 'home' ? 'has-back' : ''}` : 'cbx-help-head'}>
+                    {view !== 'home' ? (
+                        <button type="button" className={mobile ? 'cbx-sheet-back' : 'cbx-icon-button'} onClick={back} aria-label={t('Back to Help')}>
+                            {mobile ? <ChevronLeft size={20} strokeWidth={1.8} aria-hidden /> : <ArrowLeft size={18} strokeWidth={1.8} aria-hidden />}
+                        </button>
+                    ) : !mobile && <LifeBuoy className="cbx-help-mark" size={18} strokeWidth={1.8} aria-hidden />}
+                    <h2 className={mobile ? 'cbx-sheet-title cbx-truncate' : 'cbx-help-title'}>{view === 'article' ? t('Article') : view === 'chat' ? t('Ask Cbox') : mobile ? t('Help with {page}', { page: topic }) : t('Help')}</h2>
+                    <button type="button" className="cbx-icon-button" onClick={close} aria-label={t('Close Help')}>
+                        <X size={18} strokeWidth={1.8} aria-hidden />
                     </button>
-                ) : (
-                    <LifeBuoy className="cbx-help-mark" size={18} strokeWidth={1.8} aria-hidden />
-                )}
-                <h2 className="cbx-help-title">{view === 'article' ? t('Article') : view === 'chat' ? t('Ask Cbox') : t('Help')}</h2>
-                <button type="button" className="cbx-icon-button" onClick={close} aria-label={t('Close Help')}>
-                    <X size={18} strokeWidth={1.8} aria-hidden />
-                </button>
+                </div>
+                {view === 'chat' && context(true)}
+                <div ref={body} className={`${mobile ? 'cbx-sheet-body' : 'cbx-help-body'} ${view === 'chat' ? 'is-chat' : ''}`} data-cbx-sheet-scroll={mobile ? '' : undefined} onScroll={event => onScroll(event.currentTarget.scrollTop)}>
+                    {content}
+                </div>
+                {foot}
             </div>
-            {view === 'chat' && context(true)}
-            <div ref={body} className={`cbx-help-body ${view === 'chat' ? 'is-chat' : ''}`} onScroll={event => onScroll(event.currentTarget.scrollTop)}>
-                {content}
-            </div>
-            {foot}
         </div>
     );
 }

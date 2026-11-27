@@ -227,6 +227,42 @@ for (const theme of ['light', 'dark'] as const) {
     });
 }
 
+test('open chat and its unsent draft survive desktop and phone layout changes', async ({ page }) => {
+    // Only the SDK is a stand-in; the shell, responsive layout and iframe lifecycle are real.
+    await page.route('**/support-stub.js', route => route.fulfill({
+        contentType: 'text/javascript',
+        body: `customElements.define('cbox-support', class extends HTMLElement {
+            open() {
+                if (!this.querySelector('iframe')) {
+                    const frame = document.createElement('iframe');
+                    frame.title = 'Test support conversation';
+                    frame.srcdoc = '<p>Existing support conversation</p><label>Message<textarea></textarea></label>';
+                    this.append(frame);
+                }
+                this.dispatchEvent(new CustomEvent('cbox-support:open', {detail: {inline: true}, bubbles: true}));
+            }
+            close() {}
+        });`,
+    }));
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await open(page, 'light');
+    await page.getByRole('button', { name: /^Help/ }).click();
+    await page.getByRole('button', { name: /^Ask Cbox Answers/ }).click();
+    const chat = page.frameLocator('iframe[title="Test support conversation"]');
+    await chat.getByRole('textbox', { name: 'Message' }).fill('Keep this unsent draft');
+    for (const width of [390, 1100, 1440, 390]) {
+        await page.setViewportSize({ width, height: 844 });
+        await expect(chat.getByText('Existing support conversation')).toBeVisible();
+        await expect(chat.getByRole('textbox', { name: 'Message' })).toHaveValue('Keep this unsent draft');
+        await page.getByRole('button', { name: 'Back to Help' }).click();
+        await expect(page.getByRole('textbox', { name: 'Search or ask…' })).toBeVisible();
+        await page.getByRole('button', { name: /^Continue the conversation/ }).click();
+        await expect(chat.getByRole('textbox', { name: 'Message' })).toBeVisible();
+    }
+    await page.getByRole('button', { name: 'Close Help' }).click();
+    await expect(page.getByRole('dialog', { name: 'Help with Deployments' })).toBeHidden();
+});
+
 // Help, Search, Switch app and "+" leave the pill's text column narrower than a long name. Each
 // line must end in an ellipsis inside the pill, clear of the chevron.
 test('phone context pill cuts long names short of its chevron', async ({ page, isMobile }) => {
